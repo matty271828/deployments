@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       domain:
-        description: 'Domain name to be configured'
+        description: 'Domain Name'
         required: true
         type: string
 
