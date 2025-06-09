@@ -1,0 +1,22 @@
+name: Configure Domain
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain name to be configured'
+        required: true
+        type: string
+
+jobs:
+  configure-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check nameservers
+        uses: ./.github/actions/check_nameservers
+        with:
+          domain: ${{ github.event.inputs.domain }} 
+
+    # TODO: Add actions to create DNS records, load balancer, VM, HTTPS
+    # Ensure we can reuse the same VM and load balancer for multiple domains
+
