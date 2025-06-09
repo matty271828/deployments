@@ -64,7 +64,7 @@ runs:
         fi
 
         # Get token details from Cloudflare API
-        TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+        TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/tokens/verify" \
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
 
