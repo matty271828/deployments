@@ -28,6 +28,12 @@ runs:
       run: |
         git fetch origin main
         git checkout origin/main -- terraform/ || true
+
+    - name: Terraform Init
+      working-directory: ./terraform
+      shell: bash
+      run: |
+        terraform init -upgrade 
         
     - name: Terraform Apply
       id: terraform
