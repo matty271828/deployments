@@ -70,7 +70,7 @@ runs:
       git config --global user.name "github-actions"
       git config --global user.email "github-actions@github.com"
       git add terraform/terraform.tfstate
-      git commit -m "Update Terraform state"
+      git commit -m "Save Result of Terraform Apply"
 
   - name: Push state file
     if: env.changes == 'true'

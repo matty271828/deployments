@@ -39,7 +39,7 @@ runs:
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add terraform/.terraform terraform/.terraform.lock.hcl
-        git commit -m "Update Terraform provider and module dependencies"
+        git commit -m "Save Result of Terraform Init"
 
     - name: Push Terraform files
       if: env.changes == 'true'
