@@ -1,0 +1,49 @@
+name: 'Check Nameservers'
+description: 'Checks if a domain is using Cloudflare nameservers and provides detailed instructions if not'
+
+inputs:
+  domain:
+    description: 'Domain to check nameservers for'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check nameservers
+      shell: bash
+      run: |
+        # Get nameservers using dig
+        NS=$(dig NS ${{ inputs.domain }} +short)
+        
+        # Check if any nameserver contains cloudflare
+        if echo "$NS" | grep -q "cloudflare"; then
+          echo "Success: Domain is using Cloudflare nameservers"
+        else
+          echo "## Nameserver Check Failed"
+          echo ""
+          echo "The nameservers for domain \`${{ inputs.domain }}\` are not configured correctly."
+          echo ""
+          echo "### Current Nameservers"
+          echo "\`\`\`"
+          echo "$NS"
+          echo "\`\`\`"
+          echo ""
+          echo "### Required Action"
+          echo "Please update your domain's nameservers to use Cloudflare's nameservers:"
+          echo ""
+          echo "\`\`\`"
+          echo "ns1.cloudflare.com"
+          echo "ns2.cloudflare.com"
+          echo "\`\`\`"
+          echo ""
+          echo "### How to Update Nameservers"
+          echo "1. Log in to your domain registrar's website"
+          echo "2. Find the DNS or Nameserver settings for your domain"
+          echo "3. Replace the existing nameservers with Cloudflare's nameservers"
+          echo "4. Save the changes"
+          echo ""
+          echo "Note: Nameserver changes can take up to 24-48 hours to propagate."
+          echo ""
+          echo "Once you've updated the nameservers, please run this workflow again."
+          exit 1
+        fi 

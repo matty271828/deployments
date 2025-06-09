@@ -1,0 +1,21 @@
+name: Check Nameservers
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain name to check nameservers for'
+        required: true
+        type: string
+
+jobs:
+  check-nameservers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check nameservers
+        uses: ./.github/actions/check-nameservers
+        with:
+          domain: ${{ github.event.inputs.domain }} 
