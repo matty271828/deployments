@@ -31,7 +31,7 @@ This repository provides an automated deployment pipeline that enables multiple 
 ## Deployment Process
 
 1. **Infrastructure Provisioning**:
-   - Terraform manages the creation and configuration of DigitalOcean droplets
+   - Terraform manages the creation and configuration of domain records, load balancer, DigitalOcean virtual machine and nginx configuration.
    - Infrastructure is created only if it doesn't already exist
    - New projects are deployed to existing infrastructure when possible
 
@@ -58,10 +58,3 @@ The deployment system will:
 - Build your application
 - Deploy it to the shared infrastructure
 - Configure all necessary networking and security settings
-
-## Infrastructure Components
-
-- **DigitalOcean Droplets**: Shared compute resources
-- **Networking**: Managed through Terraform
-- **Security**: Automated firewall and security group configuration
-- **Databases**: (Planned) Shared database instances with project isolation
