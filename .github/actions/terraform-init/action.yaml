@@ -28,12 +28,10 @@ runs:
         git fetch origin main
         if git diff origin/main -- terraform/.terraform terraform/.terraform.lock.hcl | grep .; then
           echo "changes=true" >> $GITHUB_ENV
-          echo "env.changes is: ${{ env.changes }}"
         else
           echo "changes=false" >> $GITHUB_ENV
-          echo "env.changes is: ${{ env.changes }}"
         fi
-
+        
     - name: Print changes env var
       shell: bash
       run: |
