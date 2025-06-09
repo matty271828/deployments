@@ -48,8 +48,8 @@ runs:
         fi
         exit $exit_code
       env:
-        TF_VAR_CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-        TF_VAR_CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
+        TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_LOG: DEBUG
 
