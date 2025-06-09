@@ -31,13 +31,78 @@ runs:
       shell: bash
       run: |
         if [ -z "${{ inputs.cloudflare_api_token }}" ]; then
-          echo "::error::Cloudflare API Token is missing. Please add it to your repository secrets:"
+          echo "::error::Cloudflare API Token is missing"
+          echo ""
+          echo "Please create a new API Token with the following permissions:"
+          echo ""
+          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
+          echo "2. Click 'Create Token'"
+          echo "3. Choose 'Create Custom Token'"
+          echo "4. Set these permissions:"
+          echo "   - Account Settings: Read"
+          echo "   - Zone: Edit"
+          echo "   - Zone Settings: Edit"
+          echo "5. Set Account Resources to 'All accounts'"
+          echo "6. Set Zone Resources to 'All zones'"
+          echo ""
+          echo "Once you have created the token:"
           echo "1. Go to your repository settings"
           echo "2. Navigate to Secrets and Variables > Actions"
           echo "3. Click 'New repository secret'"
           echo "4. Name: CLOUDFLARE_API_TOKEN"
-          echo "5. Value: Your Cloudflare API token"
+          echo "5. Value: Your new API token"
           echo "6. Click 'Add secret'"
           exit 1
         fi
         echo "✅ Cloudflare API Token is present"
+
+    - name: Check Token Permissions
+      shell: bash
+      run: |
+        # Install jq if not present
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update && sudo apt-get install -y jq
+        fi
+
+        # Get token details from Cloudflare API
+        TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+
+        # Check if the API call was successful
+        if echo "$TOKEN_INFO" | jq -e '.success == true' > /dev/null; then
+          # Extract permissions
+          PERMISSIONS=$(echo "$TOKEN_INFO" | jq -r '.result.status')
+          
+          # Check if it's an account token
+          if [[ "$PERMISSIONS" != "active" ]]; then
+            echo "::error::Invalid API Token: Token is not active"
+            exit 1
+          fi
+
+          # Get token details
+          TOKEN_DETAILS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+
+          # Check if token has required permissions
+          if ! echo "$TOKEN_DETAILS" | jq -e '.result[] | select(.policies[] | .resources.account.id == "*" and .permission_groups[] | contains("zone") and contains("account"))' > /dev/null; then
+            echo "::error::Invalid API Token Permissions"
+            echo "Please create a new Account level API Token with the following permissions:"
+            echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
+            echo "2. Click 'Create Token'"
+            echo "3. Choose 'Create Custom Token'"
+            echo "4. Set these permissions:"
+            echo "   - Account Settings: Read"
+            echo "   - Zone: Edit"
+            echo "   - Zone Settings: Edit"
+            echo "5. Set Account Resources to 'All accounts'"
+            echo "6. Set Zone Resources to 'All zones'"
+            exit 1
+          fi
+          
+          echo "✅ API Token has correct permissions"
+        else
+          echo "::error::Invalid API Token: Could not verify token"
+          exit 1
+        fi
