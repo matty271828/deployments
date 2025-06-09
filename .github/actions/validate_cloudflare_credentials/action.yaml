@@ -64,6 +64,13 @@ runs:
           sudo apt-get update && sudo apt-get install -y jq
         fi
 
+        # Define required permissions
+        declare -A REQUIRED_PERMISSIONS=(
+          ["account"]="read"    # Account Settings: Read
+          ["zone"]="edit"       # Zone: Edit
+          ["zone_settings"]="edit"  # Zone Settings: Edit
+        )
+
         # Get token details from Cloudflare API
         TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
@@ -86,16 +93,55 @@ runs:
             -H "Content-Type: application/json")
 
           # Check if token has required permissions
-          if ! echo "$TOKEN_DETAILS" | jq -e '.result[] | select(.policies[] | .resources.account.id == "*" and .permission_groups[] | contains("zone") and contains("account"))' > /dev/null; then
+          # First, check if we can get the token details
+          if ! echo "$TOKEN_DETAILS" | jq -e '.result' > /dev/null; then
+            echo "::error::Could not retrieve token details from Cloudflare API"
+            exit 1
+          fi
+
+          # Extract token policies
+          TOKEN_POLICIES=$(echo "$TOKEN_DETAILS" | jq -r '.result[].policies[]')
+          
+          # Check for account-level access
+          HAS_ACCOUNT_ACCESS=$(echo "$TOKEN_POLICIES" | jq -r 'select(.resources.account.id == "*")' 2>/dev/null)
+          
+          # Check for zone permissions
+          HAS_ZONE_PERMISSIONS=$(echo "$TOKEN_POLICIES" | jq -r 'select(.resources.zone.id == "*")' 2>/dev/null)
+          
+          # If either check fails, the token doesn't have the required permissions
+          if [[ -z "$HAS_ACCOUNT_ACCESS" ]] || [[ -z "$HAS_ZONE_PERMISSIONS" ]]; then
             echo "::error::Invalid API Token Permissions"
+            
+            # Extract and check specific permissions
+            ACCOUNT_ACCESS=$(echo "$TOKEN_DETAILS" | jq -r '.result[].policies[] | select(.resources.account.id == "*") | .permission_groups[]' 2>/dev/null)
+            ZONE_PERMISSIONS=$(echo "$TOKEN_DETAILS" | jq -r '.result[].policies[] | select(.resources.zone.id == "*") | .permission_groups[]' 2>/dev/null)
+            
+            echo "Missing required permissions:"
+            if [[ -z "$ACCOUNT_ACCESS" ]]; then
+              echo "❌ Account-level access (Account Resources should be set to 'All accounts')"
+            else
+              echo "✅ Account-level access"
+            fi
+            
+            # Check each required permission
+            for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
+              required_level="${REQUIRED_PERMISSIONS[$permission]}"
+              if ! echo "$ZONE_PERMISSIONS" | grep -q "${permission}_${required_level}"; then
+                echo "❌ ${permission^}: ${required_level^} permission missing"
+              else
+                echo "✅ ${permission^}: ${required_level^} permission present"
+              fi
+            done
+            
+            echo ""
             echo "Please create a new Account level API Token with the following permissions:"
             echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
             echo "2. Click 'Create Token'"
             echo "3. Choose 'Create Custom Token'"
             echo "4. Set these permissions:"
-            echo "   - Account Settings: Read"
-            echo "   - Zone: Edit"
-            echo "   - Zone Settings: Edit"
+            for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
+              echo "   - ${permission^}: ${REQUIRED_PERMISSIONS[$permission]^}"
+            done
             echo "5. Set Account Resources to 'All accounts'"
             echo "6. Set Zone Resources to 'All zones'"
             exit 1
@@ -103,6 +149,24 @@ runs:
           
           echo "✅ API Token has correct permissions"
         else
-          echo "::error::Invalid API Token: Could not verify token"
+          # Extract error message from API response
+          ERROR_MESSAGE=$(echo "$TOKEN_INFO" | jq -r '.errors[0].message // "Unknown error"')
+          echo "::error::Invalid API Token: $ERROR_MESSAGE"
+          echo ""
+          echo "This could be because:"
+          echo "1. The token is malformed or invalid"
+          echo "2. The token has been revoked"
+          echo "3. You're using a Global API Key instead of an API Token"
+          echo ""
+          echo "Please create a new Account level API Token with the following permissions:"
+          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
+          echo "2. Click 'Create Token'"
+          echo "3. Choose 'Create Custom Token'"
+          echo "4. Set these permissions:"
+          for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
+            echo "   - ${permission^}: ${REQUIRED_PERMISSIONS[$permission]^}"
+          done
+          echo "5. Set Account Resources to 'All accounts'"
+          echo "6. Set Zone Resources to 'All zones'"
           exit 1
         fi
