@@ -63,9 +63,28 @@ runs:
           sudo apt-get update && sudo apt-get install -y jq
         fi
 
+        # Validate token format
+        TOKEN="${{ inputs.cloudflare_api_token }}"
+        if ! [[ "$TOKEN" =~ ^[a-zA-Z0-9_-]{40}$ ]]; then
+          echo "::error::Invalid API Token format"
+          echo "API tokens must be 40 characters long and only contain characters a-z, A-Z, 0-9, hyphens and underscores"
+          echo ""
+          echo "Please create a new Account level API Token:"
+          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
+          echo "2. Click 'Create Token'"
+          echo "3. Choose 'Create Custom Token'"
+          echo "4. Set these permissions:"
+          echo "   - Account Settings: Read"
+          echo "   - Zone: Edit"
+          echo "   - Zone Settings: Edit"
+          echo "5. Set Account Resources to 'All accounts'"
+          echo "6. Set Zone Resources to 'All zones'"
+          exit 1
+        fi
+
         # Get token details from Cloudflare API
         TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/tokens/verify" \
-          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Authorization: Bearer $TOKEN" \
           -H "Content-Type: application/json")
 
         # Check if the API call was successful
