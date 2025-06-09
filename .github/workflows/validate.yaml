@@ -15,6 +15,10 @@ on:
         required: true
       GH_PERSONAL_ACCESS_TOKEN:
         required: true
+      DIGITALOCEAN_SSH_PRIVATE_KEY:
+        required: true
+      DIGITAL_OCEAN_SSH_KEY_NAME:
+        required: true
 
 jobs:
   check-nameservers:
@@ -30,7 +34,7 @@ jobs:
           domain: ${{ inputs.domain }}
           
   check-cloudflare-credentials:
-    name: 'Cloudflare'
+    name: 'Cloudflare Access'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -43,7 +47,7 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   check-github-access:
-    name: 'GitHub'
+    name: 'GitHub Access'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -53,6 +57,19 @@ jobs:
         uses: ./.github/actions/validate_github_access
         with:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+  check-digitalocean-ssh:
+    name: 'Digital Ocean Access'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Digital Ocean SSH Keys
+        uses: ./.github/actions/validate_digitalocean_ssh
+        with:
+          digitalocean_ssh_private_key: ${{ secrets.DIGITALOCEAN_SSH_PRIVATE_KEY }}
+          digitalocean_ssh_key_name: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
 
     # TODO: Add actions to create DNS records, load balancer, VM, HTTPS
     # Ensure we can reuse the same VM and load balancer for multiple domains
