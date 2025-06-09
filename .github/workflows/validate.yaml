@@ -1,5 +1,5 @@
-name: Validate Cloudflare
-description: 'Checks that the domain is using Cloudflare nameservers and that the cloudflare credentials are present in the repo secrets and variables'
+name: Validate
+description: 'Checks that the domain is using Cloudflare nameservers and that all required secrets and variables are present'
 
 on:
   workflow_call:
@@ -15,7 +15,7 @@ on:
         required: true
 
 jobs:
-  check-nameservers:
+  nameservers:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,7 +26,7 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           
-  check-cloudflare-credentials:
+  cloudflare:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

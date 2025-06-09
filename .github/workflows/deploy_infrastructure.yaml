@@ -10,9 +10,9 @@ on:
         type: string
 
 jobs:
-  cloudflare:
-    name: 'Validate Cloudflare'
-    uses: ./.github/workflows/cloudflare_validation.yaml
+  validate:
+    name: 'Validate'
+    uses: ./.github/workflows/validate.yaml
     with:
       domain: ${{ inputs.domain }}
     secrets:
@@ -21,7 +21,7 @@ jobs:
 
   terraform:
     name: 'Terraform'
-    needs: cloudflare
+    needs: validate
     uses: ./.github/workflows/terraform.yaml
     with:
       domain: ${{ inputs.domain }}
