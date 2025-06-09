@@ -15,7 +15,8 @@ on:
         required: true
 
 jobs:
-  nameservers:
+  check-nameservers:
+    name: 'Nameservers'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,7 +27,8 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           
-  cloudflare:
+  check-cloudflare-credentials:
+    name: 'Cloudflare'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

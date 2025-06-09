@@ -16,7 +16,7 @@ on:
 
 jobs:
   terraform-init:
-    name: 'Terraform Init'
+    name: 'Init'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,7 +31,7 @@ jobs:
         uses: ./.github/actions/terraform-init
 
   terraform-plan:
-    name: 'Terraform Plan'
+    name: 'Plan'
     runs-on: ubuntu-latest
     needs: terraform-init
     steps:
