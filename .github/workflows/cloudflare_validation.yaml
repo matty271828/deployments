@@ -1,4 +1,4 @@
-name: Cloudflare Validation
+name: Validate Cloudflare
 description: 'Checks that the domain is using Cloudflare nameservers and that the cloudflare credentials are present in the repo secrets and variables'
 
 on:
