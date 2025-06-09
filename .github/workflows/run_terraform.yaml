@@ -1,0 +1,43 @@
+name: Terraform Workflow
+
+on:
+    workflow_dispatch:
+      inputs:
+        domain:
+          description: 'Domain Name'
+          required: true
+          type: string  
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        uses: ./.github/actions/terraform-init
+        with:
+          working-directory: terraform
+
+      - name: Terraform Plan
+        uses: ./.github/actions/terraform-plan
+        with:
+          working-directory: terraform
+          domain: ${{ inputs.domain }}
+
+      - name: Terraform Apply
+        uses: ./.github/actions/terraform-apply
+        with:
+          working-directory: terraform
+          domain: ${{ inputs.domain }}

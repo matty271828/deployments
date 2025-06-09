@@ -1,0 +1,11 @@
+name: 'Terraform Init'
+description: 'Initialize Terraform working directory'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Terraform Init
+      shell: bash
+      working-directory: ./terraform
+      run: |
+        terraform init -upgrade 

@@ -1,0 +1,22 @@
+name: 'Terraform Plan'
+description: 'Create Terraform execution plan'
+
+inputs:
+  working-directory:
+    description: 'Working directory for Terraform'
+    required: true
+  domain:
+    description: 'Domain name for the deployment'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Terraform Plan
+      shell: bash
+      working-directory: ./terraform
+      run: |
+        terraform plan -out=tfplan 
+      env:
+        TF_VAR_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        TF_VAR_CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
