@@ -43,3 +43,37 @@ runs:
         TF_VAR_CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domain: ${{ inputs.domain }}
         TF_LOG: DEBUG
+
+    - name: Check for State File Changes
+    id: check_state_changes
+    if: always()
+    run: |
+      git fetch origin main
+      if git diff origin/main -- terraform/terraform.tfstate | grep .; then
+        echo "changes=true" >> $GITHUB_ENV
+      else
+        echo "changes=false" >> $GITHUB_ENV
+      fi
+
+  - name: Commit state file
+    if: env.changes == 'true'
+    run: |
+      git config --global user.name "github-actions"
+      git config --global user.email "github-actions@github.com"
+      git add terraform/terraform.tfstate
+      git commit -m "Update Terraform state"
+
+  - name: Push state file
+    if: env.changes == 'true'
+    uses: ad-m/github-push-action@master
+    with:
+      github_token: ${{ secrets.GH_PAT }}
+      branch: main
+
+  - name: Check for Terraform Errors
+    if: always()
+    run: |
+      if [ "${{ steps.build_and_deliver.outputs.terraform_error }}" == "true" ]; then
+        echo "Terraform operations encountered errors"
+        exit 1
+      fi
