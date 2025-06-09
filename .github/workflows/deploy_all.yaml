@@ -15,10 +15,16 @@ jobs:
     uses: ./.github/workflows/cloudflare_validation.yaml
     with:
       domain: ${{ inputs.domain }}
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   run-terraform:
     name: 'Run Terraform Deployment'
     needs: validate-cloudflare
     uses: ./.github/workflows/run_terraform.yaml
     with:
-      domain: ${{ inputs.domain }} 
+      domain: ${{ inputs.domain }}
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

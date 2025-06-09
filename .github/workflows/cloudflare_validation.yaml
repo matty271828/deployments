@@ -14,6 +14,11 @@ on:
         description: 'Domain Name'
         required: true
         type: string
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
 
 jobs:
   check-nameservers:
@@ -25,7 +30,7 @@ jobs:
       - name: Check Cloudflare nameservers
         uses: ./.github/actions/check_cloudflare_nameservers
         with:
-          domain: ${{ github.event.inputs.domain }}
+          domain: ${{ inputs.domain }}
           
   validate-cloudflare-credentials:
     runs-on: ubuntu-latest
