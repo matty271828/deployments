@@ -30,16 +30,6 @@ jobs:
       - name: Terraform Init
         uses: ./.github/actions/terraform-init
 
-      - name: Cache Terraform files
-        uses: actions/cache@v3
-        with:
-          path: |
-            terraform/.terraform
-            terraform/.terraform.lock.hcl
-          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/**/*.tf') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
-
   terraform-plan:
     name: 'Plan'
     runs-on: ubuntu-latest
@@ -52,16 +42,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.7.0"
-
-      - name: Cache Terraform files
-        uses: actions/cache@v3
-        with:
-          path: |
-            terraform/.terraform
-            terraform/.terraform.lock.hcl
-          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/**/*.tf') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
 
       - name: Terraform Plan
         uses: ./.github/actions/terraform-plan
@@ -82,16 +62,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.7.0"
-
-      - name: Cache Terraform files
-        uses: actions/cache@v3
-        with:
-          path: |
-            terraform/.terraform
-            terraform/.terraform.lock.hcl
-          key: ${{ runner.os }}-terraform-${{ hashFiles('terraform/**/*.tf') }}
-          restore-keys: |
-            ${{ runner.os }}-terraform-
 
       - name: Terraform Apply
         uses: ./.github/actions/terraform-apply
