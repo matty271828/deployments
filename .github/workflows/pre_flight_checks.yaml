@@ -30,6 +30,7 @@ jobs:
       - name: Validate Github Secrets
         uses: ./.github/actions/validate_secrets
         with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     # TODO: Add actions to create DNS records, load balancer, VM, HTTPS

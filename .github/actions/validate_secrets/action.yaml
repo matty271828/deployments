@@ -2,6 +2,9 @@ name: 'Validate Github Secrets'
 description: 'Validate that all required Github secrets are present'
 
 inputs:
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
@@ -9,6 +12,21 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Check Cloudflare Account ID
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.cloudflare_account_id }}" ]; then
+          echo "::error::Cloudflare Account ID is missing. Please add it to your repository secrets:"
+          echo "1. Go to your repository settings"
+          echo "2. Navigate to Secrets and Variables > Actions"
+          echo "3. Click 'New repository secret'"
+          echo "4. Name: CLOUDFLARE_ACCOUNT_ID"
+          echo "5. Value: Your Cloudflare Account ID"
+          echo "6. Click 'Add secret'"
+          exit 1
+        fi
+        echo "✅ Cloudflare Account ID is present"
+        
     - name: Check Cloudflare API Token
       shell: bash
       run: |
