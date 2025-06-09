@@ -12,7 +12,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup
+    - name: Test Setup
       shell: bash
       run: |
         # Define required permissions
@@ -34,6 +34,14 @@ runs:
           done
           echo "5. Set Account Resources to 'All accounts'"
           echo "6. Set Zone Resources to 'All zones'"
+          echo ""
+          echo "Once you have created the token:"
+          echo "1. Go to your repository settings"
+          echo "2. Navigate to Secrets and Variables > Actions"
+          echo "3. Click 'New repository secret'"
+          echo "4. Name: CLOUDFLARE_API_TOKEN"
+          echo "5. Value: Your new API token"
+          echo "6. Click 'Add secret'"
         }
 
     - name: Check Cloudflare Account ID
@@ -58,14 +66,6 @@ runs:
           echo "::error::Cloudflare API Token is missing"
           echo ""
           display_token_instructions
-          echo ""
-          echo "Once you have created the token:"
-          echo "1. Go to your repository settings"
-          echo "2. Navigate to Secrets and Variables > Actions"
-          echo "3. Click 'New repository secret'"
-          echo "4. Name: CLOUDFLARE_API_TOKEN"
-          echo "5. Value: Your new API token"
-          echo "6. Click 'Add secret'"
           exit 1
         fi
         echo "✅ Cloudflare API Token is present"
