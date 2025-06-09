@@ -1,4 +1,5 @@
 name: Pre-Flight Checks
+description: 'Checks that the domain is using Cloudflare nameservers and that the required Github secrets are present'
 
 on:
   workflow_dispatch:
