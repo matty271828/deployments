@@ -1,0 +1,24 @@
+name: Deploy All
+description: 'Validates Cloudflare configuration and runs Terraform deployment'
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain Name'
+        required: true
+        type: string
+
+jobs:
+  validate-cloudflare:
+    name: 'Validate Cloudflare Configuration'
+    uses: ./.github/workflows/cloudflare_validation.yaml
+    with:
+      domain: ${{ inputs.domain }}
+
+  run-terraform:
+    name: 'Run Terraform Deployment'
+    needs: validate-cloudflare
+    uses: ./.github/workflows/run_terraform.yaml
+    with:
+      domain: ${{ inputs.domain }} 

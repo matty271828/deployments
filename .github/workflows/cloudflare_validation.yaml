@@ -8,6 +8,12 @@ on:
         description: 'Domain Name'
         required: true
         type: string
+  workflow_call:
+    inputs:
+      domain:
+        description: 'Domain Name'
+        required: true
+        type: string
 
 jobs:
   check-nameservers:
