@@ -1,15 +1,15 @@
-name: 'Check Nameservers'
+name: 'Check Cloudflare Nameservers'
 description: 'Checks if a domain is using Cloudflare nameservers and provides detailed instructions if not'
 
 inputs:
   domain:
-    description: 'Domain to check nameservers for'
+    description: 'Domain to check for on Cloudflare nameservers'
     required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Check nameservers
+    - name: Check Cloudflare nameservers
       shell: bash
       run: |
         # Get nameservers using dig

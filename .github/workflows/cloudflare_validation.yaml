@@ -1,5 +1,5 @@
-name: Pre-Flight Checks
-description: 'Checks that the domain is using Cloudflare nameservers and that the required Github secrets are present'
+name: Cloudflare Validation
+description: 'Checks that the domain is using Cloudflare nameservers and that the cloudflare credentials are present in the repo secrets and variables'
 
 on:
   workflow_dispatch:
@@ -16,19 +16,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check nameservers
-        uses: ./.github/actions/check_nameservers
+      - name: Check Cloudflare nameservers
+        uses: ./.github/actions/check_cloudflare_nameservers
         with:
           domain: ${{ github.event.inputs.domain }}
           
-  validate-secrets:
+  validate-cloudflare-credentials:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Validate Github Secrets
-        uses: ./.github/actions/validate_secrets
+        uses: ./.github/actions/validate_cloudflare_credentials
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
