@@ -67,7 +67,7 @@ runs:
     if: env.changes == 'true'
     uses: ad-m/github-push-action@master
     with:
-      github_token: ${{ secrets.GH_PAT }}
+      github_token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
       branch: main
 
   - name: Check for Terraform Errors

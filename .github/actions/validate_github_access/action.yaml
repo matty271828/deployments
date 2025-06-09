@@ -1,0 +1,36 @@
+name: 'Validate GitHub Access'
+description: 'Validate that the GitHub personal access token is present in the repository secrets and variables'
+
+inputs:
+  github_personal_access_token:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check GitHub Personal Access Token
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.github_personal_access_token }}" ]; then
+          echo "::error::GitHub Personal Access Token is missing"
+          echo ""
+          echo "Please create a new Personal Access Token:"
+          echo "1. Go to GitHub → Settings → Developer Settings → Personal Access Tokens → Tokens (classic)"
+          echo "2. Click 'Generate new token (classic)'"
+          echo "3. Set these permissions:"
+          echo "   - repo (Full control of private repositories)"
+          echo "   - workflow (Update GitHub Action workflows)"
+          echo "4. Set expiration as needed"
+          echo "5. Click 'Generate token'"
+          echo ""
+          echo "Once you have created the token:"
+          echo "1. Go to your repository settings"
+          echo "2. Navigate to Secrets and Variables > Actions"
+          echo "3. Click 'New repository secret'"
+          echo "4. Name: GITHUB_PERSONAL_ACCESS_TOKEN"
+          echo "5. Value: Your new token"
+          echo "6. Click 'Add secret'"
+          exit 1
+        fi
+        echo "✅ GitHub Personal Access Token is present"

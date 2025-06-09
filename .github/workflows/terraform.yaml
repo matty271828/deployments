@@ -13,6 +13,8 @@ on:
           required: true
         CLOUDFLARE_API_TOKEN:
           required: true
+        GITHUB_PERSONAL_ACCESS_TOKEN:
+          required: true
 
 jobs:
   terraform-init:
@@ -29,6 +31,8 @@ jobs:
 
       - name: Terraform Init
         uses: ./.github/actions/terraform-init
+        with:
+          github_personal_access_token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
 
   terraform-plan:
     name: 'Plan'
@@ -49,6 +53,7 @@ jobs:
           domain: ${{ inputs.domain }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          github_personal_access_token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
 
   terraform-apply:
     name: 'Apply'
@@ -69,5 +74,4 @@ jobs:
           domain: ${{ inputs.domain }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-      
+          github_personal_access_token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}

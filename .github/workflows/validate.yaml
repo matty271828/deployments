@@ -13,6 +13,8 @@ on:
         required: true
       CLOUDFLARE_API_TOKEN:
         required: true
+      GITHUB_PERSONAL_ACCESS_TOKEN:
+        required: true
 
 jobs:
   check-nameservers:
@@ -39,6 +41,18 @@ jobs:
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  check-github-access:
+    name: 'GitHub'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate GitHub Access
+        uses: ./.github/actions/validate_github_access
+        with:
+          github_personal_access_token: ${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN }}
 
     # TODO: Add actions to create DNS records, load balancer, VM, HTTPS
     # Ensure we can reuse the same VM and load balancer for multiple domains
