@@ -9,3 +9,30 @@ runs:
       working-directory: ./terraform
       run: |
         terraform init -upgrade 
+
+    - name: Check for Terraform files changes
+      id: check_terraform_files
+      shell: bash
+      run: |
+        git fetch origin main
+        if git diff origin/main -- terraform/.terraform terraform/.terraform.lock.hcl | grep .; then
+          echo "changes=true" >> $GITHUB_ENV
+        else
+          echo "changes=false" >> $GITHUB_ENV
+        fi
+
+    - name: Commit Terraform files
+      if: env.changes == 'true'
+      shell: bash
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add terraform/.terraform terraform/.terraform.lock.hcl
+        git commit -m "Update Terraform provider and module dependencies"
+
+    - name: Push Terraform files
+      if: env.changes == 'true'
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GH_PAT }}
+        branch: main 
