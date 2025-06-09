@@ -1,0 +1,31 @@
+name: Terraform Init
+description: 'Initializes the Terraform working directory'
+
+on:
+    workflow_call:
+      inputs:
+        domain:
+          description: 'Domain Name'
+          required: true
+          type: string
+      secrets:
+        CLOUDFLARE_ACCOUNT_ID:
+          required: true
+        CLOUDFLARE_API_TOKEN:
+          required: true
+
+jobs:
+  terraform:
+    name: 'Terraform Init'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        uses: ./.github/actions/terraform-init
