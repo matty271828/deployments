@@ -12,14 +12,30 @@ inputs:
     description: 'Cloudflare API Token'
     required: true
 
+outputs:
+  terraform_error:
+    description: 'Whether there was a terraform error'
+    value: ${{ steps.terraform.outputs.terraform_error }}
+
 runs:
   using: "composite"
   steps:
     - name: Terraform Apply
+      id: terraform
       shell: bash
       working-directory: ./terraform
+      timeout-minutes: 15
       run: |
-        terraform apply -auto-approve 
+        set +e
+        terraform apply -auto-approve tfplan
+        exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+          echo "terraform_error=true" >> $GITHUB_OUTPUT
+        else
+          echo "terraform_error=false" >> $GITHUB_OUTPUT
+        fi
+        exit $exit_code
       env:
         TF_VAR_CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
         TF_VAR_CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        TF_LOG: DEBUG
