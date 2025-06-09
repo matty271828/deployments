@@ -1,4 +1,4 @@
-name: Terraform Init
+name: Terraform
 description: 'Initializes the Terraform working directory'
 
 on:
@@ -15,7 +15,7 @@ on:
           required: true
 
 jobs:
-  terraform:
+  terraform-init:
     name: 'Terraform Init'
     runs-on: ubuntu-latest
     steps:
