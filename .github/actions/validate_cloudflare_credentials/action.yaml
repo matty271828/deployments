@@ -12,6 +12,30 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup
+      shell: bash
+      run: |
+        # Define required permissions
+        declare -A REQUIRED_PERMISSIONS=(
+          ["account"]="read"    # Account Settings: Read
+          ["zone"]="edit"       # Zone: Edit
+          ["zone_settings"]="edit"  # Zone Settings: Edit
+        )
+
+        # Function to display token creation instructions
+        display_token_instructions() {
+          echo "Please create a new Account level API Token:"
+          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
+          echo "2. Click 'Create Token'"
+          echo "3. Choose 'Create Custom Token'"
+          echo "4. Set these permissions:"
+          for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
+            echo "   - ${permission^}: ${REQUIRED_PERMISSIONS[$permission]^}"
+          done
+          echo "5. Set Account Resources to 'All accounts'"
+          echo "6. Set Zone Resources to 'All zones'"
+        }
+
     - name: Check Cloudflare Account ID
       shell: bash
       run: |
@@ -33,17 +57,7 @@ runs:
         if [ -z "${{ inputs.cloudflare_api_token }}" ]; then
           echo "::error::Cloudflare API Token is missing"
           echo ""
-          echo "Please create a new API Token with the following permissions:"
-          echo ""
-          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
-          echo "2. Click 'Create Token'"
-          echo "3. Choose 'Create Custom Token'"
-          echo "4. Set these permissions:"
-          echo "   - Account Settings: Read"
-          echo "   - Zone: Edit"
-          echo "   - Zone Settings: Edit"
-          echo "5. Set Account Resources to 'All accounts'"
-          echo "6. Set Zone Resources to 'All zones'"
+          display_token_instructions
           echo ""
           echo "Once you have created the token:"
           echo "1. Go to your repository settings"
@@ -63,13 +77,6 @@ runs:
         if ! command -v jq &> /dev/null; then
           sudo apt-get update && sudo apt-get install -y jq
         fi
-
-        # Define required permissions
-        declare -A REQUIRED_PERMISSIONS=(
-          ["account"]="read"    # Account Settings: Read
-          ["zone"]="edit"       # Zone: Edit
-          ["zone_settings"]="edit"  # Zone Settings: Edit
-        )
 
         # Get token details from Cloudflare API
         TOKEN_INFO=$(curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
@@ -134,16 +141,10 @@ runs:
             done
             
             echo ""
-            echo "Please create a new Account level API Token with the following permissions:"
-            echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
-            echo "2. Click 'Create Token'"
-            echo "3. Choose 'Create Custom Token'"
-            echo "4. Set these permissions:"
+            echo "Please add the following permissions to your API Token:"
             for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
               echo "   - ${permission^}: ${REQUIRED_PERMISSIONS[$permission]^}"
             done
-            echo "5. Set Account Resources to 'All accounts'"
-            echo "6. Set Zone Resources to 'All zones'"
             exit 1
           fi
           
@@ -157,16 +158,6 @@ runs:
           echo "1. The token is malformed or invalid"
           echo "2. The token has been revoked"
           echo "3. You're using a Global API Key instead of an API Token"
-          echo ""
-          echo "Please create a new Account level API Token with the following permissions:"
-          echo "1. Go to Cloudflare Dashboard → Manage Account → Account API Tokens"
-          echo "2. Click 'Create Token'"
-          echo "3. Choose 'Create Custom Token'"
-          echo "4. Set these permissions:"
-          for permission in "${!REQUIRED_PERMISSIONS[@]}"; do
-            echo "   - ${permission^}: ${REQUIRED_PERMISSIONS[$permission]^}"
-          done
-          echo "5. Set Account Resources to 'All accounts'"
-          echo "6. Set Zone Resources to 'All zones'"
+          display_token_instructions
           exit 1
         fi
