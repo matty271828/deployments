@@ -4,6 +4,12 @@ description: 'Initialize Terraform working directory'
 runs:
   using: "composite"
   steps:
+    - name: Fetch existing Terraform files
+      shell: bash
+      run: |
+        git fetch origin main
+        git checkout origin/main -- terraform/ || true
+
     - name: Terraform Init
       shell: bash
       working-directory: ./terraform
