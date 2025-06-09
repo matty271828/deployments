@@ -1,4 +1,4 @@
-name: Pre-Deployment Checks
+name: Pre-Flight Checks
 
 on:
   workflow_dispatch:
