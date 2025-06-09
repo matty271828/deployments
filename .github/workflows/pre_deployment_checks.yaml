@@ -1,4 +1,4 @@
-name: Configure Domain
+name: Pre-Deployment Checks
 
 on:
   workflow_dispatch:
@@ -19,6 +19,12 @@ jobs:
         uses: ./.github/actions/check_nameservers
         with:
           domain: ${{ github.event.inputs.domain }} 
+
+      - name: Validate Github Secrets
+        if: always()
+        uses: ./.github/actions/validate_secrets
+        with:
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     # TODO: Add actions to create DNS records, load balancer, VM, HTTPS
     # Ensure we can reuse the same VM and load balancer for multiple domains
