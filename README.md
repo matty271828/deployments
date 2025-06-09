@@ -27,8 +27,6 @@ This repository provides an automated deployment pipeline that enables multiple 
 - **Infrastructure as Code**: All infrastructure is managed through Terraform, ensuring consistency and version control
 - **Automated Workflows**: GitHub Actions automate the deployment process based on repository events
 - **Shared Resources**: Common infrastructure components (droplets, databases) are shared across projects when possible
-- **Zero Configuration Required**: No special setup needed in the user's repository
-- **Direct API Access**: Repository contents accessed via GitHub's API without cloning
 
 ## Deployment Process
 
@@ -40,15 +38,7 @@ This repository provides an automated deployment pipeline that enables multiple 
 2. **Project Deployment**:
    - Triggered via GitHub Actions
    - Requires repository name and domain name as inputs
-   - Accesses repository contents directly via GitHub's API
-   - Builds and deploys the application
-   - Configures necessary networking and security settings
-   - Handles SSL certificate provisioning
-
-3. **Database Management** (Future Enhancement):
-   - Shared database instances for multiple projects
-   - Automated database provisioning and configuration
-   - Secure isolation between projects
+   - Builds and deploys the application to personal infrastructure.
 
 ## Usage
 
