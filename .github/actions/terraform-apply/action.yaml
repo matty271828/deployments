@@ -54,35 +54,38 @@ runs:
         TF_LOG: DEBUG
 
     - name: Check for State File Changes
-    id: check_state_changes
-    if: always()
-    run: |
-      git fetch origin main
-      if git diff origin/main -- terraform/terraform.tfstate | grep .; then
-        echo "changes=true" >> $GITHUB_ENV
-      else
-        echo "changes=false" >> $GITHUB_ENV
-      fi
+      id: check_state_changes
+      if: always()
+      shell: bash
+      run: |
+        git fetch origin main
+        if git diff origin/main -- terraform/terraform.tfstate | grep .; then
+          echo "changes=true" >> $GITHUB_ENV
+        else
+          echo "changes=false" >> $GITHUB_ENV
+        fi
 
-  - name: Commit state file
-    if: env.changes == 'true'
-    run: |
-      git config --global user.name "github-actions"
-      git config --global user.email "github-actions@github.com"
-      git add terraform/terraform.tfstate
-      git commit -m "Save Result of Terraform Apply"
+    - name: Commit state file
+      if: env.changes == 'true'
+      shell: bash
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add terraform/terraform.tfstate
+        git commit -m "Save Result of Terraform Apply"
 
-  - name: Push state file
-    if: env.changes == 'true'
-    uses: ad-m/github-push-action@master
-    with:
-      GITHUB_TOKEN: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
-      branch: main
+    - name: Push state file
+      if: env.changes == 'true'
+      uses: ad-m/github-push-action@master
+      with:
+        GITHUB_TOKEN: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
+        branch: main
 
-  - name: Check for Terraform Errors
-    if: always()
-    run: |
-      if [ "${{ steps.build_and_deliver.outputs.terraform_error }}" == "true" ]; then
-        echo "Terraform operations encountered errors"
-        exit 1
-      fi
+    - name: Check for Terraform Errors
+      if: always()
+      shell: bash
+      run: |
+        if [ "${{ steps.terraform.outputs.terraform_error }}" == "true" ]; then
+          echo "Terraform operations encountered errors"
+          exit 1
+        fi
