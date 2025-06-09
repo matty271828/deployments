@@ -45,9 +45,8 @@ This repository provides an automated deployment pipeline that enables multiple 
 To deploy a new project:
 
 1. Ensure your application repository is ready for deployment
-2. Fork this repo and add the following as github secrets: 
-   * Cloudflare user name
-   * Cloudflare password
+2. Fork this repo: 
+   * Add the Cloudflare API token to your GitHub repository secrets as `CLOUDFLARE_API_TOKEN`
 3. Navigate to the actions tab and configure the deployment with:
    - Your repository name
    - Desired domain name
