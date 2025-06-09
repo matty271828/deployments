@@ -20,7 +20,7 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Plan
+    - name: Terraform Plan
       id: terraform
       working-directory: ./terraform
       shell: bash

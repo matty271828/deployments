@@ -26,7 +26,7 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           
-  validate-cloudflare-credentials:
+  check-cloudflare-credentials:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
