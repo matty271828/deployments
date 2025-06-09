@@ -34,6 +34,11 @@ runs:
           echo "env.changes is: ${{ env.changes }}"
         fi
 
+    - name: Print changes env var
+      shell: bash
+      run: |
+        echo "env.changes is: ${{ env.changes }}"
+
     - name: Commit Terraform files
       if: env.changes == 'true'
       shell: bash
