@@ -20,11 +20,11 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Fetch Terraform Files
+    - name: Terraform Init
+      working-directory: ./terraform
       shell: bash
       run: |
-        git fetch origin main
-        git checkout origin/main -- terraform/ || true
+        terraform init -upgrade 
            
     - name: Terraform Plan
       id: terraform
