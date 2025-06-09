@@ -2,9 +2,6 @@ name: 'Terraform Plan'
 description: 'Create Terraform execution plan'
 
 inputs:
-  working-directory:
-    description: 'Working directory for Terraform'
-    required: true
   domain:
     description: 'Domain name for the deployment'
     required: true
@@ -17,7 +14,7 @@ inputs:
 
 outputs:
   terraform_error:
-    description: 'Whether there was a terraform error'
+    description: 'Indicates if there was an error in Terraform operations'
     value: ${{ steps.terraform.outputs.terraform_error }}
 
 runs:
@@ -25,8 +22,8 @@ runs:
   steps:
     - name: Terraform Plan
       id: terraform
-      shell: bash
       working-directory: ./terraform
+      shell: bash
       run: |
         set +e
         timeout 900 terraform plan -out=tfplan
@@ -42,6 +39,6 @@ runs:
         fi
         exit $exit_code
       env:
-        TF_VAR_CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-        TF_VAR_CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
+        TF_VAR_inputs.cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_LOG: DEBUG

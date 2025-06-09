@@ -14,7 +14,7 @@ inputs:
 
 outputs:
   terraform_error:
-    description: 'Whether there was a terraform error'
+    description: 'Indicates if there was an error in Terraform operations'
     value: ${{ steps.terraform.outputs.terraform_error }}
 
 runs:
