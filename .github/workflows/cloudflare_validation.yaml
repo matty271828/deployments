@@ -2,12 +2,6 @@ name: Validate Cloudflare
 description: 'Checks that the domain is using Cloudflare nameservers and that the cloudflare credentials are present in the repo secrets and variables'
 
 on:
-  workflow_dispatch:
-    inputs:
-      domain:
-        description: 'Domain Name'
-        required: true
-        type: string
   workflow_call:
     inputs:
       domain:
