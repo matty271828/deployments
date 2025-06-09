@@ -11,6 +11,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
 
 outputs:
   terraform_error:
@@ -73,7 +76,7 @@ runs:
     if: env.changes == 'true'
     uses: ad-m/github-push-action@master
     with:
-      github_token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+      GITHUB_TOKEN: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
       branch: main
 
   - name: Check for Terraform Errors

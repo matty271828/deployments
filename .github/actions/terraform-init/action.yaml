@@ -1,6 +1,11 @@
 name: 'Terraform Init'
 description: 'Initialize Terraform working directory'
 
+inputs:
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub token for pushing changes'
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -40,5 +45,5 @@ runs:
       if: env.changes == 'true'
       uses: ad-m/github-push-action@master
       with:
-        github_token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
         branch: main 
