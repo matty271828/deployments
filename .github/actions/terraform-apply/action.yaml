@@ -20,7 +20,7 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Terraform Apply
+    - name: Apply
       id: terraform
       shell: bash
       working-directory: ./terraform
