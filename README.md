@@ -55,13 +55,16 @@ This repository provides an automated deployment pipeline that enables multiple 
 To deploy a new project:
 
 1. Ensure your application repository is ready for deployment
-2. Configure the deployment with:
+2. Fork this repo and add the following as github secrets: 
+   * Cloudflare user name
+   * Cloudflare password
+3. Navigate to the actions tab and configure the deployment with:
    - Your repository name
    - Desired domain name
-3. Trigger the deployment workflow
+4. Trigger the deployment workflow
 
 The deployment system will:
-- Access your repository contents via GitHub's API
+- Deploy cloud flare infrastructure including full DNS setup
 - Build your application
 - Deploy it to the shared infrastructure
 - Configure all necessary networking and security settings
@@ -72,27 +75,3 @@ The deployment system will:
 - **Networking**: Managed through Terraform
 - **Security**: Automated firewall and security group configuration
 - **Databases**: (Planned) Shared database instances with project isolation
-
-## Cost Optimization
-
-This solution is designed to minimize infrastructure costs by:
-- Sharing compute resources across multiple projects
-- Automatically scaling infrastructure based on demand
-- Optimizing resource allocation
-- Reducing the number of required infrastructure components
-
-## Security
-
-- Each project is isolated within the shared infrastructure
-- Automated security configurations
-- Regular security updates and patches
-- SSL/TLS encryption for all deployments
-- Secure API-based repository access
-
-## Future Enhancements
-
-- Shared database infrastructure
-- Automated backup solutions
-- Monitoring and logging integration
-- Cost tracking and optimization
-- Additional cloud provider support
