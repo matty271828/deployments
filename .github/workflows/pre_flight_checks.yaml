@@ -28,7 +28,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Github Secrets
-        if: always()
         uses: ./.github/actions/validate_secrets
         with:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
