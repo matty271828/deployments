@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  configure-domain:
+  check-nameservers:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -18,7 +18,13 @@ jobs:
       - name: Check nameservers
         uses: ./.github/actions/check_nameservers
         with:
-          domain: ${{ github.event.inputs.domain }} 
+          domain: ${{ github.event.inputs.domain }}
+          
+  validate-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Validate Github Secrets
         if: always()
