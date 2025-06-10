@@ -68,8 +68,8 @@ jobs:
       - name: Validate Digital Ocean SSH Keys
         uses: ./.github/actions/validate_digitalocean_ssh
         with:
-          digitalocean_api_key_name: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
-          digitalocean_api_key_token: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+          digital_ocean_ssh_key_name: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
+          digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
     # TODO: Add actions to create DNS records, load balancer, VM, HTTPS
     # Ensure we can reuse the same VM and load balancer for multiple domains
