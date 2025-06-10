@@ -8,6 +8,17 @@ on:
         description: 'Domain Name'
         required: true
         type: string
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      GH_PERSONAL_ACCESS_TOKEN:
+        required: true
+      DIGITALOCEAN_SSH_PRIVATE_KEY:
+        required: true
+      DIGITAL_OCEAN_SSH_KEY_NAME:
+        required: true
 
 jobs:
   check-nameservers:
@@ -47,7 +58,7 @@ jobs:
         with:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  check-digitalocean-access:
+  check-digitalocean-ssh:
     name: 'Digital Ocean Access'
     runs-on: ubuntu-latest
     steps:
