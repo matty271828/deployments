@@ -15,10 +15,6 @@ on:
         required: true
       GH_PERSONAL_ACCESS_TOKEN:
         required: true
-      DIGITALOCEAN_SSH_PRIVATE_KEY:
-        required: true
-      DIGITAL_OCEAN_SSH_KEY_NAME:
-        required: true
 
 jobs:
   check-nameservers:
