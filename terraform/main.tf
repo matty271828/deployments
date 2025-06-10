@@ -1,5 +1,3 @@
-# This file is intentionally left empty as resources have been moved to their respective provider files 
-
 terraform {
   required_providers {
     cloudflare = {
