@@ -11,6 +11,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
+  digital_ocean_api_token:
+    description: 'DigitalOcean API Token'
+    required: true
   digital_ocean_ssh_key_name:
     description: 'DigitalOcean SSH Key Name'
     required: true
@@ -54,6 +57,7 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domain: ${{ inputs.domain }}
+        TF_VAR_digital_ocean_api_token: ${{ inputs.digital_ocean_api_token }}
         TF_VAR_digital_ocean_ssh_key_name: ${{ inputs.digital_ocean_ssh_key_name }}
         TF_VAR_digital_ocean_ssh_private_key: ${{ inputs.digital_ocean_ssh_private_key }}
         TF_LOG: DEBUG

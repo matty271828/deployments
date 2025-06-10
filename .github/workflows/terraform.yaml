@@ -15,6 +15,8 @@ on:
           required: true
         GH_PERSONAL_ACCESS_TOKEN:
           required: true
+        DIGITAL_OCEAN_API_TOKEN:
+          required: true
         DIGITAL_OCEAN_SSH_KEY_NAME:
           required: true
         DIGITAL_OCEAN_SSH_PRIVATE_KEY:
@@ -39,6 +41,7 @@ jobs:
           domain: ${{ inputs.domain }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          digital_ocean_api_token: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
           digital_ocean_ssh_key_name: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
@@ -62,5 +65,6 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          digital_ocean_api_token: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
           digital_ocean_ssh_key_name: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}

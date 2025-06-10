@@ -2,6 +2,9 @@ name: 'Validate Digital Ocean Access'
 description: 'Validate that the Digital Ocean API key name and token are present in the repository secrets and variables'
 
 inputs:
+  digital_ocean_api_token:
+    description: 'Digital Ocean API Token'
+    required: true
   digital_ocean_ssh_key_name:
     description: 'Digital Ocean SSH Key Name'
     required: true
@@ -12,7 +15,24 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Check Digital Ocean API Key Name
+    - name: Check Digital Ocean API Token
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.digital_ocean_api_token }}" ]; then
+          echo "::error::Digital Ocean API Token is missing"
+          echo ""
+          echo "Please add your API token to your repository secrets:"
+          echo "1. Go to your repository settings"
+          echo "2. Navigate to Secrets and Variables > Actions"
+          echo "3. Click 'New repository secret'"
+          echo "4. Name: DIGITAL_OCEAN_API_TOKEN"
+          echo "5. Value: Your API token"
+          echo "6. Click 'Add secret'"
+          exit 1
+        fi
+        echo "✅ Digital Ocean API Token is present"
+
+    - name: Check Digital Ocean SSH Key Name
       shell: bash
       run: |
         if [ -z "${{ inputs.digital_ocean_ssh_key_name }}" ]; then
