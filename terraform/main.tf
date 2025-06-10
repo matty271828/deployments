@@ -18,5 +18,5 @@ provider "cloudflare" {
 
 # DigitalOcean Provider
 provider "digitalocean" {
-  token = var.digitalocean_token
+  token = var.digital_ocean_api_token
 } 

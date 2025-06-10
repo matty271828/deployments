@@ -14,6 +14,12 @@ variable "domain" {
   type = string
 }
 
+variable "digital_ocean_api_token" {
+  description = "DigitalOcean API token"
+  type        = string
+  sensitive   = true
+}
+
 variable "digital_ocean_ssh_key_name" { 
   description = "DigitalOcean SSH Key Name"
   type        = string
