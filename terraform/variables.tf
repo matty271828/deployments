@@ -14,13 +14,13 @@ variable "domain" {
   type = string
 }
 
-variable "digitalocean_token" {
-  description = "DigitalOcean API token"
+variable "digital_ocean_api_key_name" {
+  description = "DigitalOcean API key name"
   type        = string
   sensitive   = true
 }
 
-variable "digitalocean_ssh_key_id" {
-  description = "ID of the SSH key to use for the droplet"
+variable "digital_ocean_api_key_token" {
+  description = "DigitalOcean API key token"
   type        = string
 } 
