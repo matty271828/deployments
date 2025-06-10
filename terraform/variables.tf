@@ -14,7 +14,7 @@ variable "domain" {
   type = string
 }
 
-variable "digital_ocean_ssh_key_name" {git 
+variable "digital_ocean_ssh_key_name" { 
   description = "DigitalOcean SSH Key Name"
   type        = string
   sensitive   = true
