@@ -12,17 +12,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Check Digital Ocean SSH Key Name
+    - name: Check Digital Ocean API Key Name
       shell: bash
       run: |
-        if [ -z "${{ inputs.digitalocean_ssh_key_name }}" ]; then
-          echo "::error::Digital Ocean SSH Key Name is missing"
+        if [ -z "${{ inputs.digitalocean_api_key_name }}" ]; then
+          echo "::error::Digital Ocean API Key Name is missing"
           echo ""
           echo "Please add your API key name to your repository secrets:"
           echo "1. Go to your repository settings"
           echo "2. Navigate to Secrets and Variables > Actions"
           echo "3. Click 'New repository secret'"
-          echo "4. Name: DIGITAL_OCEAN_SSH_KEY_NAME"
+          echo "4. Name: DIGITAL_OCEAN_API_KEY_NAME"
           echo "5. Value: Your API key name"
           echo "6. Click 'Add secret'"
           exit 1
