@@ -15,6 +15,10 @@ on:
         required: true
       GH_PERSONAL_ACCESS_TOKEN:
         required: true
+      DIGITAL_OCEAN_API_KEY_NAME:
+        required: true
+      DIGITAL_OCEAN_API_KEY_TOKEN:
+        required: true
 
 jobs:
   check-nameservers:
