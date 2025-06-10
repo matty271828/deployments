@@ -14,13 +14,13 @@ variable "domain" {
   type = string
 }
 
-variable "DIGITAL_OCEAN_SSH_KEY_NAME" {git 
+variable "digital_ocean_ssh_key_name" {git 
   description = "DigitalOcean SSH Key Name"
   type        = string
   sensitive   = true
 }
 
-variable "DIGITAL_OCEAN_SSH_PRIVATE_KEY" {
+variable "digital_ocean_ssh_private_key" {
   description = "DigitalOcean SSH Private Key"
   type        = string
 } 
