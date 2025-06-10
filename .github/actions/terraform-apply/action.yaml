@@ -14,6 +14,12 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
+  digital_ocean_api_key_name:
+    description: 'DigitalOcean API Key Name'
+    required: true
+  digital_ocean_api_key_token:
+    description: 'DigitalOcean API Key Token'
+    required: true
 
 outputs:
   terraform_error:
@@ -57,6 +63,8 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domain: ${{ inputs.domain }}
+        TF_VAR_digital_ocean_api_key_name: ${{ inputs.digital_ocean_api_key_name }}
+        TF_VAR_digital_ocean_api_key_token: ${{ inputs.digital_ocean_api_key_token }}
         TF_LOG: DEBUG
 
     - name: Check for State File Changes
