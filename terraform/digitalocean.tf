@@ -16,5 +16,9 @@ resource "digitalocean_droplet" "multi-project-server" {
   region = "lon1"
   size   = "s-1vcpu-1gb-35gb-intel"
   ssh_keys = [data.digitalocean_ssh_key.my_ssh_key.id]
-  project_id = digitalocean_project.serverless.id
+}
+
+resource "digitalocean_project_resources" "project_resources" {
+  project = digitalocean_project.serverless.id
+  resources = [digitalocean_droplet.multi-project-server[0].urn]
 } 
