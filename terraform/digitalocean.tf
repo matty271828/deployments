@@ -1,5 +1,5 @@
 data "digitalocean_ssh_key" "my_ssh_key" {
-  name = var.do_ssh_key_name
+  name = var.digital_ocean_ssh_key_name
 }
 
 resource "digitalocean_project" "serverless" {
