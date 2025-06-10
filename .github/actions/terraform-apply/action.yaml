@@ -14,10 +14,10 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
-  DIGITAL_OCEAN_SSH_KEY_NAME:
-    description: 'DigitalOcean API Key Name'
+  digital_ocean_ssh_key_name:
+    description: 'DigitalOcean SSH Key Name'
     required: true
-  DIGITAL_OCEAN_SSH_PRIVATE_KEY:
+  digital_ocean_ssh_private_key:
     description: 'DigitalOcean API Key Token'
     required: true
 
