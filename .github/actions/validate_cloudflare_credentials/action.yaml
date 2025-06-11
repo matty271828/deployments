@@ -41,6 +41,10 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Load Balancers: Edit"
+          echo "   - DNS: Edit"
+          echo "   - Account Resources: All accounts"
+          echo "   - Zone Resources: All zones"
           echo "5. Set Account Resources to 'All accounts'"
           echo "6. Set Zone Resources to 'All zones'"
           echo ""
@@ -55,7 +59,7 @@ runs:
         fi
         echo "✅ Cloudflare API Token is present"
 
-    - name: Check Token Permissions
+    - name: Validate Cloudflare API Token
       shell: bash
       run: |
         # Install jq if not present
@@ -77,6 +81,10 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Load Balancers: Edit"
+          echo "   - DNS: Edit"
+          echo "   - Account Resources: All accounts"
+          echo "   - Zone Resources: All zones"
           echo "5. Set Account Resources to 'All accounts'"
           echo "6. Set Zone Resources to 'All zones'"
           exit 1
@@ -106,6 +114,10 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Load Balancers: Edit"
+          echo "   - DNS: Edit"
+          echo "   - Account Resources: All accounts"
+          echo "   - Zone Resources: All zones"
           echo "5. Set Account Resources to 'All accounts'"
           echo "6. Set Zone Resources to 'All zones'"
           exit 1
@@ -113,6 +125,9 @@ runs:
 
         # Extract token status
         TOKEN_STATUS=$(echo "$TOKEN_INFO" | jq -r '.result.status')
+
+        # TODO: Use the list permissions groups endpoint to check the exact
+        # permissions the token has and output any missing permissions.
         
         # Check if token is active
         if [[ "$TOKEN_STATUS" != "active" ]]; then
@@ -125,5 +140,7 @@ runs:
         echo "   - Account Settings: Read"
         echo "   - Zone: Edit"
         echo "   - Zone Settings: Edit"
+        echo "   - Load Balancers: Edit"
+        echo "   - DNS: Edit"
         echo "   - Account Resources: All accounts"
         echo "   - Zone Resources: All zones"
