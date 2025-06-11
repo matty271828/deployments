@@ -1,18 +1,22 @@
-# Maintain list of domains in state
-resource "terraform_data" "current_domain" {
-  input = var.domain
-}
-
-resource "terraform_data" "domain_list" {
-  input = jsonencode(concat(
-    try(jsondecode(terraform_data.domain_list.output), []),
-    contains(try(jsondecode(terraform_data.domain_list.output), []), var.domain) ? [] : [var.domain]
-  ))
+# Read existing domains from file
+data "local_file" "domains" {
+  filename = "${path.module}/domains.txt"
+  # Create empty file if it doesn't exist
+  count = fileexists("${path.module}/domains.txt") ? 1 : 0
 }
 
 locals {
-  # Get the list of domains from the terraform_data resource
-  domains = try(jsondecode(terraform_data.domain_list.output), [])
+  # Get existing domains from file, or empty list if file doesn't exist
+  existing_domains = try(split("\n", data.local_file.domains[0].content), [])
+  
+  # Add new domain if it's not already in the list
+  domains = contains(local.existing_domains, var.domain) ? local.existing_domains : concat(local.existing_domains, [var.domain])
+}
+
+# Write updated domains to file
+resource "local_file" "domains" {
+  filename = "${path.module}/domains.txt"
+  content  = join("\n", local.domains)
 }
 
 # Output the list of domains for future reference
@@ -27,7 +31,7 @@ output "current_domain" {
 }
 
 output "existing_domains" {
-  value = try(jsondecode(terraform_data.domain_list.output), [])
+  value = local.existing_domains
   description = "List of domains that were already in state"
 }
 
