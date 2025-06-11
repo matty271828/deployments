@@ -29,4 +29,10 @@ variable "digital_ocean_ssh_key_name" {
 variable "digital_ocean_ssh_private_key" {
   description = "DigitalOcean SSH Private Key"
   type        = string
+}
+
+variable "droplet_name" {
+  description = "Name of the DigitalOcean droplet to use for the load balancer"
+  type        = string
+  default     = "main-droplet"  # Default value, can be overridden in terraform.tfvars
 } 

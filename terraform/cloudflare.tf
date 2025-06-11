@@ -13,7 +13,7 @@ resource "cloudflare_load_balancer_pool" "main" {
   name       = "main-pool"
   origins {
     name    = "origin-1"
-    address = digitalocean_droplet.main.ipv4_address
+    address = digitalocean_droplet.multi-project-server[0].ipv4_address
     enabled = true
   }
   monitor = cloudflare_load_balancer_monitor.main.id
@@ -21,15 +21,15 @@ resource "cloudflare_load_balancer_pool" "main" {
 
 # Load Balancer Monitor - Shared across all domains
 resource "cloudflare_load_balancer_monitor" "main" {
-  account_id = var.cloudflare_account_id
-  name       = "main-monitor"
-  type       = "http"
-  interval   = 60
-  timeout    = 5
-  retries    = 3
-  method     = "GET"
-  path       = "/"
-  expected_body = ""
+  account_id     = var.cloudflare_account_id
+  description    = "main-monitor"
+  type           = "http"
+  interval       = 60
+  timeout        = 5
+  retries        = 3
+  method         = "GET"
+  path           = "/"
+  expected_body  = ""
   expected_codes = "200"
 }
 
@@ -46,7 +46,7 @@ resource "cloudflare_record" "root" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
   name    = "@"
-  value   = digitalocean_droplet.main.ipv4_address
+  value   = digitalocean_droplet.multi-project-server[0].ipv4_address
   type    = "A"
   proxied = true
 }
