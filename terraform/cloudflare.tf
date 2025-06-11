@@ -1,10 +1,3 @@
-# Cloudflare Zones
-resource "cloudflare_zone" "domains" {
-  for_each = toset(concat([var.domain], try(tolist(data.terraform_remote_state.existing.outputs.domains), [])))
-  account_id = var.cloudflare_account_id
-  zone       = each.value
-}
-
 # Get existing domains from state
 data "terraform_remote_state" "existing" {
   backend = "local"
@@ -13,7 +6,19 @@ data "terraform_remote_state" "existing" {
   }
 }
 
-# A Records for root domains
+locals {
+  existing_domains = try(tolist(data.terraform_remote_state.existing.outputs.domains), [])
+  all_domains = toset(concat([var.domain], local.existing_domains))
+}
+
+# Create zones for domains
+resource "cloudflare_zone" "domains" {
+  for_each = toset([var.domain])
+  account_id = var.cloudflare_account_id
+  zone       = each.value
+}
+
+# A Records for domains
 resource "cloudflare_record" "root" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
@@ -23,7 +28,7 @@ resource "cloudflare_record" "root" {
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
 }
 
-# CNAME Records for www subdomains
+# CNAME Records for domains
 resource "cloudflare_record" "www" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
@@ -35,5 +40,5 @@ resource "cloudflare_record" "www" {
 
 # Output the list of all domains for future reference
 output "domains" {
-  value = keys(cloudflare_zone.domains)
+  value = local.all_domains
 } 
