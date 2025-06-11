@@ -24,7 +24,7 @@ resource "cloudflare_load_balancer_monitor" "main" {
   account_id     = var.cloudflare_account_id
   description    = "main-monitor"
   type           = "http"
-  interval       = 60
+  interval       = 30
   timeout        = 5
   retries        = 3
   method         = "GET"
