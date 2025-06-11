@@ -4,15 +4,14 @@ resource "terraform_data" "domains" {
 }
 
 locals {
-  # Get existing domains from state, or start with empty list
-  existing_domains = try(tolist(terraform_data.domains.output), [])
-  # Add new domain if it's not already in the list
-  domains = toset(concat(local.existing_domains, [var.domain]))
+  domains = concat(local.existing_domains, [var.domain])
 }
 
 # Output the list of domains for future reference
 output "domains" {
+  type = list(string)
   value = local.domains
+  default = []
 }
 
 # Additional outputs for better visibility in GitHub Actions
