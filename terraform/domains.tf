@@ -1,15 +1,10 @@
-# Try to get existing domains from remote state
-data "terraform_remote_state" "domains" {
-  backend = "local"
-  config = {
-    path = "${path.module}/terraform.tfstate"
-  }
+# Maintain list of domains in Terraform state
+resource "terraform_data" "domains" {
+  input = var.domain
 }
 
 locals {
-  # If state exists, use it plus new domain. If not, just use new domain
-  existing_domains = try(tolist(data.terraform_remote_state.domains.outputs.domains), [])
-  all_domains = toset(concat([var.domain], local.existing_domains))
+  all_domains = toset(concat([var.domain], try(tolist(terraform_data.domains.output), [])))
 }
 
 # Output the list of domains for future reference
