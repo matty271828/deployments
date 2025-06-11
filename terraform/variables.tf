@@ -9,9 +9,9 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
-variable "domain" {
-  description = "New domain name to add"
-  type        = string
+variable "domains" {
+  description = "List of domains to manage"
+  type        = list(string)
 }
 
 variable "digital_ocean_api_token" {

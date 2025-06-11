@@ -1,23 +1,26 @@
-# Cloudflare Zone
-resource "cloudflare_zone" "domain" {
+# Cloudflare Zones
+resource "cloudflare_zone" "domains" {
+  for_each = toset(var.domains)
   account_id = var.cloudflare_account_id
-  zone       = var.domain
+  zone       = each.value
 }
 
-# A Record for root domain
+# A Records for root domains
 resource "cloudflare_record" "root" {
-  zone_id = cloudflare_zone.domain.id
+  for_each = cloudflare_zone.domains
+  zone_id = each.value.id
   name    = "@"
   content = digitalocean_droplet.multi-project-server[0].ipv4_address
   type    = "A"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
 }
 
-# CNAME Record for www subdomain
+# CNAME Records for www subdomains
 resource "cloudflare_record" "www" {
-  zone_id = cloudflare_zone.domain.id
+  for_each = cloudflare_zone.domains
+  zone_id = each.value.id
   name    = "www"
-  content = var.domain
+  content = each.value.zone
   type    = "CNAME"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
 } 
