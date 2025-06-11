@@ -24,8 +24,3 @@ resource "cloudflare_record" "www" {
   type    = "CNAME"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
 }
-
-# Output the list of all domains for future reference
-output "domains" {
-  value = local.all_domains
-} 
