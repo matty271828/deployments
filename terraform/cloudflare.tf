@@ -13,6 +13,7 @@ resource "cloudflare_record" "root" {
   content = digitalocean_droplet.multi-project-server[0].ipv4_address
   type    = "A"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
+  allow_overwrite = true  # Allow overwriting existing records
 }
 
 # CNAME Records for domains
@@ -23,4 +24,5 @@ resource "cloudflare_record" "www" {
   content = each.value.zone
   type    = "CNAME"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
+  allow_overwrite = true  # Allow overwriting existing records
 }
