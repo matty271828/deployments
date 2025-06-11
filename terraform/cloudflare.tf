@@ -1,6 +1,6 @@
 # Create zones for domains
 resource "cloudflare_zone" "domains" {
-  for_each = local.all_domains
+  for_each = toset(local.domains)
   account_id = var.cloudflare_account_id
   zone       = each.value
 }
