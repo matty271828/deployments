@@ -11,7 +11,6 @@ locals {
 output "domains" {
   type = list(string)
   value = local.domains
-  default = []
 }
 
 # Additional outputs for better visibility in GitHub Actions
@@ -24,12 +23,10 @@ output "existing_domains" {
   type = list(string)
   description = "List of domains that were already in state"
   value = local.existing_domains
-  default = []
 }
 
 output "all_domains" {
   type = list(string)
   value = local.domains
   description = "Complete list of all domains after this run"
-  default = []
 } 
