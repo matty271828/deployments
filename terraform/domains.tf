@@ -1,15 +1,23 @@
 # Maintain list of domains in state
 resource "terraform_data" "domains" {
   input = var.domain
+
+  # This ensures the resource is updated when the domain list changes
+  triggers_replace = {
+    domains = jsonencode(concat(
+      try(jsondecode(self.output), []),
+      contains(try(jsondecode(self.output), []), var.domain) ? [] : [var.domain]
+    ))
+  }
 }
 
 locals {
-  domains = concat(local.existing_domains, [var.domain])
+  # Get the list of domains from the terraform_data resource
+  domains = try(jsondecode(terraform_data.domains.triggers_replace.domains), [])
 }
 
 # Output the list of domains for future reference
 output "domains" {
-  type = list(string)
   value = local.domains
 }
 
@@ -20,13 +28,11 @@ output "current_domain" {
 }
 
 output "existing_domains" {
-  type = list(string)
+  value = try(jsondecode(terraform_data.domains.triggers_replace.domains), [])
   description = "List of domains that were already in state"
-  value = local.existing_domains
 }
 
 output "all_domains" {
-  type = list(string)
   value = local.domains
   description = "Complete list of all domains after this run"
 } 
