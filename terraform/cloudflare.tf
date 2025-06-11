@@ -1,6 +1,19 @@
+# Get existing domains from remote state
+data "terraform_remote_state" "domains" {
+  backend = "local"
+  config = {
+    path = "${path.module}/domains.tfstate"
+  }
+}
+
+locals {
+  existing_domains = try(tolist(data.terraform_remote_state.domains.outputs.domains), [])
+  all_domains = toset(concat([var.domain], local.existing_domains))
+}
+
 # Create zones for domains
 resource "cloudflare_zone" "domains" {
-  for_each = toset([var.domain])
+  for_each = local.all_domains
   account_id = var.cloudflare_account_id
   zone       = each.value
 }
@@ -23,4 +36,9 @@ resource "cloudflare_record" "www" {
   content = each.value.zone
   type    = "CNAME"
   proxied = true  # This enables Cloudflare's proxy (orange cloud)
+}
+
+# Output the list of all domains for future reference
+output "domains" {
+  value = local.all_domains
 }
