@@ -46,7 +46,7 @@ resource "cloudflare_record" "root" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
   name    = "@"
-  value   = digitalocean_droplet.multi-project-server[0].ipv4_address
+  content = digitalocean_droplet.multi-project-server[0].ipv4_address
   type    = "A"
   proxied = true
 }
@@ -56,7 +56,7 @@ resource "cloudflare_record" "www" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
   name    = "www"
-  value   = each.value.zone
+  content = each.value.zone
   type    = "CNAME"
   proxied = true
 } 
