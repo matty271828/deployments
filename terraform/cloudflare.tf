@@ -22,7 +22,6 @@ resource "cloudflare_zone" "domains" {
 resource "cloudflare_record" "root" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
-  zone    = each.value.zone
   name    = "@"
   content = digitalocean_droplet.multi-project-server[0].ipv4_address
   type    = "A"
@@ -33,7 +32,6 @@ resource "cloudflare_record" "root" {
 resource "cloudflare_record" "www" {
   for_each = cloudflare_zone.domains
   zone_id = each.value.id
-  zone    = each.value.zone
   name    = "www"
   content = each.value.zone
   type    = "CNAME"
