@@ -30,6 +30,7 @@ jobs:
 
   manage-domains:
     name: 'Manage Domains'
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -59,6 +60,9 @@ jobs:
     needs: [terraform]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Build frontend
         uses: ./.github/actions/build-frontend
         with:
