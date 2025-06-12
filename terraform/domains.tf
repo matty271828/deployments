@@ -17,8 +17,3 @@ output "current_domain" {
   value = var.domain
   description = "The domain being added in this run"
 }
-
-output "all_domains" {
-  value = local.domains
-  description = "Complete list of all domains"
-} 
