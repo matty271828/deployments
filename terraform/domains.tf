@@ -1,11 +1,11 @@
 # Read domains from file
 data "local_file" "domains" {
-  filename = "${path.root}/../domains.txt"
+  filename = "${path.root}/../../domains.txt"
 }
 
 locals {
-  # Split by newline and filter out empty strings
-  domains = [for domain in split("\n", data.local_file.domains.content) : domain if domain != ""]
+  # Split by newline, trim whitespace, and filter out empty strings
+  domains = [for domain in split("\n", data.local_file.domains.content) : trimspace(domain) if trimspace(domain) != ""]
 }
 
 # Output the list of domains for future reference
