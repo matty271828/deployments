@@ -20,10 +20,16 @@ resource "cloudflare_zone" "new" {
   zone       = each.value
 }
 
+# Get details of existing zones
+data "cloudflare_zone" "existing" {
+  for_each = { for domain, id in local.existing_zones : domain => id }
+  zone_id = each.value
+}
+
 # Combine existing and new zones
 locals {
   all_zones = merge(
-    { for domain, id in local.existing_zones : domain => { id = id, zone = domain } },
+    { for domain, zone in data.cloudflare_zone.existing : domain => { id = zone.id, zone = domain } },
     { for domain, zone in cloudflare_zone.new : domain => { id = zone.id, zone = domain } }
   )
 }
