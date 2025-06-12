@@ -22,10 +22,23 @@ jobs:
       DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
       DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
+  manage-domains:
+    name: 'Manage Domains'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Manage domains
+        uses: ./.github/actions/manage-domains
+        with:
+          domain: ${{ inputs.domain }}
       
   terraform:
     name: 'Terraform'
-    needs: validate
+    needs: manage-domains
     uses: ./.github/workflows/terraform.yaml
     with:
       domain: ${{ inputs.domain }}

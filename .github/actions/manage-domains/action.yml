@@ -1,0 +1,35 @@
+name: 'Manage Domains'
+description: 'Manages the list of domains by appending new ones to domains.txt'
+
+inputs:
+  domain:
+    description: 'Domain Name'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create domains.txt if it doesn't exist
+      shell: bash
+      run: touch domains.txt
+
+    - name: Check if domain exists
+      id: check-domain
+      shell: bash
+      run: |
+        if grep -Fxq "${{ inputs.domain }}" domains.txt; then
+          echo "domain_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "domain_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Append domain if new
+      if: steps.check-domain.outputs.domain_exists == 'false'
+      shell: bash
+      run: |
+        echo "${{ inputs.domain }}" >> domains.txt
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'github-actions@github.com'
+        git add domains.txt
+        git commit -m "Add domain: ${{ inputs.domain }}"
+        git push 
