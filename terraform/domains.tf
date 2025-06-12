@@ -1,6 +1,6 @@
 # Read domains from file
 data "local_file" "domains" {
-  filename = "${path.root}/../../domains.txt"
+  filename = "${path.module}/../domains.txt"
 }
 
 locals {
