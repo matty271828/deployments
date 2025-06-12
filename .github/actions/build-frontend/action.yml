@@ -17,10 +17,20 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Extract repository name
+      id: extract_repo
+      shell: bash
+      run: |
+        if [[ "${{ inputs.frontend_repo }}" == https://github.com/* ]]; then
+          echo "repo=$(echo "${{ inputs.frontend_repo }}" | sed 's|https://github.com/||')" >> $GITHUB_OUTPUT
+        else
+          echo "repo=${{ inputs.frontend_repo }}" >> $GITHUB_OUTPUT
+        fi
+
     - name: Checkout frontend repository
       uses: actions/checkout@v4
       with:
-        repository: ${{ inputs.frontend_repo }}
+        repository: ${{ steps.extract_repo.outputs.repo }}
         token: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
 
     - name: Setup Node.js

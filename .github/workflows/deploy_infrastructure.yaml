@@ -57,7 +57,7 @@ jobs:
 
   build-frontend:
     name: 'Build Frontend'
-    needs: [terraform]
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
