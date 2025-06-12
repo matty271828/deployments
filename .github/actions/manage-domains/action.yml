@@ -9,9 +9,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
     - name: Create domains.txt if it doesn't exist
       shell: bash
-      run: touch domains.txt
+      run: |
+        if [ ! -f domains.txt ]; then
+          touch domains.txt
+          git add domains.txt
+          git commit -m "Initialize domains.txt"
+          git push
+        fi
 
     - name: Check if domain exists
       id: check-domain

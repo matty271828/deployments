@@ -76,7 +76,7 @@ runs:
       shell: bash
       run: |
         git fetch origin main
-        if git diff origin/main -- terraform/terraform.tfstate terraform/domains.txt | grep .; then
+        if git diff origin/main -- terraform/terraform.tfstate domains.txt | grep .; then
           echo "changes=true" >> $GITHUB_ENV
         else
           echo "changes=false" >> $GITHUB_ENV
@@ -87,7 +87,7 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add terraform/terraform.tfstate terraform/domains.txt
+        git add terraform/terraform.tfstate domains.txt
         git commit -m "Save Terraform state and domain list"
 
     - name: Push changes
