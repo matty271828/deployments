@@ -1,0 +1,48 @@
+name: 'Build Frontend'
+description: 'Builds the frontend application using Vite'
+
+inputs:
+  frontend_repo:
+    description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+outputs:
+  artifact_path:
+    description: 'Path to the built frontend artifacts'
+    value: ${{ steps.build.outputs.artifact_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout frontend repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.frontend_repo }}
+        token: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Build
+      id: build
+      shell: bash
+      run: |
+        npm run build
+        echo "artifact_path=dist/" >> $GITHUB_OUTPUT
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: dist/
+        retention-days: 1 

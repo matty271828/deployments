@@ -1,0 +1,47 @@
+name: 'Validate Frontend'
+description: 'Validates frontend repository access and Vite configuration'
+
+inputs:
+  frontend_repo:
+    description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check repository access
+      shell: bash
+      run: |
+        # Extract owner and repo from the URL
+        REPO_URL="${{ inputs.frontend_repo }}"
+        OWNER_REPO=$(echo $REPO_URL | sed 's/https:\/\/github.com\///')
+        
+        # Test repository access using GitHub API
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO")
+        
+        if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+          echo "Error: Repository not found or no access"
+          exit 1
+        fi
+        
+        # Check if package.json exists and contains Vite
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO/contents/package.json")
+        
+        if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+          echo "Error: package.json not found in repository"
+          exit 1
+        fi
+        
+        # Download package.json content
+        content=$(echo $response | jq -r '.content' | base64 -d)
+        
+        # Check if Vite is a dependency
+        if ! echo "$content" | jq -e '.dependencies.vite or .devDependencies.vite' > /dev/null; then
+          echo "Error: Vite not found in package.json dependencies"
+          exit 1
+        fi 

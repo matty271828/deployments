@@ -8,6 +8,10 @@ on:
         description: 'Domain Name'
         required: true
         type: string
+      frontend_repo:
+        description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
+        required: true
+        type: string
 
 jobs:
   validate:
@@ -15,6 +19,7 @@ jobs:
     uses: ./.github/workflows/validate.yaml
     with:
       domain: ${{ inputs.domain }}
+      frontend_repo: ${{ inputs.frontend_repo }}
     secrets:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -48,3 +53,14 @@ jobs:
       DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
       DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
+  build-frontend:
+    name: 'Build Frontend'
+    needs: [terraform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build frontend
+        uses: ./.github/actions/build-frontend
+        with:
+          frontend_repo: ${{ inputs.frontend_repo }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
