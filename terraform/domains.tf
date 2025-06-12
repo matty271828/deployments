@@ -4,7 +4,8 @@ data "local_file" "domains" {
 }
 
 locals {
-  domains = split("\n", data.local_file.domains.content)
+  # Split by newline and filter out empty strings
+  domains = [for domain in split("\n", data.local_file.domains.content) : domain if domain != ""]
 }
 
 # Output the list of domains for future reference
