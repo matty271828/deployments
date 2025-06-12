@@ -37,7 +37,7 @@ jobs:
       
   terraform:
     name: 'Terraform'
-    needs: manage-domains
+    needs: [manage-domains, validate]
     uses: ./.github/workflows/terraform.yaml
     with:
       domain: ${{ inputs.domain }}
