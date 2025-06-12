@@ -1,13 +1,12 @@
 # Try to get existing zones
-data "cloudflare_zones" "existing" {
-  filter {
-    name = join("|", local.domains)
-  }
+data "cloudflare_zone" "existing" {
+  for_each = toset(local.domains)
+  name     = each.value
 }
 
 locals {
   # Create a map of existing zones
-  existing_zones = { for zone in data.cloudflare_zones.existing.zones : zone.name => zone.id }
+  existing_zones = { for domain, zone in data.cloudflare_zone.existing : domain => { id = zone.id, zone = domain } }
   
   # Filter out domains that already have zones
   new_domains = [for domain in local.domains : domain if !contains(keys(local.existing_zones), domain)]
@@ -20,16 +19,10 @@ resource "cloudflare_zone" "new" {
   zone       = each.value
 }
 
-# Get details of existing zones
-data "cloudflare_zone" "existing" {
-  for_each = { for domain, id in local.existing_zones : domain => id }
-  zone_id = each.value
-}
-
 # Combine existing and new zones
 locals {
   all_zones = merge(
-    { for domain, zone in data.cloudflare_zone.existing : domain => { id = zone.id, zone = domain } },
+    local.existing_zones,
     { for domain, zone in cloudflare_zone.new : domain => { id = zone.id, zone = domain } }
   )
 }
