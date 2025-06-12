@@ -25,7 +25,6 @@ jobs:
 
   manage-domains:
     name: 'Manage Domains'
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
