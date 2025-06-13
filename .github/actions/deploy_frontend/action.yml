@@ -1,22 +1,45 @@
-name: 'Deploy Frontend'
-description: 'Deploys the frontend application to the target environment'
+name: 'Setup Frontend'
+description: 'Sets up the frontend repository for Cloudflare Pages deployment'
 
 inputs:
-  domain:
-    description: 'Domain Name'
-    required: true
-  droplet_ip:
-    description: 'Digital Ocean Droplet IP'
+  frontend_repo:
+    description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
     required: true
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
+    required: true
+  CLOUDFLARE_API_TOKEN:
+    description: 'Cloudflare API Token'
+    required: true
+  CLOUDFLARE_ACCOUNT_ID:
+    description: 'Cloudflare Account ID'
     required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Download Frontend Artifact
-      uses: actions/download-artifact@v4
+    - name: Extract repository name
+      id: extract_repo
+      shell: bash
+      run: |
+        if [[ "${{ inputs.frontend_repo }}" == https://github.com/* ]]; then
+          echo "repo=$(echo "${{ inputs.frontend_repo }}" | sed 's|https://github.com/||')" >> $GITHUB_OUTPUT
+        else
+          echo "repo=${{ inputs.frontend_repo }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Cloudflare Pages Project
+      uses: cloudflare/pages-action@v1
       with:
-        name: frontend-build
-        path: frontend/dist/
+        apiToken: ${{ inputs.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ inputs.CLOUDFLARE_ACCOUNT_ID }}
+        command: create
+        projectName: ${{ steps.extract_repo.outputs.repo }}
+        gitSource:
+          type: github
+          owner: ${{ steps.extract_repo.outputs.repo.split('/')[0] }}
+          repo: ${{ steps.extract_repo.outputs.repo.split('/')[1] }}
+          branch: main
+        buildCommand: npm run build -- --mode production
+        buildOutputDirectory: dist
+        nodeVersion: 20

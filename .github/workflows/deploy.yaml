@@ -37,51 +37,33 @@ jobs:
         uses: ./.github/actions/manage_domains
         with:
           domain: ${{ inputs.domain }}
+          frontend_repo: ${{ inputs.frontend_repo }}
+
+  setup-frontend:
+    name: 'Setup Frontend'
+    needs: [validate, manage-domains]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Cloudflare Pages Project
+        uses: ./.github/actions/deploy_frontend
+        with:
+          frontend_repo: ${{ inputs.frontend_repo }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   run-terraform:
     name: 'Run Terraform'
-    needs: [manage-domains, validate]
+    needs: [manage-domains, validate, setup-frontend]
     runs-on: ubuntu-latest
-    outputs:
-      droplet_ip: ${{ steps.run-terraform.outputs.droplet_ip }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Run Terraform
-        id: run-terraform
         uses: ./.github/actions/run_terraform
         with:
           domain: ${{ inputs.domain }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-
-  build-frontend:
-    name: 'Build Frontend'
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build Frontend
-        uses: ./.github/actions/build_frontend
-        with:
-          frontend_repo: ${{ inputs.frontend_repo }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }} 
-
-  deploy-frontend:
-    name: 'Deploy Frontend'
-    needs: [build-frontend, run-terraform]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy
-        uses: ./.github/actions/deploy_frontend
-        with:
-          domain: ${{ inputs.domain }}
-          droplet_ip: ${{ needs.run-terraform.outputs.droplet_ip }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}

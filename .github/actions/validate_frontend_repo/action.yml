@@ -1,5 +1,5 @@
 name: 'Validate Frontend'
-description: 'Validates frontend repository access and Vite configuration'
+description: 'Validates frontend repository access and Vite configuration for Cloudflare Pages'
 
 inputs:
   frontend_repo:
@@ -43,5 +43,53 @@ runs:
         # Check if Vite is a dependency
         if ! echo "$content" | jq -e '.dependencies.vite or .devDependencies.vite' > /dev/null; then
           echo "Error: Vite not found in package.json dependencies"
+          exit 1
+        fi
+
+        # Check if build script exists
+        if ! echo "$content" | jq -e '.scripts.build' > /dev/null; then
+          echo "Error: No build script found in package.json"
+          exit 1
+        fi
+
+        # Check if dist directory is in .gitignore
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO/contents/.gitignore")
+        
+        if [[ $(echo $response | jq -r '.message') != "Not Found" ]]; then
+          content=$(echo $response | jq -r '.content' | base64 -d)
+          if ! echo "$content" | grep -q "dist"; then
+            echo "Warning: dist directory not found in .gitignore"
+          fi
+        fi
+
+        # Check if vite.config.js/ts exists
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO/contents/vite.config.js")
+        
+        if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+          response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+            "https://api.github.com/repos/$OWNER_REPO/contents/vite.config.ts")
+          
+          if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+            echo "Warning: vite.config.js/ts not found in repository"
+          fi
+        fi
+
+        # Check if index.html exists in root
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO/contents/index.html")
+        
+        if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+          echo "Error: index.html not found in repository root"
+          exit 1
+        fi
+
+        # Check if main branch exists
+        response=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/$OWNER_REPO/branches/main")
+        
+        if [[ $(echo $response | jq -r '.message') == "Not Found" ]]; then
+          echo "Error: main branch not found in repository"
           exit 1
         fi 
