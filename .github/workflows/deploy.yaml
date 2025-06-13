@@ -88,8 +88,8 @@ jobs:
           frontend_repo: ${{ inputs.frontend_repo }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }} 
 
-  deploy:
-    name: 'Deploy'
+  deploy-frontend:
+    name: 'Deploy Frontend'
     needs: [build-frontend, configure-droplet-user, terraform]
     runs-on: ubuntu-latest
     steps:
@@ -106,7 +106,7 @@ jobs:
 
   configure-nginx:
     name: 'Configure Nginx'
-    needs: [deploy, configure-droplet-user, terraform]
+    needs: [deploy-frontend, configure-droplet-user, terraform]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
