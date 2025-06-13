@@ -13,28 +13,8 @@ locals {
   }
 }
 
-# Cloudflare Zone for each domain
-resource "cloudflare_zone" "domains" {
-  for_each = local.domain_map
-  
-  zone = each.value.domain
-  account_id = var.cloudflare_account_id
-}
-
-# DNS Records for each domain
-resource "cloudflare_record" "domains" {
-  for_each = local.domain_map
-  zone_id = cloudflare_zone.domains[each.key].id
-  name    = each.value.domain
-  value   = "cname.vercel-dns.com"  # Adjust this based on your deployment target
-  type    = "CNAME"
-  proxied = true
-}
-
-# Output the zone IDs for reference
-output "zone_ids" {
-  value = {
-    for domain, zone in cloudflare_zone.domains : domain => zone.id
-  }
-  description = "Map of domain names to their Cloudflare zone IDs"
+# Output the parsed domains for reference
+output "parsed_domains" {
+  value = local.domains
+  description = "List of parsed domains from the input JSON"
 }
