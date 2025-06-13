@@ -25,14 +25,17 @@ runs:
       run: |
         # Function to check if user exists
         check_user() {
-          ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "id -u deploy >/dev/null 2>&1"
+          ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "id -u deploy >/dev/null 2>&1"
           return $?
         }
+
+        # Set droplet IP as environment variable
+        DROPLET_IP="${{ inputs.droplet_ip }}"
 
         # Create deploy user if it doesn't exist
         if ! check_user; then
           echo "Creating deploy user..."
-          ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "
+          ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "
             useradd -m -s /bin/bash deploy && \
             mkdir -p /home/deploy/.ssh && \
             touch /home/deploy/.ssh/authorized_keys && \
@@ -45,7 +48,7 @@ runs:
         fi
 
         # Configure sudo access (idempotent)
-        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "
+        ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "
           if [ ! -f /etc/sudoers.d/deploy ]; then
             echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/chown' > /etc/sudoers.d/deploy && \
             chmod 440 /etc/sudoers.d/deploy
@@ -53,7 +56,7 @@ runs:
         "
 
         # Add SSH key if not already present
-        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "
+        ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "
           if ! grep -q '$(cat ~/.ssh/id_rsa.pub)' /home/deploy/.ssh/authorized_keys; then
             cat ~/.ssh/id_rsa.pub >> /home/deploy/.ssh/authorized_keys
           fi
