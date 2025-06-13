@@ -27,7 +27,7 @@ on:
           value: ${{ jobs.terraform-apply.outputs.droplet_ip }}
 
 jobs:
-  terraform-apply:
+  Init_Plan_Apply:
     runs-on: ubuntu-latest
     outputs:
       droplet_ip: ${{ steps.terraform.outputs.droplet_ip }}
