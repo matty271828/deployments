@@ -24,9 +24,10 @@ resource "cloudflare_record" "pages_cname" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "@"  # Use @ to represent the root domain
-  value   = "${each.value.repo_name}.pages.dev"
+  content = "${each.value.repo_name}.pages.dev"
   type    = "CNAME"
   proxied = true
+  allow_overwrite = true
 }
 
 # Create Cloudflare Pages projects
