@@ -29,3 +29,25 @@ runs:
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -F branch=main
         done
+
+    - name: Configure Custom Domains
+      shell: bash
+      run: |
+        # Read domains.json and extract project names and domains
+        PROJECTS=$(jq -r '.[].frontend_repo | split("/") | last' domains.json)
+        DOMAINS=$(jq -r '.[].domain' domains.json)
+        
+        # Convert to arrays
+        readarray -t project_array <<< "$PROJECTS"
+        readarray -t domain_array <<< "$DOMAINS"
+        
+        # Configure custom domain for each project
+        for i in "${!project_array[@]}"; do
+          project="${project_array[$i]}"
+          domain="${domain_array[$i]}"
+          echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/domains"
+          curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/domains \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -d "{\"name\": \"$domain\"}"
+        done
