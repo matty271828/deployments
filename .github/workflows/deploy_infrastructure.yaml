@@ -75,7 +75,7 @@ jobs:
 
   deploy:
     name: 'Deploy'
-    needs: [build, configure]
+    needs: [build, configure, terraform]
     uses: ./.github/workflows/deploy.yaml
     with:
       domain: ${{ inputs.domain }}
