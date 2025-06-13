@@ -117,11 +117,15 @@ runs:
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         
-        # Reset any local changes and get latest
-        git reset --hard
-        git clean -fd
+        # Stash any local changes
+        git stash
+        
+        # Get latest changes
         git fetch origin main
         git checkout main
+        
+        # Apply our changes on top of latest
+        git stash pop || true
         
         # Add all files
         git add .
@@ -129,7 +133,11 @@ runs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update all files"
-          # Force push since we're managing state
-          git push -f https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
+          # Try to commit and push normally first
+          if git commit -m "Update all files" && git pull --rebase origin main; then
+            git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
+          else
+            echo "::error::Failed to commit and push changes. Please check the repository state."
+            exit 1
+          fi
         fi
