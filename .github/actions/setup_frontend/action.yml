@@ -30,7 +30,40 @@ runs:
         echo "owner=$OWNER" >> $GITHUB_OUTPUT
         echo "repo_name=$REPO" >> $GITHUB_OUTPUT
 
-    - name: Create Cloudflare Pages Project
+    - name: Check if project exists
+      id: check_project
+      shell: bash
+      run: |
+        response=$(curl -s -X GET \
+          "https://api.cloudflare.com/client/v4/accounts/${{ inputs.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ steps.extract_repo.outputs.repo_name }}" \
+          -H "Authorization: Bearer ${{ inputs.CLOUDFLARE_API_TOKEN }}" \
+          -H "Content-Type: application/json")
+        
+        if [[ $(echo $response | jq -r '.success') == "true" ]]; then
+          echo "project_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "project_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create project if it doesn't exist
+      if: steps.check_project.outputs.project_exists == 'false'
+      shell: bash
+      run: |
+        curl -s -X POST \
+          "https://api.cloudflare.com/client/v4/accounts/${{ inputs.CLOUDFLARE_ACCOUNT_ID }}/pages/projects" \
+          -H "Authorization: Bearer ${{ inputs.CLOUDFLARE_API_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "name": "${{ steps.extract_repo.outputs.repo_name }}",
+            "production_branch": "main",
+            "build_config": {
+              "build_command": "npm run build -- --mode production",
+              "build_output_dir": "dist",
+              "node_version": "20"
+            }
+          }'
+
+    - name: Deploy to Cloudflare Pages
       uses: cloudflare/pages-action@v1
       with:
         apiToken: ${{ inputs.CLOUDFLARE_API_TOKEN }}
