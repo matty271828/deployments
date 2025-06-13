@@ -1,0 +1,21 @@
+name: 'Deploy Frontend'
+description: 'Deploys the frontend application to the target environment'
+
+inputs:
+  domain:
+    description: 'Domain Name'
+    required: true
+  artifact_path:
+    description: 'Path to the built frontend artifacts'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Deploy Frontend
+      shell: bash
+      run: |
+        echo "Deploy frontend logic will be implemented here" 
