@@ -29,6 +29,11 @@ runs:
       with:
         ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
 
+    - name: Check Droplet IP
+      shell: bash
+      run: |
+        echo "Droplet IP: ${{ inputs.droplet_ip }}"
+
     - name: Download Frontend Artifact
       uses: actions/download-artifact@v4
       with:
