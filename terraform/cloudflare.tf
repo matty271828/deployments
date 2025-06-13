@@ -39,6 +39,12 @@ resource "cloudflare_pages_project" "frontend" {
   name       = replace(each.value, "/[^a-zA-Z0-9-]/", "-")
   production_branch = "main"
   
+  build_config {
+    build_command = "npm run build -- --mode production"
+    build_output_dir = "dist"
+    node_version = "20"
+  }
+
   source {
     type = "github"
     config {
