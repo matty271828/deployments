@@ -41,7 +41,7 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
 
-  terraform:
+  run-terraform:
     name: 'Run Terraform'
     needs: [manage-domains, validate]
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
 
   configure-droplet-user:
     name: 'Configure Droplet User'
-    needs: terraform
+    needs: run-terraform
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -71,7 +71,7 @@ jobs:
       - name: Configure user
         uses: ./.github/actions/configure_user
         with:
-          droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
+          droplet_ip: ${{ needs.run-terraform.outputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   build-frontend:
@@ -90,7 +90,7 @@ jobs:
 
   deploy-frontend:
     name: 'Deploy Frontend'
-    needs: [build-frontend, configure-droplet-user, terraform]
+    needs: [build-frontend, configure-droplet-user, run-terraform]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -100,13 +100,13 @@ jobs:
         uses: ./.github/actions/deploy_frontend
         with:
           domain: ${{ inputs.domain }}
-          droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
+          droplet_ip: ${{ needs.run-terraform.outputs.droplet_ip }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   configure-nginx:
     name: 'Configure Nginx'
-    needs: [deploy-frontend, configure-droplet-user, terraform]
+    needs: [deploy-frontend, configure-droplet-user, run-terraform]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -115,5 +115,5 @@ jobs:
       - name: Configure Nginx
         uses: ./.github/actions/configure_nginx
         with:
-          droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
+          droplet_ip: ${{ needs.run-terraform.outputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
