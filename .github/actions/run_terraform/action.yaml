@@ -50,7 +50,6 @@ runs:
 
     - name: Terraform Plan
       id: plan
-      needs: init
       working-directory: ./terraform
       shell: bash
       run: |
@@ -78,7 +77,6 @@ runs:
 
     - name: Terraform Apply
       id: apply
-      needs: [init, plan]
       shell: bash
       working-directory: ./terraform
       run: |
@@ -109,7 +107,6 @@ runs:
 
     - name: Check for Terraform Errors
       id: check_errors
-      needs: apply
       shell: bash
       run: |
         if [ "${{ steps.apply.outputs.terraform_error }}" == "true" ]; then
@@ -119,7 +116,6 @@ runs:
 
     - name: Check for State File Changes
       id: check_state_changes
-      needs: apply
       shell: bash
       run: |
         git fetch origin main
@@ -131,7 +127,6 @@ runs:
 
     - name: Commit and push changes
       id: commit
-      needs: check_state_changes
       shell: bash
       run: |
         git config --global user.name "github-actions"
