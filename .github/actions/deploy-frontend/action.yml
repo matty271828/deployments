@@ -30,10 +30,10 @@ runs:
         ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
     - name: Download Frontend Artifact
-      shell: bash
-      run: |
-        gh auth login --with-token <<< "${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}"
-        gh run download ${{ github.run_id }} --dir frontend-artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-artifact
+        path: frontend-artifact
 
     - name: Deploy to Digital Ocean
       shell: bash
