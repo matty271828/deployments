@@ -26,7 +26,7 @@ jobs:
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   manage-domains:
     name: 'Manage Domains'
@@ -53,7 +53,7 @@ jobs:
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   configure:
     name: 'Configure'
@@ -62,7 +62,7 @@ jobs:
     with:
       droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
     secrets:
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   build:
     name: 'Build'
@@ -83,4 +83,4 @@ jobs:
       droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
     secrets:
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}

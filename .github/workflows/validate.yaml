@@ -21,7 +21,7 @@ on:
         required: true
       DIGITAL_OCEAN_SSH_KEY_NAME:
         required: true
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY:
+      digital_ocean_ssh_private_key:
         required: true
 
 jobs:

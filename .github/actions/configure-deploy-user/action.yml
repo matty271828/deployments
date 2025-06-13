@@ -5,8 +5,8 @@ inputs:
   droplet_ip:
     description: 'Digital Ocean Droplet IP'
     required: true
-  DIGITAL_OCEAN_SSH_PRIVATE_KEY:
-    description: 'Digital Ocean SSH Private Key'
+  digital_ocean_ssh_private_key:
+    description: 'SSH private key for DigitalOcean'
     required: true
 
 runs:
@@ -18,7 +18,7 @@ runs:
     - name: Set up SSH
       uses: webfactory/ssh-agent@v0.5.3
       with:
-        ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+        ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
 
     - name: Configure Deploy User
       shell: bash

@@ -17,7 +17,7 @@ inputs:
   DIGITAL_OCEAN_SSH_KEY_NAME:
     description: 'Digital Ocean SSH Key Name'
     required: true
-  DIGITAL_OCEAN_SSH_PRIVATE_KEY:
+  digital_ocean_ssh_private_key:
     description: 'Digital Ocean SSH Private Key'
     required: true
 
@@ -27,7 +27,7 @@ runs:
     - name: Set up SSH
       uses: webfactory/ssh-agent@v0.5.3
       with:
-        ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+        ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
 
     - name: Download Frontend Artifact
       uses: actions/download-artifact@v4

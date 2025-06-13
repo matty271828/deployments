@@ -19,7 +19,7 @@ on:
     secrets:
       GH_PERSONAL_ACCESS_TOKEN:
         required: true
-      DIGITAL_OCEAN_SSH_PRIVATE_KEY:
+      digital_ocean_ssh_private_key:
         required: true
 
 jobs:
