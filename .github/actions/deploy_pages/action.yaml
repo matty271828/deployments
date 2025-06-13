@@ -24,10 +24,17 @@ runs:
         # Deploy each project
         for project in $PROJECTS; do
           echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
-          curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
+          response=$(curl -s https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
             -H 'Content-Type: multipart/form-data' \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -F branch=main
+            -F branch=main)
+          
+          # Check if the request was successful
+          if ! echo "$response" | jq -e '.success == true' > /dev/null; then
+            echo "::error::Failed to deploy project $project"
+            echo "$response" | jq -r '.errors[0].message'
+            exit 1
+          fi
         done
 
     - name: Configure Custom Domains
@@ -46,8 +53,15 @@ runs:
           project="${project_array[$i]}"
           domain="${domain_array[$i]}"
           echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/domains"
-          curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/domains \
+          response=$(curl -s https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/domains \
             -H 'Content-Type: application/json' \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -d "{\"name\": \"$domain\"}"
+            -d "{\"name\": \"$domain\"}")
+          
+          # Check if the request was successful
+          if ! echo "$response" | jq -e '.success == true' > /dev/null; then
+            echo "::error::Failed to configure domain $domain for project $project"
+            echo "$response" | jq -r '.errors[0].message'
+            exit 1
+          fi
         done
