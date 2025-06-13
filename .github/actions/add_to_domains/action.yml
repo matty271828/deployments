@@ -92,6 +92,7 @@ runs:
           echo "EOF"
         } >> $GITHUB_OUTPUT 
 
+    # TODO - Remove this duplicate commit and only commit at the end of run terraform.
     - name: Commit domains.json
       shell: bash
       run: |
