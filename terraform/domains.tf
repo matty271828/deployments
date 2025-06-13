@@ -16,16 +16,6 @@ locals {
   }
 }
 
-# Output the list of domains for future reference
-output "domains" {
-  value = local.domains
-}
-
-output "current_domain" {
-  value = var.domain
-  description = "The domain being added in this run"
-}
-
 # Cloudflare Zone for each domain
 resource "cloudflare_zone" "domains" {
   for_each = local.domain_map
