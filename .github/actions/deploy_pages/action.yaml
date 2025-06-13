@@ -23,7 +23,7 @@ runs:
         
         # Deploy each project
         for project in $PROJECTS; do
-          echo "Deploying project: $project"
+          echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
           curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
             -H 'Content-Type: multipart/form-data' \
             -H "X-Auth-Email: ${{ inputs.cloudflare_email }}" \
