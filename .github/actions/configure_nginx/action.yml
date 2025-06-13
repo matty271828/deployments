@@ -98,11 +98,7 @@ runs:
         
         # Copy the generated config to the generated directory
         cp nginx/nginx.conf generated/nginx/
-        
-        # Debug: Show contents of generated config
-        echo "Generated Nginx config:"
-        cat generated/nginx/nginx.conf
-        
+                
         # Configure git
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
