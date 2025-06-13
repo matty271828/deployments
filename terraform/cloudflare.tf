@@ -28,8 +28,8 @@ resource "cloudflare_pages_project" "frontend" {
   source {
     type = "github"
     config {
-      owner = split("/", split("github.com/", each.value)[1])[0]
-      repo_name = split("/", split("github.com/", each.value)[1])[1]
+      owner = each.value.owner
+      repo_name = each.value.repo
       production_branch = "main"
     }
   }
