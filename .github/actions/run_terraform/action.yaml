@@ -123,14 +123,13 @@ runs:
         git fetch origin main
         git checkout main
         
-        # Only add specific files we want to track
-        git add domains.json
-        git add terraform/terraform.tfstate
+        # Add all files
+        git add .
         
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update domains.json and Terraform state"
+          git commit -m "Update all files"
           # Force push since we're managing state
           git push -f https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
         fi
