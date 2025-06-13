@@ -1,4 +1,4 @@
-name: Deploy Infrastructure
+name: Deploy
 description: 'Deploys the project architecture if not already deployed'
 
 on:
