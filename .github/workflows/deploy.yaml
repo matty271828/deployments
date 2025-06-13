@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy Frontend
+      - name: Frontend
         uses: ./.github/actions/deploy-frontend
         with:
           domain: ${{ inputs.domain }}
