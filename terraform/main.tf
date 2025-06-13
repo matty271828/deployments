@@ -15,8 +15,3 @@ terraform {
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
-
-# DigitalOcean Provider
-provider "digitalocean" {
-  token = var.digital_ocean_api_token
-} 
