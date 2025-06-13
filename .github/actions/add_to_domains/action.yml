@@ -1,5 +1,5 @@
-name: 'Setup Domains'
-description: 'Manages the list of domains and their frontend repos in JSON format'
+name: 'Add to Domains'
+description: 'Adds the input domain and frontend repo to the domains.json file'
 
 inputs:
   domain:

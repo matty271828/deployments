@@ -25,12 +25,12 @@ jobs:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  setup-domains:
-    name: 'Setup Domains'
+  add-to-domains:
+    name: 'Add to Domains'
     needs: validate
     runs-on: ubuntu-latest
     outputs:
-      domains: ${{ steps.setup-domains.outputs.domains }}
+      domains: ${{ steps.add-to-domains.outputs.domains }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
 
   run-terraform:
     name: 'Run Terraform'
-    needs: [setup-domains, validate]
+    needs: [add-to-domains, validate]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
       - name: Run Terraform
         uses: ./.github/actions/run_terraform
         with:
-          domains: ${{ needs.setup-domains.outputs.domains }}
+          domains: ${{ needs.add-to-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
