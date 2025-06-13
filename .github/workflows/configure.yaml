@@ -17,6 +17,9 @@ jobs:
     name: 'User'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure deploy user
         uses: ./.github/actions/configure-deploy-user
         with:
