@@ -72,4 +72,3 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare_email: ${{ secrets.CLOUDFLARE_EMAIL }}
-          projects: ${{ needs.run-terraform.outputs.projects }}
