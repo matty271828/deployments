@@ -105,4 +105,5 @@ runs:
           echo "No changes to commit"
         else
           git commit -m "Update generated Nginx configuration [skip ci]"
-          git push "https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git" main 
+          git push "https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git" main
+        fi 
