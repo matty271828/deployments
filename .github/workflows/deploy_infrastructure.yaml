@@ -91,13 +91,18 @@ jobs:
   deploy:
     name: 'Deploy'
     needs: [build-frontend, configure-droplet-user, terraform]
-    uses: ./.github/workflows/deploy.yaml
-    with:
-      domain: ${{ inputs.domain }}
-      droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
-    secrets:
-      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        uses: ./.github/actions/deploy_frontend
+        with:
+          domain: ${{ inputs.domain }}
+          droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   configure-nginx:
     name: 'Configure Nginx'
