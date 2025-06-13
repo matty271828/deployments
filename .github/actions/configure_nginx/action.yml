@@ -61,22 +61,14 @@ runs:
         echo "$DOMAIN_BLOCKS"
         
         # Generate final Nginx configuration
-        echo "Attempting to generate nginx.conf..."
+        echo "Generating nginx.conf..."
         
-        echo "Step 1: Getting the first part of the template (before domain_blocks)"
+        # Create the nginx.conf by concatenating the template parts
         sed -n '/^user/,/{{domain_blocks}}/p' nginx/nginx.conf.template | sed '$d' > nginx/nginx.conf
-        echo "First part content:"
-        cat nginx/nginx.conf
-        
-        echo "Step 2: Appending domain blocks"
         echo "$DOMAIN_BLOCKS" >> nginx/nginx.conf
-        echo "Content after adding domain blocks:"
-        cat nginx/nginx.conf
-        
-        echo "Step 3: Appending the final part of the template"
         sed -n '/{{domain_blocks}}/,$p' nginx/nginx.conf.template | sed '1d' >> nginx/nginx.conf
         
-        echo "Final generated nginx.conf content:"
+        echo "Final nginx.conf:"
         cat nginx/nginx.conf
         
         # Upload the configuration
