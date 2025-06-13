@@ -40,4 +40,6 @@ resource "cloudflare_pages_domain" "custom_domain" {
   account_id = var.cloudflare_account_id
   project_name = "${each.value.domain}"
   domain = each.key
+
+  depends_on = [cloudflare_pages_project.frontend]
 }
