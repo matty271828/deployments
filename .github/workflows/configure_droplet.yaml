@@ -14,7 +14,7 @@ on:
 
 jobs:
   configure-deploy-user:
-    name: 'Configure Deploy User'
+    name: 'User'
     runs-on: ubuntu-latest
     steps:
       - name: Set up SSH
@@ -22,7 +22,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
-      - name: Configure Deploy User
+      - name: Configure deploy user
         uses: ./.github/actions/configure-deploy-user
         with:
           droplet_ip: ${{ inputs.droplet_ip }}
