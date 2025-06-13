@@ -54,4 +54,18 @@ runs:
             echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/chown' > /etc/sudoers.d/deploy && \
             chmod 440 /etc/sudoers.d/deploy
           fi
+        "
+
+    - name: Configure SSH Keys
+      shell: bash
+      run: |
+        DROPLET_IP="${{ inputs.droplet_ip }}"
+        echo "Configuring SSH keys for deploy user..."
+        
+        # Add SSH public key to authorized_keys
+        ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "
+          # Get the public key from the private key
+          echo '$(ssh-keygen -y -f <(echo "${{ inputs.digital_ocean_ssh_private_key }}"))' > /home/deploy/.ssh/authorized_keys && \
+          chown deploy:deploy /home/deploy/.ssh/authorized_keys && \
+          chmod 600 /home/deploy/.ssh/authorized_keys
         " 
