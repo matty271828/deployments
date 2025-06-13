@@ -1,0 +1,20 @@
+name: Destroy Project from Serverless
+description: 'Destroys all projects from the serverless infrastructure'
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy:
+    name: 'Destroy Infrastructure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Destroy Terraform
+        uses: ./.github/actions/destroy_terraform
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }} 
