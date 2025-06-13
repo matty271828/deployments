@@ -72,6 +72,16 @@ runs:
         # Copy all generated configs to the generated directory
         cp nginx/*.conf generated/nginx/
         
+        # Debug: List and show contents of generated configs
+        echo "Generated Nginx configs:"
+        ls -la generated/nginx/
+        echo "Contents of generated configs:"
+        for config in generated/nginx/*.conf; do
+          echo "=== Contents of $config ==="
+          cat "$config"
+          echo "=== End of $config ==="
+        done
+        
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add generated/nginx/
