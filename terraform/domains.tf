@@ -1,8 +1,3 @@
-# Read domains from file
-data "local_file" "domains" {
-  filename = "${path.module}/../domains.json"
-}
-
 locals {  
   # Create a map of frontend repos
   frontend_repos = { for domain in local.domains : domain.domain => domain.frontend_repo }
