@@ -12,6 +12,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
     - name: Configure Deploy User
       shell: bash
       run: |

@@ -17,11 +17,6 @@ jobs:
     name: 'User'
     runs-on: ubuntu-latest
     steps:
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
-
       - name: Configure deploy user
         uses: ./.github/actions/configure-deploy-user
         with:
