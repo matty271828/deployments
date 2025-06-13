@@ -14,23 +14,11 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
-  digital_ocean_api_token:
-    description: 'DigitalOcean API Token'
-    required: true
-  digital_ocean_ssh_key_name:
-    description: 'DigitalOcean SSH Key Name'
-    required: true
-  digital_ocean_ssh_private_key:
-    description: 'DigitalOcean API Key Token'
-    required: true
 
 outputs:
   terraform_error:
     description: 'Indicates if there was an error in Terraform operations'
     value: ${{ steps.apply.outputs.terraform_error }}
-  droplet_ip:
-    description: 'IP address of the created Digital Ocean droplet'
-    value: ${{ steps.apply.outputs.droplet_ip }}
 
 runs:
   using: "composite"
@@ -96,18 +84,12 @@ runs:
           echo "terraform_error=true" >> $GITHUB_OUTPUT
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
-          # Capture the droplet IP from Terraform output
-          DROPLET_IP=$(terraform output -raw droplet_ip)
-          echo "droplet_ip=$DROPLET_IP" >> $GITHUB_OUTPUT
         fi
         exit $exit_code
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domain: ${{ inputs.domain }}
-        TF_VAR_digital_ocean_api_token: ${{ inputs.digital_ocean_api_token }}
-        TF_VAR_digital_ocean_ssh_key_name: ${{ inputs.digital_ocean_ssh_key_name }}
-        TF_VAR_digital_ocean_ssh_private_key: ${{ inputs.digital_ocean_ssh_private_key }}
         TF_LOG: DEBUG
 
     - name: Check for Terraform Errors

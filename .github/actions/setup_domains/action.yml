@@ -6,8 +6,13 @@ inputs:
     description: 'Domain Name'
     required: true
   frontend_repo:
-    description: 'Frontend repository URL (e.g., https://github.com/username/repo)'
+    description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
     required: true
+
+outputs:
+  domains:
+    description: 'List of all domains and their frontend repos'
+    value: ${{ steps.get-domains.outputs.domains }}
 
 runs:
   using: "composite"
@@ -35,8 +40,16 @@ runs:
           echo "domain_exists=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Append domain and frontend repo if new
+    - name: Append domain if new
       if: steps.check-domain.outputs.domain_exists == 'false'
       shell: bash
       run: |
-        echo "${{ inputs.domain }}|${{ inputs.frontend_repo }}" >> domains.txt 
+        echo "${{ inputs.domain }}|${{ inputs.frontend_repo }}" >> domains.txt
+
+    - name: Get all domains
+      id: get-domains
+      shell: bash
+      run: |
+        # Read domains.txt, filter out comments and empty lines, and join with newlines
+        DOMAINS=$(grep -v '^#' domains.txt | grep -v '^$' | tr '\n' ' ')
+        echo "domains=$DOMAINS" >> $GITHUB_OUTPUT 
