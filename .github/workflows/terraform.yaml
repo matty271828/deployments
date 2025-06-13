@@ -49,6 +49,8 @@ jobs:
     name: 'Apply'
     runs-on: ubuntu-latest
     needs: terraform-plan
+    outputs:
+      droplet_ip: ${{ steps.terraform.outputs.droplet_ip }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +61,7 @@ jobs:
           terraform_version: "1.7.0"
 
       - name: Terraform Apply
+        id: terraform
         uses: ./.github/actions/terraform-apply
         with:
           domain: ${{ inputs.domain }}

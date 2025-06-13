@@ -5,6 +5,9 @@ inputs:
   domain:
     description: 'Domain Name'
     required: true
+  droplet_ip:
+    description: 'Digital Ocean Droplet IP'
+    required: true
   artifact_path:
     description: 'Path to the built frontend artifacts'
     required: true
@@ -21,13 +24,11 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup SSH
-      shell: bash
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ inputs.domain }} >> ~/.ssh/known_hosts
+  steps:
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
     - name: Download Frontend Artifact
       shell: bash
@@ -39,10 +40,10 @@ runs:
       shell: bash
       run: |
         # Create a directory for this domain
-        ssh root@${{ inputs.domain }} "mkdir -p /var/www/${{ inputs.domain }}"
+        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "mkdir -p /var/www/${{ inputs.domain }}"
         
         # Upload the frontend files
-        scp -r frontend-artifact/* root@${{ inputs.domain }}:/var/www/${{ inputs.domain }}/
+        scp -o StrictHostKeyChecking=no -r frontend-artifact/* root@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
 
     - name: Validate Deployment
       shell: bash
@@ -51,7 +52,7 @@ runs:
         local_files=$(find frontend-artifact -type f | wc -l)
         
         # Count files on remote server
-        remote_files=$(ssh root@${{ inputs.domain }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
+        remote_files=$(ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
         
         # Check if directory exists and has files
         if [ "$remote_files" -eq 0 ]; then

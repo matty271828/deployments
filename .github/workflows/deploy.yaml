@@ -12,8 +12,14 @@ on:
         description: 'Path to the built frontend artifacts'
         required: true
         type: string
+      droplet_ip:
+        description: 'Digital Ocean Droplet IP'
+        required: true
+        type: string
     secrets:
       GH_PERSONAL_ACCESS_TOKEN:
+        required: true
+      DIGITAL_OCEAN_SSH_PRIVATE_KEY:
         required: true
 
 jobs:
@@ -29,4 +35,6 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           artifact_path: ${{ inputs.artifact_path }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }} 
+          droplet_ip: ${{ inputs.droplet_ip }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }} 

@@ -28,6 +28,9 @@ outputs:
   terraform_error:
     description: 'Indicates if there was an error in Terraform operations'
     value: ${{ steps.terraform.outputs.terraform_error }}
+  droplet_ip:
+    description: 'IP address of the created Digital Ocean droplet'
+    value: ${{ steps.terraform.outputs.droplet_ip }}
 
 runs:
   using: "composite"
@@ -60,6 +63,9 @@ runs:
           echo "terraform_error=true" >> $GITHUB_OUTPUT
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
+          # Capture the droplet IP from Terraform output
+          DROPLET_IP=$(terraform output -raw droplet_ip)
+          echo "droplet_ip=$DROPLET_IP" >> $GITHUB_OUTPUT
         fi
         exit $exit_code
       env:
