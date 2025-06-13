@@ -16,7 +16,7 @@ output "zone_ids" {
 resource "cloudflare_pages_project" "frontend" {
   for_each = local.frontend_repos
   account_id = var.cloudflare_account_id
-  name       = replace(each.value, "/[^a-zA-Z0-9-]/", "-")
+  name       = "${each.value.owner}
   production_branch = "main"
   
   build_config {
@@ -39,6 +39,6 @@ resource "cloudflare_pages_project" "frontend" {
 resource "cloudflare_pages_domain" "custom_domain" {
   for_each = local.frontend_repos
   account_id = var.cloudflare_account_id
-  project_name = replace(each.value, "/[^a-zA-Z0-9-]/", "-")
+  project_name = "${each.value.owner}
   domain = each.key
 }
