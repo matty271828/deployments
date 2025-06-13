@@ -1,4 +1,0 @@
-# Format: domain|frontend_repo
-# Example: example.com|https://github.com/username/example-frontend
-# Each domain should be on a new line
-# Lines starting with # are comments 

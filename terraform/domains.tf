@@ -18,7 +18,7 @@ locals {
 
 # Output the list of domains for future reference
 output "domains" {
-  value = local.raw_domains
+  value = local.domains
 }
 
 output "current_domain" {
