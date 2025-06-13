@@ -3,10 +3,7 @@ data "local_file" "domains" {
   filename = "${path.module}/../domains.txt"
 }
 
-locals {
-  # Split by newline, trim whitespace, and filter out empty strings and comments
-  raw_domains = [for domain in split("\n", data.local_file.domains.content) : trimspace(domain) if trimspace(domain) != "" && !startswith(trimspace(domain), "#")]
-  
+locals {  
   # Parse the domains JSON from GitHub Actions output
   domains = jsondecode(var.domains_json)
   
@@ -27,7 +24,6 @@ resource "cloudflare_zone" "domains" {
 # DNS Records for each domain
 resource "cloudflare_record" "domains" {
   for_each = local.domain_map
-  
   zone_id = cloudflare_zone.domains[each.key].id
   name    = each.value.domain
   value   = "cname.vercel-dns.com"  # Adjust this based on your deployment target
