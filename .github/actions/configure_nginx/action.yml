@@ -37,16 +37,30 @@ runs:
         
         # Generate domain blocks
         DOMAIN_BLOCKS=""
+        echo "Starting domain block generation..."
+        echo "Domains from domains.txt:"
+        cat domains.txt
+        
         for domain in $DOMAINS; do
           if [ -n "$domain" ]; then
+            echo "Processing domain: $domain"
             # Create domain-specific configuration
             DOMAIN_BLOCK=$(sed "s/{{domain}}/$domain/g" nginx/domain.conf.template)
+            echo "Generated block for $domain:"
+            echo "$DOMAIN_BLOCK"
             DOMAIN_BLOCKS="${DOMAIN_BLOCKS}${DOMAIN_BLOCK}"
           fi
         done
         
+        echo "Final DOMAIN_BLOCKS content:"
+        echo "$DOMAIN_BLOCKS"
+        
         # Generate final Nginx configuration
+        echo "Attempting to generate nginx.conf..."
         sed "s|{{domain_blocks}}|$(echo "$DOMAIN_BLOCKS" | sed 's/[\&/]/\\&/g')|" nginx/nginx.conf.template > nginx/nginx.conf
+        
+        echo "Generated nginx.conf content:"
+        cat nginx/nginx.conf
         
         # Upload the configuration
         scp -o StrictHostKeyChecking=no nginx/nginx.conf root@$DROPLET_IP:/etc/nginx/nginx.conf
