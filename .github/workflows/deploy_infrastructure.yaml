@@ -28,15 +28,6 @@ jobs:
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
       DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
-  build:
-    name: 'Build'
-    needs: validate
-    uses: ./.github/workflows/build.yaml
-    with:
-      frontend_repo: ${{ inputs.frontend_repo }}
-    secrets:
-      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-
   manage-domains:
     name: 'Manage Domains'
     needs: validate
@@ -63,6 +54,15 @@ jobs:
       DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
       DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
+  build:
+    name: 'Build'
+    needs: validate
+    uses: ./.github/workflows/build.yaml
+    with:
+      frontend_repo: ${{ inputs.frontend_repo }}
+    secrets:
+      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
   deploy:
     name: 'Deploy'
