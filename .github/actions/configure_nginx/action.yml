@@ -8,6 +8,9 @@ inputs:
   digital_ocean_ssh_private_key:
     description: 'SSH private key for DigitalOcean'
     required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
 
 runs:
   using: "composite"
@@ -26,23 +29,54 @@ runs:
         DROPLET_IP="${{ inputs.droplet_ip }}"
         echo "Configuring Nginx..."
         
+        # Install Nginx if not installed
+        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "if ! command -v nginx &> /dev/null; then sudo apt update && sudo apt install -y nginx; fi"
+        
+        # Create necessary directories
+        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled"
+        
         # Read domains from domains.txt
         DOMAINS=$(cat domains.txt)
         
-        # Create the final nginx configuration
+        # Reset Nginx configuration by removing all enabled sites
+        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "find /etc/nginx/sites-enabled/ -type l -delete"
+        
+        # Create and enable configuration for each domain
         for domain in $DOMAINS; do
           if [ -n "$domain" ]; then
-            sed "s/{{domain}}/$domain/g" nginx/domain.conf.template >> nginx.conf
+            # Create domain-specific configuration
+            sed "s/{{domain}}/$domain/g" nginx/domain.conf.template > nginx/$domain.conf
+            
+            # Upload the configuration
+            scp -o StrictHostKeyChecking=no nginx/$domain.conf root@$DROPLET_IP:/etc/nginx/sites-available/$domain
+            
+            # Create symbolic link to enable the site
+            ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "ln -sf /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/"
           fi
         done
         
-        # Upload the configuration to the droplet
-        scp -o StrictHostKeyChecking=no nginx.conf deploy@$DROPLET_IP:/tmp/nginx.conf
+        # Test the configuration
+        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "nginx -t"
         
-        # Move configuration to the correct location and set permissions
-        ssh -o StrictHostKeyChecking=no deploy@$DROPLET_IP "sudo mv /tmp/nginx.conf /etc/nginx/nginx.conf && \
-          sudo chown root:root /etc/nginx/nginx.conf && \
-          sudo chmod 644 /etc/nginx/nginx.conf"
+        # Restart Nginx completely to apply changes
+        echo 'Restarting Nginx to apply the changes'
+        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "systemctl restart nginx"
+
+    - name: Commit and push changes
+      id: commit
+      shell: bash
+      run: |
+        # Create a directory for the generated configs if it doesn't exist
+        mkdir -p generated/nginx
         
-        # Test and reload Nginx configuration
-        ssh -o StrictHostKeyChecking=no deploy@$DROPLET_IP "sudo nginx -t && sudo systemctl reload nginx" 
+        # Copy all generated configs to the generated directory
+        cp nginx/*.conf generated/nginx/
+        
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add generated/nginx/
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update generated Nginx configurations [skip ci]"
+          git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main 
