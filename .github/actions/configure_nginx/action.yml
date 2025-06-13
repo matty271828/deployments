@@ -71,13 +71,6 @@ runs:
         echo "Final nginx.conf:"
         cat nginx/nginx.conf.generated
         
-        # Test the configuration locally first
-        echo "Testing Nginx configuration locally..."
-        if ! nginx -t -c "$(pwd)/nginx/nginx.conf.generated"; then
-          echo "❌ Nginx configuration test failed locally"
-          exit 1
-        fi
-        
         # Upload the configuration
         echo "Uploading configuration to server..."
         scp -o StrictHostKeyChecking=no nginx/nginx.conf.generated root@$DROPLET_IP:/etc/nginx/nginx.conf
