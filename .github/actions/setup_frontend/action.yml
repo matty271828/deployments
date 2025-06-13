@@ -22,11 +22,13 @@ runs:
       id: extract_repo
       shell: bash
       run: |
-        if [[ "${{ inputs.frontend_repo }}" == https://github.com/* ]]; then
-          echo "repo=$(echo "${{ inputs.frontend_repo }}" | sed 's|https://github.com/||')" >> $GITHUB_OUTPUT
-        else
-          echo "repo=${{ inputs.frontend_repo }}" >> $GITHUB_OUTPUT
-        fi
+        # Remove https://github.com/ from the URL
+        REPO_PATH="${GITHUB_REPOSITORY#https://github.com/}"
+        # Split into owner and repo
+        OWNER="${REPO_PATH%%/*}"
+        REPO="${REPO_PATH#*/}"
+        echo "owner=$OWNER" >> $GITHUB_OUTPUT
+        echo "repo_name=$REPO" >> $GITHUB_OUTPUT
 
     - name: Create Cloudflare Pages Project
       uses: cloudflare/pages-action@v1
@@ -34,12 +36,11 @@ runs:
         apiToken: ${{ inputs.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ inputs.CLOUDFLARE_ACCOUNT_ID }}
         command: create
-        projectName: ${{ steps.extract_repo.outputs.repo }}
-        gitSource:
-          type: github
-          owner: ${{ steps.extract_repo.outputs.repo.split('/')[0] }}
-          repo: ${{ steps.extract_repo.outputs.repo.split('/')[1] }}
-          branch: main
+        projectName: ${{ steps.extract_repo.outputs.repo_name }}
+        gitSourceType: github
+        gitSourceOwner: ${{ steps.extract_repo.outputs.owner }}
+        gitSourceRepo: ${{ steps.extract_repo.outputs.repo_name }}
+        gitSourceBranch: main
         buildCommand: npm run build -- --mode production
         buildOutputDirectory: dist
         nodeVersion: 20
