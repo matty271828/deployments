@@ -2,8 +2,8 @@ name: 'Run Terraform'
 description: 'Runs Terraform configuration'
 
 inputs:
-  domain:
-    description: 'Domain name for the deployment'
+  domains:
+    description: 'JSON string containing the list of domains and their frontend repos'
     required: true
   cloudflare_account_id:
     description: 'Cloudflare Account ID'
@@ -62,10 +62,7 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
-        TF_VAR_domain: ${{ inputs.domain }}
-        TF_VAR_digital_ocean_api_token: ${{ inputs.digital_ocean_api_token }}
-        TF_VAR_digital_ocean_ssh_key_name: ${{ inputs.digital_ocean_ssh_key_name }}
-        TF_VAR_digital_ocean_ssh_private_key: ${{ inputs.digital_ocean_ssh_private_key }}
+        TF_VAR_domains_json: ${{ inputs.domains }}
         TF_LOG: DEBUG
 
     - name: Terraform Apply
@@ -89,7 +86,7 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
-        TF_VAR_domain: ${{ inputs.domain }}
+        TF_VAR_domains_json: ${{ inputs.domains }}
         TF_LOG: DEBUG
 
     - name: Check for Terraform Errors
@@ -106,7 +103,7 @@ runs:
       shell: bash
       run: |
         git fetch origin main
-        if git diff origin/main -- terraform/terraform.tfstate domains.txt | grep .; then
+        if git diff origin/main -- terraform/terraform.tfstate terraform/domains.json | grep .; then
           echo "changes=true" >> $GITHUB_ENV
         else
           echo "changes=false" >> $GITHUB_ENV
@@ -119,7 +116,7 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ domains.txt
+        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ terraform/domains.json
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else

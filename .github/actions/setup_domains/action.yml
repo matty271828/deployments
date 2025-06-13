@@ -1,5 +1,5 @@
 name: 'Setup Domains'
-description: 'Manages the list of domains and their frontend repos by appending new ones to domains.txt'
+description: 'Manages the list of domains and their frontend repos in JSON format'
 
 inputs:
   domain:
@@ -11,30 +11,47 @@ inputs:
 
 outputs:
   domains:
-    description: 'List of all domains and their frontend repos'
+    description: 'JSON array of all domains and their frontend repos'
     value: ${{ steps.get-domains.outputs.domains }}
 
 runs:
   using: "composite"
   steps:
+    - name: Install jq
+      shell: bash
+      run: |
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y jq
+        fi
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Create domains.txt if it doesn't exist
+    - name: Create domains.json if it doesn't exist
       shell: bash
       run: |
-        if [ ! -f domains.txt ]; then
-          echo "# Format: domain|frontend_repo" > domains.txt
-          echo "# Example: example.com|https://github.com/username/example-frontend" >> domains.txt
-          echo "# Each domain should be on a new line" >> domains.txt
-          echo "# Lines starting with # are comments" >> domains.txt
+        if [ ! -f domains.json ]; then
+          echo '[]' > domains.json
+        fi
+
+    - name: Validate domain format
+      shell: bash
+      run: |
+        if ! [[ "${{ inputs.domain }}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$ ]]; then
+          echo "Error: Invalid domain format"
+          exit 1
+        fi
+        if ! [[ "${{ inputs.frontend_repo }}" =~ ^https://github.com/[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$ ]]; then
+          echo "Error: Invalid GitHub repository URL format"
+          exit 1
         fi
 
     - name: Check if domain exists
       id: check-domain
       shell: bash
       run: |
-        if grep -Fxq "${{ inputs.domain }}|${{ inputs.frontend_repo }}" domains.txt; then
+        if jq -e --arg domain "${{ inputs.domain }}" '.[] | select(.domain == $domain)' domains.json > /dev/null; then
           echo "domain_exists=true" >> $GITHUB_OUTPUT
         else
           echo "domain_exists=false" >> $GITHUB_OUTPUT
@@ -44,12 +61,30 @@ runs:
       if: steps.check-domain.outputs.domain_exists == 'false'
       shell: bash
       run: |
-        echo "${{ inputs.domain }}|${{ inputs.frontend_repo }}" >> domains.txt
+        jq --arg domain "${{ inputs.domain }}" \
+           --arg repo "${{ inputs.frontend_repo }}" \
+           '. + [{"domain": $domain, "frontend_repo": $repo}]' \
+           domains.json > domains.json.tmp && mv domains.json.tmp domains.json
 
     - name: Get all domains
       id: get-domains
       shell: bash
       run: |
-        # Read domains.txt, filter out comments and empty lines, and join with newlines
-        DOMAINS=$(grep -v '^#' domains.txt | grep -v '^$' | tr '\n' ' ')
-        echo "domains=$DOMAINS" >> $GITHUB_OUTPUT 
+        if [ ! -s domains.json ]; then
+          echo "Error: domains.json is empty or invalid"
+          exit 1
+        fi
+        
+        # Validate JSON format
+        if ! jq empty domains.json 2>/dev/null; then
+          echo "Error: domains.json contains invalid JSON"
+          exit 1
+        fi
+        
+        # Output the JSON array
+        DOMAINS=$(cat domains.json)
+        echo "domains=$DOMAINS" >> $GITHUB_OUTPUT
+        
+        # Print current domains for debugging
+        echo "Current domains:"
+        jq -r '.[] | "Domain: \(.domain) -> Repo: \(.frontend_repo)"' domains.json 
