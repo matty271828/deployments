@@ -32,6 +32,7 @@ runs:
       with:
         repository: ${{ steps.extract_repo.outputs.repo }}
         token: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
+        path: frontend
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -41,18 +42,20 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      working-directory: frontend
       run: npm ci
 
     - name: Build
       id: build
       shell: bash
+      working-directory: frontend
       run: |
         npm run build -- --mode production
-        echo "artifact_path=dist/" >> $GITHUB_OUTPUT
+        echo "artifact_path=frontend/dist/" >> $GITHUB_OUTPUT
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: frontend-build
-        path: dist/
+        path: frontend/dist/
         retention-days: 1 
