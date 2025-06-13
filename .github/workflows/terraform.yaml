@@ -24,7 +24,7 @@ on:
       outputs:
         droplet_ip:
           description: 'IP address of the created Digital Ocean droplet'
-          value: ${{ jobs.terraform-apply.outputs.droplet_ip }}
+          value: ${{ jobs.Init-Plan-Apply.outputs.droplet_ip }}
 
 jobs:
   Init-Plan-Apply:
