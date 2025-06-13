@@ -27,7 +27,7 @@ resource "cloudflare_pages_project" "frontend" {
   source {
     type = "github"
     config {
-      owner = each.value.domain
+      owner = "matty271828"  # Your GitHub username/organization
       repo_name = each.value.frontend_repo
       production_branch = "main"
     }
