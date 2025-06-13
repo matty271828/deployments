@@ -24,7 +24,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-  steps:
     - name: Set up SSH
       uses: webfactory/ssh-agent@v0.5.3
       with:
