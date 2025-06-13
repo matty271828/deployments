@@ -42,7 +42,7 @@ jobs:
           domain: ${{ inputs.domain }}
 
   terraform:
-    name: 'Terraform'
+    name: 'Run Terraform'
     needs: [manage-domains, validate]
     runs-on: ubuntu-latest
     steps:
