@@ -6,16 +6,6 @@ resource "cloudflare_zone" "domains" {
   account_id = var.cloudflare_account_id
 }
 
-# DNS Records for each domain
-resource "cloudflare_record" "domains" {
-  for_each = local.domain_map
-  zone_id = cloudflare_zone.domains[each.key].id
-  name    = each.value.domain
-  value   = "cname.vercel-dns.com"  # Adjust this based on your deployment target
-  type    = "CNAME"
-  proxied = true
-}
-
 # Output the zone IDs for reference
 output "zone_ids" {
   value = { for domain, zone in cloudflare_zone.domains : domain => zone.id }
