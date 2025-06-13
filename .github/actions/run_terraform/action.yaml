@@ -132,6 +132,7 @@ runs:
 
     - name: Commit and push changes
       id: commit
+      if: steps.apply.outputs.terraform_error == 'false'
       shell: bash
       run: |
         git config --global user.name "github-actions"

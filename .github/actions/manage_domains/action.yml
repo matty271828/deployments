@@ -17,9 +17,6 @@ runs:
       run: |
         if [ ! -f domains.txt ]; then
           touch domains.txt
-          git add domains.txt
-          git commit -m "Initialize domains.txt"
-          git push
         fi
 
     - name: Check if domain exists
@@ -36,9 +33,4 @@ runs:
       if: steps.check-domain.outputs.domain_exists == 'false'
       shell: bash
       run: |
-        echo "${{ inputs.domain }}" >> domains.txt
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'github-actions@github.com'
-        git add domains.txt
-        git commit -m "Add domain: ${{ inputs.domain }}"
-        git push 
+        echo "${{ inputs.domain }}" >> domains.txt 
