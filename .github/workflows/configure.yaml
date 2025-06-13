@@ -14,15 +14,28 @@ on:
         required: true
 
 jobs:
-  configure-droplet:
-    name: 'Droplet'
+  configure-deploy-user:
+    name: 'User'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure droplet
-        uses: ./.github/actions/configure-droplet
+      - name: Configure deploy user
+        uses: ./.github/actions/configure-deploy-user
+        with:
+          droplet_ip: ${{ inputs.droplet_ip }}
+          digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
+  configure-nginx:
+    name: 'Nginx'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Nginx
+        uses: ./.github/actions/configure-nginx
         with:
           droplet_ip: ${{ inputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }} 

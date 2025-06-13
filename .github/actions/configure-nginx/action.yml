@@ -1,0 +1,29 @@
+name: 'Configure Nginx'
+description: 'Configures Nginx for the deployment'
+
+inputs:
+  droplet_ip:
+    description: 'Digital Ocean Droplet IP'
+    required: true
+  digital_ocean_ssh_private_key:
+    description: 'SSH private key for DigitalOcean'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
+
+    - name: Configure Nginx
+      shell: bash
+      run: |
+        DROPLET_IP="${{ inputs.droplet_ip }}"
+        echo "Configuring Nginx..."
+        
+        # TODO: Add Nginx configuration steps here 
