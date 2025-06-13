@@ -51,10 +51,25 @@ resource "cloudflare_pages_project" "frontend" {
       production_branch = "main"
     }
   }
+
+deployment_configs {
+    preview {
+      d1_databases = {
+        TEST_DB = cloudflare_d1_database.domain_db[each.key].id
+      }
+    }
+    production {
+      d1_databases = {
+        PROD_DB = cloudflare_d1_database.domain_db[each.key].id
+      }
+    }
+  }
 }
 
-output "cloudflare_pages_project_names" {
-  description = "List of created Cloudflare Pages project names"
-  value       = [for project in cloudflare_pages_project.frontend : project.name]
-}
+# Create D1 databases for each domain
+resource "cloudflare_d1_database" "domain_db" {
+  for_each = local.frontend_repos
 
+  account_id = var.cloudflare_account_id
+  name       = "${each.value.repo_name}-db"
+}
