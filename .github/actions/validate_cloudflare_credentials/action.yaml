@@ -8,6 +8,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
+  cloudflare_email:
+    description: 'Cloudflare email'
+    required: true
 
 runs:
   using: "composite"
@@ -141,3 +144,12 @@ runs:
         # 1. Check if Git integration is configured
         # 2. Verify the integration is working
         # 3. Provide clear instructions if setup is needed
+
+    - name: Validate Cloudflare Email is present
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.cloudflare_email }}" ]; then
+          echo "::error::Cloudflare Email is missing. Please add it to your repository secrets:"
+        fi
+        echo "✅ Cloudflare Email is present"
+

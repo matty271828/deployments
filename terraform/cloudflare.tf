@@ -32,3 +32,8 @@ resource "cloudflare_pages_project" "frontend" {
   }
 }
 
+output "cloudflare_pages_project_names" {
+  description = "List of created Cloudflare Pages project names"
+  value       = [for project in cloudflare_pages_project.frontend : project.name]
+}
+
