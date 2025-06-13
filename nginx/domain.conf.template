@@ -1,0 +1,88 @@
+# ============================================================================
+# Domain-Specific Nginx Configuration Template
+# ============================================================================
+# This template is used to generate Nginx configurations for individual domains.
+# It provides a complete setup for serving static websites with Cloudflare proxy.
+#
+# Key Features:
+# - Cloudflare proxy support (orange cloud)
+# - Security headers
+# - Static file serving with caching
+# - SPA (Single Page Application) support
+# - Error page handling
+#
+# Template Variables:
+# - {{domain}}: The domain name (e.g., example.com)
+#
+# Usage:
+# 1. This template is automatically processed by the configure_nginx action
+# 2. Each domain gets its own configuration file in /etc/nginx/sites-available/
+# 3. Symbolic links are created in /etc/nginx/sites-enabled/
+# 4. Do not modify this file directly - use the GitHub Actions workflow
+#
+# Requirements:
+# - Website files in /var/www/{{domain}}/
+# - Cloudflare proxy enabled (orange cloud)
+#
+# ============================================================================
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{domain}} www.{{domain}};
+
+    # Trust Cloudflare's proxy
+    set_real_ip_from 103.21.244.0/22;
+    set_real_ip_from 103.22.200.0/22;
+    set_real_ip_from 103.31.4.0/22;
+    set_real_ip_from 104.16.0.0/13;
+    set_real_ip_from 104.24.0.0/14;
+    set_real_ip_from 108.162.192.0/18;
+    set_real_ip_from 131.0.72.0/22;
+    set_real_ip_from 141.101.64.0/18;
+    set_real_ip_from 162.158.0.0/15;
+    set_real_ip_from 172.64.0.0/13;
+    set_real_ip_from 173.245.48.0/20;
+    set_real_ip_from 188.114.96.0/20;
+    set_real_ip_from 190.93.240.0/20;
+    set_real_ip_from 197.234.240.0/22;
+    set_real_ip_from 198.41.128.0/17;
+    set_real_ip_from 2400:cb00::/32;
+    set_real_ip_from 2606:4700::/32;
+    set_real_ip_from 2803:f800::/32;
+    set_real_ip_from 2405:b500::/32;
+    set_real_ip_from 2405:8100::/32;
+    set_real_ip_from 2a06:98c0::/29;
+    set_real_ip_from 2c0f:f248::/32;
+    real_ip_header CF-Connecting-IP;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';" always;
+
+    # Root directory for the domain
+    root /var/www/{{domain}};
+    index index.html;
+
+    # Handle static files
+    location / {
+        try_files $uri $uri/ /index.html;
+        expires 1y;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # Handle 404 errors
+    error_page 404 /404.html;
+    location = /404.html {
+        internal;
+    }
+
+    # Handle 50x errors
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        internal;
+    }
+} 

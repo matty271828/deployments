@@ -1,0 +1,55 @@
+# ============================================================================
+# Main Nginx Configuration Template
+# ============================================================================
+# This is the base Nginx configuration template used for all deployments.
+# It provides the core settings and includes domain-specific configurations.
+#
+# Key Features:
+# - Optimized for static file serving
+# - SSL/TLS configuration
+# - Gzip compression
+# - Security headers
+# - Logging configuration
+#
+# Usage:
+# 1. This file is automatically processed by the configure_nginx action
+# 2. Domain-specific configurations are included from /etc/nginx/sites-enabled/
+# 3. Do not modify this file directly - use the GitHub Actions workflow
+#
+# ============================================================================
+
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 768;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    server_tokens off;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
+
+    # Include domain-specific configurations
+    include /etc/nginx/sites-enabled/*;
+} 
