@@ -44,17 +44,12 @@ jobs:
   build-frontend:
     name: 'Build Frontend'
     needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/build-frontend.yaml
+    with:
+      frontend_repo: ${{ inputs.frontend_repo }}
+    secrets:
+      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-      - name: Build frontend
-        uses: ./.github/actions/build-frontend
-        with:
-          frontend_repo: ${{ inputs.frontend_repo }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      
   terraform:
     name: 'Terraform'
     needs: [manage-domains, validate]
