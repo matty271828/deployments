@@ -20,17 +20,18 @@ runs:
       with:
         ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
 
-    - name: Configure Deploy User
+    - name: Configure `Deploy` User
       shell: bash
       run: |
+        # Set droplet IP as environment variable
+        DROPLET_IP="${{ inputs.droplet_ip }}"
+        echo "Attempting to connect to droplet IP: ${DROPLET_IP}"
+
         # Function to check if user exists
         check_user() {
           ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "id -u deploy >/dev/null 2>&1"
           return $?
         }
-
-        # Set droplet IP as environment variable
-        DROPLET_IP="${{ inputs.droplet_ip }}"
 
         # Create deploy user if it doesn't exist
         if ! check_user; then
