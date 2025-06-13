@@ -1,6 +1,6 @@
 # Cloudflare Zone for each domain
 resource "cloudflare_zone" "domains" {
-  for_each = { for domain in local.domains : domain.domain => domain }
+  for_each = local.domain_map
   
   zone = each.value.domain
   account_id = var.cloudflare_account_id
@@ -14,9 +14,9 @@ output "zone_ids" {
 
 # Create Cloudflare Pages projects
 resource "cloudflare_pages_project" "frontend" {
-  for_each = local.frontend_repos
+  for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  name       = "${each.value.owner}
+  name       = "${each.value.owner}"
   production_branch = "main"
   
   build_config {
@@ -37,8 +37,8 @@ resource "cloudflare_pages_project" "frontend" {
 
 # Create custom domains for Pages projects
 resource "cloudflare_pages_domain" "custom_domain" {
-  for_each = local.frontend_repos
+  for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  project_name = "${each.value.owner}
+  project_name = "${each.value.owner}"
   domain = each.key
 }
