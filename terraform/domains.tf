@@ -4,6 +4,9 @@ data "local_file" "domains" {
 }
 
 locals {  
+  # Create a map of frontend repos
+  frontend_repos = { for domain in local.domains : domain.domain => domain.frontend_repo }
+
   # Parse the domains JSON from GitHub Actions output
   domains = jsondecode(var.domains_json)
   
