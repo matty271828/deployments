@@ -35,9 +35,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup domains
-        id: setup-domains
-        uses: ./.github/actions/setup_domains
+      - name: Add to domains
+        id: add-to-domains
+        uses: ./.github/actions/add_to_domains
         with:
           domain: ${{ inputs.domain }}
           frontend_repo: ${{ inputs.frontend_repo }}
