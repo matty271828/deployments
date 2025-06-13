@@ -32,8 +32,4 @@ resource "digitalocean_droplet" "multi-project-server" {
 resource "digitalocean_project_resources" "project_resources" {
   project = local.project_id
   resources = [digitalocean_droplet.multi-project-server[0].urn]
-}
-
-output "droplet_ip" {
-  value = digitalocean_droplet.multi-project-server[0].ipv4_address
 } 
