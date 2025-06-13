@@ -1,4 +1,4 @@
-name: 'Manage Domains'
+name: 'Setup Domains'
 description: 'Manages the list of domains and their frontend repos by appending new ones to domains.txt'
 
 inputs:

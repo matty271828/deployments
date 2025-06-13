@@ -25,8 +25,8 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  manage-domains:
-    name: 'Manage Domains'
+  setup-domains:
+    name: 'Setup Domains'
     needs: validate
     runs-on: ubuntu-latest
     steps:
@@ -34,18 +34,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Manage domains
-        uses: ./.github/actions/manage_domains
+        uses: ./.github/actions/setup_domains
         with:
           domain: ${{ inputs.domain }}
           frontend_repo: ${{ inputs.frontend_repo }}
 
   setup-frontend:
     name: 'Setup Frontend'
-    needs: [validate, manage-domains]
+    needs: [validate, setup-domains]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Setup Cloudflare Pages Project
-        uses: ./.github/actions/deploy_frontend
+        uses: ./.github/actions/setup_frontend
         with:
           frontend_repo: ${{ inputs.frontend_repo }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
@@ -54,7 +57,7 @@ jobs:
 
   run-terraform:
     name: 'Run Terraform'
-    needs: [manage-domains, validate, setup-frontend]
+    needs: [setup-domains, validate, setup-frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
