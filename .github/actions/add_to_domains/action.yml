@@ -82,21 +82,12 @@ runs:
           exit 1
         fi
         
-        # Debug: Show raw JSON content
-        echo "Raw JSON content:"
-        cat domains.json
-        
         # Output the JSON array with proper escaping and no whitespace
         DOMAINS=$(jq -c '.' domains.json)
-        echo "Escaped JSON: $DOMAINS"
         
         # Set output with proper escaping
         {
           echo "domains<<EOF"
           echo "$DOMAINS"
           echo "EOF"
-        } >> $GITHUB_OUTPUT
-        
-        # Print current domains for debugging
-        echo "Current domains:"
-        jq -r '.[] | "Domain: \(.domain) -> Repo: \(.frontend_repo)"' domains.json 
+        } >> $GITHUB_OUTPUT 
