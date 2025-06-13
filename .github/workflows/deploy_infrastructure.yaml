@@ -55,6 +55,15 @@ jobs:
       DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
       DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
+  configure-droplet:
+    name: 'Configure Droplet'
+    needs: terraform
+    uses: ./.github/workflows/configure_droplet.yaml
+    with:
+      droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
+    secrets:
+      DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
   build:
     name: 'Build'
     needs: validate
@@ -66,7 +75,7 @@ jobs:
 
   deploy:
     name: 'Deploy'
-    needs: [build, terraform]
+    needs: [build, configure-droplet]
     uses: ./.github/workflows/deploy.yaml
     with:
       domain: ${{ inputs.domain }}

@@ -1,0 +1,29 @@
+name: Configure Droplet
+description: 'Configures the Digital Ocean droplet with necessary users and services'
+
+on:
+  workflow_call:
+    inputs:
+      droplet_ip:
+        description: 'Digital Ocean Droplet IP'
+        required: true
+        type: string
+    secrets:
+      DIGITAL_OCEAN_SSH_PRIVATE_KEY:
+        required: true
+
+jobs:
+  configure-deploy-user:
+    name: 'Configure Deploy User'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+
+      - name: Configure Deploy User
+        uses: ./.github/actions/configure-deploy-user
+        with:
+          droplet_ip: ${{ inputs.droplet_ip }}
+          DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }} 

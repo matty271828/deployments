@@ -32,26 +32,26 @@ runs:
     - name: Download Frontend Artifact
       uses: actions/download-artifact@v4
       with:
-        name: frontend-artifact
-        path: frontend-artifact
+        name: frontend-build
+        path: frontend/dist/
 
     - name: Deploy to Digital Ocean
       shell: bash
       run: |
         # Create a directory for this domain
-        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "mkdir -p /var/www/${{ inputs.domain }}"
+        ssh -o StrictHostKeyChecking=no deploy@${{ inputs.droplet_ip }} "sudo mkdir -p /var/www/${{ inputs.domain }} && sudo chown deploy:deploy /var/www/${{ inputs.domain }}"
         
         # Upload the frontend files
-        scp -o StrictHostKeyChecking=no -r frontend-artifact/* root@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
+        scp -o StrictHostKeyChecking=no -r frontend/dist/* deploy@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
 
     - name: Validate Deployment
       shell: bash
       run: |
         # Count files in local artifact
-        local_files=$(find frontend-artifact -type f | wc -l)
+        local_files=$(find frontend/dist -type f | wc -l)
         
         # Count files on remote server
-        remote_files=$(ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
+        remote_files=$(ssh -o StrictHostKeyChecking=no deploy@${{ inputs.droplet_ip }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
         
         # Check if directory exists and has files
         if [ "$remote_files" -eq 0 ]; then
