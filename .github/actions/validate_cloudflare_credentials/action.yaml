@@ -41,10 +41,9 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Cloudflare Pages: Edit"
           echo "   - Account Resources: All accounts"
           echo "   - Zone Resources: All zones"
-          echo "5. Set Account Resources to 'All accounts'"
-          echo "6. Set Zone Resources to 'All zones'"
           echo ""
           echo "Once you have created the token:"
           echo "1. Go to your repository settings"
@@ -79,10 +78,9 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Cloudflare Pages: Edit"
           echo "   - Account Resources: All accounts"
           echo "   - Zone Resources: All zones"
-          echo "5. Set Account Resources to 'All accounts'"
-          echo "6. Set Zone Resources to 'All zones'"
           exit 1
         fi
 
@@ -110,10 +108,9 @@ runs:
           echo "   - Account Settings: Read"
           echo "   - Zone: Edit"
           echo "   - Zone Settings: Edit"
+          echo "   - Cloudflare Pages: Edit"
           echo "   - Account Resources: All accounts"
           echo "   - Zone Resources: All zones"
-          echo "5. Set Account Resources to 'All accounts'"
-          echo "6. Set Zone Resources to 'All zones'"
           exit 1
         fi
 
@@ -134,5 +131,6 @@ runs:
         echo "   - Account Settings: Read"
         echo "   - Zone: Edit"
         echo "   - Zone Settings: Edit"
+        echo "   - Cloudflare Pages: Edit"
         echo "   - Account Resources: All accounts"
         echo "   - Zone Resources: All zones"
