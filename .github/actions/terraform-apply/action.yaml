@@ -82,19 +82,18 @@ runs:
           echo "changes=false" >> $GITHUB_ENV
         fi
 
-    - name: Commit state and domain files
+    - name: Commit and push changes
       shell: bash
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ domains.txt
-        git commit -m "Save Terraform state, lock file and domain list"
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        GITHUB_TOKEN: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
-        branch: main
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Save Terraform state, lock file and domain list"
+          git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
+        fi
 
     - name: Check for Terraform Errors
       shell: bash
