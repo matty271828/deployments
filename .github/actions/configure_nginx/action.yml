@@ -79,7 +79,12 @@ runs:
         
         # Restart Nginx completely to apply changes
         echo 'Restarting Nginx to apply the changes'
-        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "systemctl restart nginx"
+        if ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "systemctl restart nginx"; then
+          echo "✅ Nginx configuration successfully updated and service restarted"
+        else
+          echo "❌ Failed to restart Nginx service"
+          exit 1
+        fi
 
     - name: Commit and push changes
       id: commit
