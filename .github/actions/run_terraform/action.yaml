@@ -1,5 +1,5 @@
-name: 'Terraform Apply'
-description: 'Apply Terraform configuration'
+name: 'Run Terraform'
+description: 'Runs Terraform configuration'
 
 inputs:
   domain:
@@ -40,6 +40,11 @@ runs:
       run: |
         git fetch origin main
         git checkout origin/main -- terraform/ || true
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.7.0"
 
     - name: Terraform Init
       id: init

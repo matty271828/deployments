@@ -44,16 +44,21 @@ jobs:
   terraform:
     name: 'Terraform'
     needs: [manage-domains, validate]
-    uses: ./.github/workflows/terraform.yaml
-    with:
-      domain: ${{ inputs.domain }}
-    secrets:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
-      DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
-      digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Terraform
+        uses: ./.github/actions/run_terraform/action.yaml
+        with:
+          domain: ${{ inputs.domain }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          DIGITAL_OCEAN_API_TOKEN: ${{ secrets.DIGITAL_OCEAN_API_TOKEN }}
+          DIGITAL_OCEAN_SSH_KEY_NAME: ${{ secrets.DIGITAL_OCEAN_SSH_KEY_NAME }}
+          digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
   configure-droplet-user:
     name: 'Configure Droplet User'
