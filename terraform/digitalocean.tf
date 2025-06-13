@@ -2,14 +2,8 @@ data "digitalocean_ssh_key" "my_ssh_key" {
   name = var.digital_ocean_ssh_key_name
 }
 
-# Get existing project
-data "digitalocean_project" "serverless" {
-  name = "multi-project"
-}
-
-# Create project only if it doesn't exist
+# Create project
 resource "digitalocean_project" "serverless" {
-  count       = data.digitalocean_project.serverless.id == "" ? 1 : 0
   name        = "multi-project"
   description = "Project for multi-project server"
   purpose     = "Web Application"
@@ -17,7 +11,7 @@ resource "digitalocean_project" "serverless" {
 }
 
 locals {
-  project_id = data.digitalocean_project.serverless.id != "" ? data.digitalocean_project.serverless.id : digitalocean_project.serverless[0].id
+  project_id = digitalocean_project.serverless.id
 }
 
 resource "digitalocean_droplet" "multi-project-server" {
