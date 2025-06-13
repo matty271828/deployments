@@ -103,7 +103,7 @@ runs:
       shell: bash
       run: |
         git fetch origin main
-        if git diff origin/main -- terraform/terraform.tfstate terraform/domains.json | grep .; then
+        if git diff origin/main -- terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ domains.json | grep .; then
           echo "changes=true" >> $GITHUB_ENV
         else
           echo "changes=false" >> $GITHUB_ENV
@@ -116,7 +116,7 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ terraform/domains.json
+        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ domains.json
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
