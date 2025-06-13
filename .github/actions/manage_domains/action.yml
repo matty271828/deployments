@@ -1,9 +1,12 @@
 name: 'Manage Domains'
-description: 'Manages the list of domains by appending new ones to domains.txt'
+description: 'Manages the list of domains and their frontend repos by appending new ones to domains.txt'
 
 inputs:
   domain:
     description: 'Domain Name'
+    required: true
+  frontend_repo:
+    description: 'Frontend repository URL (e.g., https://github.com/username/repo)'
     required: true
 
 runs:
@@ -16,21 +19,24 @@ runs:
       shell: bash
       run: |
         if [ ! -f domains.txt ]; then
-          touch domains.txt
+          echo "# Format: domain|frontend_repo" > domains.txt
+          echo "# Example: example.com|https://github.com/username/example-frontend" >> domains.txt
+          echo "# Each domain should be on a new line" >> domains.txt
+          echo "# Lines starting with # are comments" >> domains.txt
         fi
 
     - name: Check if domain exists
       id: check-domain
       shell: bash
       run: |
-        if grep -Fxq "${{ inputs.domain }}" domains.txt; then
+        if grep -Fxq "${{ inputs.domain }}|${{ inputs.frontend_repo }}" domains.txt; then
           echo "domain_exists=true" >> $GITHUB_OUTPUT
         else
           echo "domain_exists=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Append domain if new
+    - name: Append domain and frontend repo if new
       if: steps.check-domain.outputs.domain_exists == 'false'
       shell: bash
       run: |
-        echo "${{ inputs.domain }}" >> domains.txt 
+        echo "${{ inputs.domain }}|${{ inputs.frontend_repo }}" >> domains.txt 
