@@ -8,11 +8,7 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
-outputs:
-  artifact_path:
-    description: 'Path to the built frontend artifacts'
-    value: ${{ steps.build.outputs.artifact_path }}
-
+    
 runs:
   using: "composite"
   steps:

@@ -8,9 +8,6 @@ inputs:
   droplet_ip:
     description: 'Digital Ocean Droplet IP'
     required: true
-  artifact_path:
-    description: 'Path to the built frontend artifacts'
-    required: true
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true

@@ -79,7 +79,6 @@ jobs:
     uses: ./.github/workflows/deploy.yaml
     with:
       domain: ${{ inputs.domain }}
-      artifact_path: ${{ needs.build.outputs.artifact_path }}
       droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
     secrets:
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
