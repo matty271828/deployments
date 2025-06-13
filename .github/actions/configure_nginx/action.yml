@@ -71,20 +71,32 @@ runs:
         echo "Final nginx.conf:"
         cat nginx/nginx.conf.generated
         
+        # Test the configuration locally first
+        echo "Testing Nginx configuration locally..."
+        if ! nginx -t -c "$(pwd)/nginx/nginx.conf.generated"; then
+          echo "❌ Nginx configuration test failed locally"
+          exit 1
+        fi
+        
         # Upload the configuration
+        echo "Uploading configuration to server..."
         scp -o StrictHostKeyChecking=no nginx/nginx.conf.generated root@$DROPLET_IP:/etc/nginx/nginx.conf
         
-        # Test the configuration
-        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "nginx -t"
+        # Test the configuration on the server
+        echo "Testing Nginx configuration on server..."
+        if ! ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "nginx -t"; then
+          echo "❌ Nginx configuration test failed on server"
+          exit 1
+        fi
         
         # Restart Nginx completely to apply changes
         echo 'Restarting Nginx to apply the changes'
-        if ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "systemctl restart nginx"; then
-          echo "✅ Nginx configuration successfully updated and service restarted"
-        else
+        if ! ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "systemctl restart nginx"; then
           echo "❌ Failed to restart Nginx service"
           exit 1
         fi
+        
+        echo "✅ Nginx configuration successfully updated and service restarted"
 
     - name: Commit and push changes
       id: commit
