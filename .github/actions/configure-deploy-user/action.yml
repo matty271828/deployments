@@ -20,7 +20,7 @@ runs:
       with:
         ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
 
-    - name: Configure `Deploy` User
+    - name: Configure Deploy User
       shell: bash
       run: |
         # Set droplet IP as environment variable
@@ -53,12 +53,5 @@ runs:
           if [ ! -f /etc/sudoers.d/deploy ]; then
             echo 'deploy ALL=(ALL) NOPASSWD: /usr/bin/mkdir, /usr/bin/chown' > /etc/sudoers.d/deploy && \
             chmod 440 /etc/sudoers.d/deploy
-          fi
-        "
-
-        # Add SSH key if not already present
-        ssh -o StrictHostKeyChecking=no "root@${DROPLET_IP}" "
-          if ! grep -q '$(cat ~/.ssh/id_rsa.pub)' /home/deploy/.ssh/authorized_keys; then
-            cat ~/.ssh/id_rsa.pub >> /home/deploy/.ssh/authorized_keys
           fi
         " 
