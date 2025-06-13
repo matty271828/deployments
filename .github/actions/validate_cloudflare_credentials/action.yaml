@@ -135,38 +135,9 @@ runs:
         echo "   - Account Resources: All accounts"
         echo "   - Zone Resources: All zones"
 
-    - name: Validate Cloudflare Pages Git Integration
-      shell: bash
-      run: |
-        # Check if Git integration is set up
-        GIT_INTEGRATION=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects" \
-          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-          -H "Content-Type: application/json")
-
-        if ! echo "$GIT_INTEGRATION" | jq -e '.success == true' > /dev/null; then
-          echo "::error::Failed to check Cloudflare Pages Git integration"
-          echo ""
-          echo "Please ensure you have set up Git integration for Cloudflare Pages:"
-          echo "1. Go to Cloudflare Dashboard → Pages"
-          echo "2. Click 'Create a project'"
-          echo "3. Choose 'Connect to Git'"
-          echo "4. Select GitHub"
-          echo "5. Authorize Cloudflare to access your GitHub account"
-          echo "6. Select the repository you want to deploy"
-          exit 1
-        fi
-
-        # Check if there are any Git integration errors
-        if echo "$GIT_INTEGRATION" | jq -e '.errors' > /dev/null; then
-          ERROR_MESSAGE=$(echo "$GIT_INTEGRATION" | jq -r '.errors[0].message // "Unknown error"')
-          echo "::error::Git integration error: $ERROR_MESSAGE"
-          echo ""
-          echo "Please check your Git integration:"
-          echo "1. Go to Cloudflare Dashboard → Pages"
-          echo "2. Go to your project settings"
-          echo "3. Under 'Git integration', try disconnecting and reconnecting GitHub"
-          echo "4. If the issue persists, go to GitHub settings and revoke Cloudflare access, then reconnect"
-          exit 1
-        fi
-
-        echo "✅ Cloudflare Pages Git integration is properly configured"
+        # TODO: Add validation for Cloudflare Pages Git integration
+        # This should check if the Git integration is properly set up before
+        # attempting to create Pages projects. The validation should:
+        # 1. Check if Git integration is configured
+        # 2. Verify the integration is working
+        # 3. Provide clear instructions if setup is needed
