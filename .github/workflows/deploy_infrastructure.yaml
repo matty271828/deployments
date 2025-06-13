@@ -69,18 +69,23 @@ jobs:
           droplet_ip: ${{ needs.terraform.outputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
-  build:
-    name: 'Build'
+  build-frontend:
+    name: 'Build Frontend'
     needs: validate
-    uses: ./.github/workflows/build.yaml
-    with:
-      frontend_repo: ${{ inputs.frontend_repo }}
-    secrets:
-      GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Frontend
+        uses: ./.github/actions/build_frontend
+        with:
+          frontend_repo: ${{ inputs.frontend_repo }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }} 
 
   deploy:
     name: 'Deploy'
-    needs: [build, configure-droplet-user, terraform]
+    needs: [build-frontend, configure-droplet-user, terraform]
     uses: ./.github/workflows/deploy.yaml
     with:
       domain: ${{ inputs.domain }}
