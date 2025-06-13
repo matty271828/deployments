@@ -27,10 +27,10 @@ inputs:
 outputs:
   terraform_error:
     description: 'Indicates if there was an error in Terraform operations'
-    value: ${{ steps.terraform.outputs.terraform_error }}
+    value: ${{ steps.apply.outputs.terraform_error }}
   droplet_ip:
     description: 'IP address of the created Digital Ocean droplet'
-    value: ${{ steps.terraform.outputs.droplet_ip }}
+    value: ${{ steps.apply.outputs.droplet_ip }}
 
 runs:
   using: "composite"
