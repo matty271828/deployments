@@ -1,5 +1,5 @@
-name: Destroy Project from Serverless
-description: 'Destroys all projects from the serverless infrastructure'
+name: Destroy All
+description: 'Destroys all projects and the serverless infrastructure'
 
 on:
   workflow_dispatch:
