@@ -1,3 +1,14 @@
+variable "cloudflare_api_token" {
+  description = "Cloudflare API Token"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare Account ID"
+  type        = string
+}
+
 # Create Cloudflare Pages projects
 resource "cloudflare_pages_project" "frontend" {
   for_each = local.frontend_repos
@@ -20,3 +31,4 @@ resource "cloudflare_pages_project" "frontend" {
     }
   }
 }
+
