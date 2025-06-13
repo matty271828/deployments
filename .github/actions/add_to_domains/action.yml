@@ -1,5 +1,5 @@
 name: 'Add to Domains'
-description: 'Adds the input domain and frontend repo to the domains.json file'
+description: 'Adds a new domain and its frontend repo to the domains.json file'
 
 inputs:
   domain:
@@ -61,10 +61,11 @@ runs:
       if: steps.check-domain.outputs.domain_exists == 'false'
       shell: bash
       run: |
-        jq --arg domain "${{ inputs.domain }}" \
-           --arg repo "${{ inputs.frontend_repo }}" \
-           '. + [{"domain": $domain, "frontend_repo": $repo}]' \
-           domains.json > domains.json.tmp && mv domains.json.tmp domains.json
+        # Create new entry
+        NEW_ENTRY=$(jq -n --arg domain "${{ inputs.domain }}" --arg repo "${{ inputs.frontend_repo }}" '{domain: $domain, frontend_repo: $repo}')
+        
+        # Add to existing array and ensure proper formatting
+        jq --argjson new "$NEW_ENTRY" '. + [$new]' domains.json | jq -c '.' > domains.json.tmp && mv domains.json.tmp domains.json
 
     - name: Get all domains
       id: get-domains
@@ -81,9 +82,20 @@ runs:
           exit 1
         fi
         
-        # Output the JSON array
-        DOMAINS=$(cat domains.json)
-        echo "domains=$DOMAINS" >> $GITHUB_OUTPUT
+        # Debug: Show raw JSON content
+        echo "Raw JSON content:"
+        cat domains.json
+        
+        # Output the JSON array with proper escaping and no whitespace
+        DOMAINS=$(jq -c '.' domains.json)
+        echo "Escaped JSON: $DOMAINS"
+        
+        # Set output with proper escaping
+        {
+          echo "domains<<EOF"
+          echo "$DOMAINS"
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
         
         # Print current domains for debugging
         echo "Current domains:"
