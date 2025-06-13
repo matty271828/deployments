@@ -1,5 +1,5 @@
 name: 'Deploy Frontend'
-description: 'Deploys the frontend application to the target environment'
+description: 'Deploys the Vite application to the target environment'
 
 inputs:
   domain:
@@ -7,15 +7,6 @@ inputs:
     required: true
   droplet_ip:
     description: 'Digital Ocean Droplet IP'
-    required: true
-  artifact_path:
-    description: 'Path to the built frontend artifacts'
-    required: true
-  GH_PERSONAL_ACCESS_TOKEN:
-    description: 'GitHub Personal Access Token'
-    required: true
-  DIGITAL_OCEAN_SSH_KEY_NAME:
-    description: 'Digital Ocean SSH Key Name'
     required: true
   DIGITAL_OCEAN_SSH_PRIVATE_KEY:
     description: 'Digital Ocean SSH Private Key'
@@ -29,26 +20,24 @@ runs:
       with:
         ssh-private-key: ${{ inputs.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
 
-    - name: Download Frontend Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: frontend-artifact
-        path: frontend-artifact
-
-    - name: Deploy to Digital Ocean
+    - name: Prepare server
       shell: bash
       run: |
-        # Create a directory for this domain
-        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "mkdir -p /var/www/${{ inputs.domain }}"
-        
-        # Upload the frontend files
-        scp -o StrictHostKeyChecking=no -r frontend-artifact/* root@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
+        ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "
+          rm -rf /var/www/${{ inputs.domain }}/*
+          mkdir -p /var/www/${{ inputs.domain }}
+        "
+
+    - name: Deploy Vite build
+      shell: bash
+      run: |
+        scp -o StrictHostKeyChecking=no -r ./dist/* root@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
 
     - name: Validate Deployment
       shell: bash
       run: |
-        # Count files in local artifact
-        local_files=$(find frontend-artifact -type f | wc -l)
+        # Count files in local build
+        local_files=$(find ./dist -type f | wc -l)
         
         # Count files on remote server
         remote_files=$(ssh -o StrictHostKeyChecking=no root@${{ inputs.droplet_ip }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
@@ -61,10 +50,10 @@ runs:
         
         # Compare file counts (allowing for some difference due to potential hidden files)
         if [ "$remote_files" -lt "$((local_files * 9 / 10))" ]; then
-          echo "Error: Remote directory has significantly fewer files than local artifact"
+          echo "Error: Remote directory has significantly fewer files than local build"
           echo "Local files: $local_files"
           echo "Remote files: $remote_files"
           exit 1
         fi
         
-        echo "✅ Deployment successful"
+        echo "✅ Vite application deployed successfully"

@@ -1,5 +1,5 @@
 name: Deploy Frontend
-description: 'Deploys the frontend application to the target environment'
+description: 'Deploys the Vite application to the target environment'
 
 on:
   workflow_call:
@@ -8,17 +8,11 @@ on:
         description: 'Domain Name'
         required: true
         type: string
-      artifact_path:
-        description: 'Path to the built frontend artifacts'
-        required: true
-        type: string
       droplet_ip:
         description: 'Digital Ocean Droplet IP'
         required: true
         type: string
     secrets:
-      GH_PERSONAL_ACCESS_TOKEN:
-        required: true
       DIGITAL_OCEAN_SSH_PRIVATE_KEY:
         required: true
 
@@ -30,11 +24,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          if ! command -v pnpm &> /dev/null; then
+            npm install -g pnpm
+          fi
+          pnpm install
+        shell: bash
+
+      - name: Build Vite app
+        run: pnpm run build
+        shell: bash
+
+      - name: Deploy Frontend
         uses: ./.github/actions/deploy-frontend
         with:
           domain: ${{ inputs.domain }}
-          artifact_path: ${{ inputs.artifact_path }}
           droplet_ip: ${{ inputs.droplet_ip }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           DIGITAL_OCEAN_SSH_PRIVATE_KEY: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }} 
