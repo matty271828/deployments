@@ -11,62 +11,12 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
-  DIGITAL_OCEAN_SSH_KEY_NAME:
-    description: 'Digital Ocean SSH Key Name'
-    required: true
-  digital_ocean_ssh_private_key:
-    description: 'Digital Ocean SSH Private Key'
-    required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ inputs.digital_ocean_ssh_private_key }}
-
-    - name: Check Droplet IP
-      shell: bash
-      run: |
-        echo "Droplet IP: ${{ inputs.droplet_ip }}"
-
     - name: Download Frontend Artifact
       uses: actions/download-artifact@v4
       with:
         name: frontend-build
         path: frontend/dist/
-
-    - name: Deploy to Digital Ocean
-      shell: bash
-      run: |
-        # Create a directory for this domain
-        ssh -o StrictHostKeyChecking=no deploy@${{ inputs.droplet_ip }} "sudo mkdir -p /var/www/${{ inputs.domain }} && sudo chown deploy:deploy /var/www/${{ inputs.domain }}"
-        
-        # Upload the frontend files
-        scp -o StrictHostKeyChecking=no -r frontend/dist/* deploy@${{ inputs.droplet_ip }}:/var/www/${{ inputs.domain }}/
-
-    - name: Validate Deployment
-      shell: bash
-      run: |
-        # Count files in local artifact
-        local_files=$(find frontend/dist -type f | wc -l)
-        
-        # Count files on remote server
-        remote_files=$(ssh -o StrictHostKeyChecking=no deploy@${{ inputs.droplet_ip }} "find /var/www/${{ inputs.domain }} -type f | wc -l")
-        
-        # Check if directory exists and has files
-        if [ "$remote_files" -eq 0 ]; then
-          echo "Error: No files found in remote directory"
-          exit 1
-        fi
-        
-        # Compare file counts (allowing for some difference due to potential hidden files)
-        if [ "$remote_files" -lt "$((local_files * 9 / 10))" ]; then
-          echo "Error: Remote directory has significantly fewer files than local artifact"
-          echo "Local files: $local_files"
-          echo "Remote files: $remote_files"
-          exit 1
-        fi
-        
-        echo "✅ Deployment successful"

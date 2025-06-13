@@ -1,10 +1,15 @@
 # Try to get existing zones
 data "cloudflare_zone" "existing" {
-  for_each = toset(local.domains)
+  for_each = toset([for domain in local.domains : split("|", domain)[0]])
   name     = each.value
 }
 
 locals {
+  # Parse domains.txt format to get domains and frontend repos
+  domain_pairs = [for domain in var.domains : split("|", domain)]
+  domains = [for pair in local.domain_pairs : pair[0]]
+  frontend_repos = { for pair in local.domain_pairs : pair[0] => pair[1] }
+  
   # Create a map of existing zones
   existing_zones = { for domain, zone in data.cloudflare_zone.existing : domain => { id = zone.id, zone = domain } }
   
@@ -27,24 +32,27 @@ locals {
   )
 }
 
-# A Records for domains
-resource "cloudflare_record" "root" {
-  for_each = local.all_zones
-  zone_id = each.value.id
-  name    = "@"
-  content = digitalocean_droplet.multi-project-server[0].ipv4_address
-  type    = "A"
-  proxied = true  # This enables Cloudflare's proxy (orange cloud)
-  allow_overwrite = true  # Allow overwriting existing records
+# Create Cloudflare Pages projects
+resource "cloudflare_pages_project" "frontend" {
+  for_each = local.frontend_repos
+  account_id = var.cloudflare_account_id
+  name       = replace(each.value, "/[^a-zA-Z0-9-]/", "-")
+  production_branch = "main"
+  
+  source {
+    type = "github"
+    config {
+      owner = split("/", split("github.com/", each.value)[1])[0]
+      repo_name = split("/", split("github.com/", each.value)[1])[1]
+      production_branch = "main"
+    }
+  }
 }
 
-# CNAME Records for domains
-resource "cloudflare_record" "www" {
-  for_each = local.all_zones
-  zone_id = each.value.id
-  name    = "www"
-  content = each.value.zone
-  type    = "CNAME"
-  proxied = true  # This enables Cloudflare's proxy (orange cloud)
-  allow_overwrite = true  # Allow overwriting existing records
+# Create custom domains for Pages projects
+resource "cloudflare_pages_domain" "custom_domain" {
+  for_each = local.frontend_repos
+  account_id = var.cloudflare_account_id
+  project_name = replace(each.value, "/[^a-zA-Z0-9-]/", "-")
+  domain = each.key
 }
