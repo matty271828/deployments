@@ -58,10 +58,15 @@ runs:
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -d "{\"name\": \"$domain\"}")
           
-          # Check if the request was successful
+          # Check if the request was successful or if domain is already configured
           if ! echo "$response" | jq -e '.success == true' > /dev/null; then
-            echo "::error::Failed to configure domain $domain for project $project"
-            echo "$response" | jq -r '.errors[0].message'
-            exit 1
+            error_message=$(echo "$response" | jq -r '.errors[0].message')
+            if [[ "$error_message" == *"already added this custom domain"* ]]; then
+              echo "Domain $domain is already configured for project $project"
+            else
+              echo "::error::Failed to configure domain $domain for project $project"
+              echo "$error_message"
+              exit 1
+            fi
           fi
         done
