@@ -1,6 +1,6 @@
 locals {
   # Parse the domains JSON from GitHub Actions output
-  domains = jsondecode(file("${path.module}/../domains.json"))
+  domains = jsondecode(file("${path.module}/domains.json"))
   
   # Create a map of domains for easier iteration
   domain_map = {
