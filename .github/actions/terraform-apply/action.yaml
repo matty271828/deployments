@@ -87,7 +87,7 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl domains.txt
+        git add terraform/terraform.tfstate terraform/.terraform.lock.hcl terraform/.terraform/ domains.txt
         git commit -m "Save Terraform state, lock file and domain list"
 
     - name: Push changes
