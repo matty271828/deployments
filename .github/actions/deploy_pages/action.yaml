@@ -26,7 +26,6 @@ runs:
           echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
           curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
             -H 'Content-Type: multipart/form-data' \
-            -H "X-Auth-Email: ${{ inputs.cloudflare_email }}" \
-            -H "X-Auth-Key: ${{ inputs.cloudflare_api_token }}" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -F branch=main
         done
