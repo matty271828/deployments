@@ -1,6 +1,6 @@
 locals {
-  # Parse the domains JSON from GitHub Actions output
-  domains = jsondecode(file("${path.module}/domains.json"))
+  # Parse the domains JSON from the TF_VAR_domains_json variable
+  domains = jsondecode(var.domains_json)
   
   # Create a map of domains for easier iteration
   domain_map = {
@@ -13,4 +13,9 @@ locals {
       repo_name = split("/", domain.frontend_repo)[length(split("/", domain.frontend_repo)) - 1]
     }
   }
+}
+
+variable "domains_json" {
+  description = "JSON string containing the list of domains and their frontend repos"
+  type        = string
 }
