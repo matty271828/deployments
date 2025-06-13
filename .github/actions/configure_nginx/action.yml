@@ -62,12 +62,21 @@ runs:
         
         # Generate final Nginx configuration
         echo "Attempting to generate nginx.conf..."
-        # Use a temporary file to handle the substitution
-        echo "$DOMAIN_BLOCKS" > /tmp/domain_blocks.txt
-        sed "s|{{domain_blocks}}|$(cat /tmp/domain_blocks.txt | sed 's/[\&/]/\\&/g')|" nginx/nginx.conf.template > nginx/nginx.conf
-        rm /tmp/domain_blocks.txt
         
-        echo "Generated nginx.conf content:"
+        echo "Step 1: Getting the first part of the template (before domain_blocks)"
+        sed -n '/^user/,/{{domain_blocks}}/p' nginx/nginx.conf.template | sed '$d' > nginx/nginx.conf
+        echo "First part content:"
+        cat nginx/nginx.conf
+        
+        echo "Step 2: Appending domain blocks"
+        echo "$DOMAIN_BLOCKS" >> nginx/nginx.conf
+        echo "Content after adding domain blocks:"
+        cat nginx/nginx.conf
+        
+        echo "Step 3: Appending the final part of the template"
+        sed -n '/{{domain_blocks}}/,$p' nginx/nginx.conf.template | sed '1d' >> nginx/nginx.conf
+        
+        echo "Final generated nginx.conf content:"
         cat nginx/nginx.conf
         
         # Upload the configuration
