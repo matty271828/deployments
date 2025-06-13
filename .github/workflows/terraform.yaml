@@ -21,6 +21,10 @@ on:
           required: true
         digital_ocean_ssh_private_key:
           required: true
+      outputs:
+        droplet_ip:
+          description: 'IP address of the created Digital Ocean droplet'
+          value: ${{ jobs.terraform-apply.outputs.droplet_ip }}
 
 jobs:
   terraform-plan:
