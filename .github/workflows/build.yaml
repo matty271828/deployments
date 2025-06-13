@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    name: 'Build'
+    name: 'Frontend'
     runs-on: ubuntu-latest
     outputs:
       artifact_path: ${{ steps.build.outputs.artifact_path }}
