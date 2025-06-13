@@ -32,28 +32,24 @@ runs:
         # Install Nginx if not installed
         ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "if ! command -v nginx &> /dev/null; then sudo apt update && sudo apt install -y nginx; fi"
         
-        # Create necessary directories
-        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled"
-        
         # Read domains from domains.txt
         DOMAINS=$(cat domains.txt)
         
-        # Reset Nginx configuration by removing all enabled sites
-        ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "find /etc/nginx/sites-enabled/ -type l -delete"
-        
-        # Create and enable configuration for each domain
+        # Generate domain blocks
+        DOMAIN_BLOCKS=""
         for domain in $DOMAINS; do
           if [ -n "$domain" ]; then
             # Create domain-specific configuration
-            sed "s/{{domain}}/$domain/g" nginx/domain.conf.template > nginx/$domain.conf
-            
-            # Upload the configuration
-            scp -o StrictHostKeyChecking=no nginx/$domain.conf root@$DROPLET_IP:/etc/nginx/sites-available/$domain
-            
-            # Create symbolic link to enable the site
-            ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "ln -sf /etc/nginx/sites-available/$domain /etc/nginx/sites-enabled/"
+            DOMAIN_BLOCK=$(sed "s/{{domain}}/$domain/g" nginx/domain.conf.template)
+            DOMAIN_BLOCKS="$DOMAIN_BLOCKS\n$DOMAIN_BLOCK"
           fi
         done
+        
+        # Generate final Nginx configuration
+        sed "s|{{domain_blocks}}|$DOMAIN_BLOCKS|" nginx/nginx.conf.template > nginx/nginx.conf
+        
+        # Upload the configuration
+        scp -o StrictHostKeyChecking=no nginx/nginx.conf root@$DROPLET_IP:/etc/nginx/nginx.conf
         
         # Test the configuration
         ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "nginx -t"
@@ -69,24 +65,21 @@ runs:
         # Create a directory for the generated configs if it doesn't exist
         mkdir -p generated/nginx
         
-        # Copy all generated configs to the generated directory
-        cp nginx/*.conf generated/nginx/
+        # Copy the generated config to the generated directory
+        cp nginx/nginx.conf generated/nginx/
         
-        # Debug: List and show contents of generated configs
-        echo "Generated Nginx configs:"
-        ls -la generated/nginx/
-        echo "Contents of generated configs:"
-        for config in generated/nginx/*.conf; do
-          echo "=== Contents of $config ==="
-          cat "$config"
-          echo "=== End of $config ==="
-        done
+        # Debug: Show contents of generated config
+        echo "Generated Nginx config:"
+        cat generated/nginx/nginx.conf
         
+        # Configure git
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
+        
+        # Add and commit changes
         git add generated/nginx/
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update generated Nginx configurations [skip ci]"
+          git commit -m "Update generated Nginx configuration [skip ci]"
           git push "https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git" main 
