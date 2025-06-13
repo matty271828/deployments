@@ -35,12 +35,7 @@ runs:
       with:
         apiToken: ${{ inputs.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ inputs.CLOUDFLARE_ACCOUNT_ID }}
-        command: create
         projectName: ${{ steps.extract_repo.outputs.repo_name }}
-        gitSourceType: github
-        gitSourceOwner: ${{ steps.extract_repo.outputs.owner }}
-        gitSourceRepo: ${{ steps.extract_repo.outputs.repo_name }}
-        gitSourceBranch: main
-        buildCommand: npm run build -- --mode production
-        buildOutputDirectory: dist
-        nodeVersion: 20
+        directory: dist
+        gitHubToken: ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}
+        branch: main
