@@ -41,12 +41,12 @@ runs:
           if [ -n "$domain" ]; then
             # Create domain-specific configuration
             DOMAIN_BLOCK=$(sed "s/{{domain}}/$domain/g" nginx/domain.conf.template)
-            DOMAIN_BLOCKS="$DOMAIN_BLOCKS\n$DOMAIN_BLOCK"
+            DOMAIN_BLOCKS="${DOMAIN_BLOCKS}${DOMAIN_BLOCK}"
           fi
         done
         
         # Generate final Nginx configuration
-        sed "s|{{domain_blocks}}|$DOMAIN_BLOCKS|" nginx/nginx.conf.template > nginx/nginx.conf
+        sed "s|{{domain_blocks}}|$(echo "$DOMAIN_BLOCKS" | sed 's/[\&/]/\\&/g')|" nginx/nginx.conf.template > nginx/nginx.conf
         
         # Upload the configuration
         scp -o StrictHostKeyChecking=no nginx/nginx.conf root@$DROPLET_IP:/etc/nginx/nginx.conf
