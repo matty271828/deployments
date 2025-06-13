@@ -1,20 +1,19 @@
 # Try to get existing zones
 data "cloudflare_zone" "existing" {
-  for_each = toset([for domain in local.domains : split("|", domain)[0]])
+  for_each = toset([for domain in local.domain_pairs : domain[0]])
   name     = each.value
 }
 
 locals {
   # Parse domains.txt format to get domains and frontend repos
   domain_pairs = [for domain in var.domains : split("|", domain)]
-  domains = [for pair in local.domain_pairs : pair[0]]
   frontend_repos = { for pair in local.domain_pairs : pair[0] => pair[1] }
   
   # Create a map of existing zones
   existing_zones = { for domain, zone in data.cloudflare_zone.existing : domain => { id = zone.id, zone = domain } }
   
   # Filter out domains that already have zones
-  new_domains = [for domain in local.domains : domain if !contains(keys(local.existing_zones), domain)]
+  new_domains = [for pair in local.domain_pairs : pair[0] if !contains(keys(local.existing_zones), pair[0])]
 }
 
 # Create zones only for new domains
