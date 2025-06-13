@@ -1,4 +1,4 @@
-name: Configure Droplet
+name: Configure
 description: 'Configures the Digital Ocean droplet with necessary users and services'
 
 on:
