@@ -116,6 +116,7 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
+        git pull --rebase origin main
         git add .
         if git diff --staged --quiet; then
           echo "No changes to commit"
