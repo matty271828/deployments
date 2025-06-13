@@ -16,7 +16,7 @@ output "zone_ids" {
 resource "cloudflare_pages_project" "frontend" {
   for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  name       = "${each.value.owner}"
+  name       = "${each.value.domain}"
   production_branch = "main"
   
   build_config {
@@ -27,8 +27,8 @@ resource "cloudflare_pages_project" "frontend" {
   source {
     type = "github"
     config {
-      owner = each.value.owner
-      repo_name = each.value.repo
+      owner = each.value.domain
+      repo_name = each.value.frontend_repo
       production_branch = "main"
     }
   }
@@ -38,6 +38,6 @@ resource "cloudflare_pages_project" "frontend" {
 resource "cloudflare_pages_domain" "custom_domain" {
   for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  project_name = "${each.value.owner}"
+  project_name = "${each.value.domain}"
   domain = each.key
 }
