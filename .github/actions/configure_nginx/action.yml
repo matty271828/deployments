@@ -27,6 +27,7 @@ runs:
       shell: bash
       run: |
         DROPLET_IP="${{ inputs.droplet_ip }}"
+        NEWLINE=$'\n'
         echo "Configuring Nginx..."
         
         # Install Nginx if not installed
@@ -50,9 +51,7 @@ runs:
             echo "$DOMAIN_BLOCK"
             # Add newline before each block except the first one
             if [ -n "$DOMAIN_BLOCKS" ]; then
-              DOMAIN_BLOCKS="${DOMAIN_BLOCKS}
-
-"
+              DOMAIN_BLOCKS="${DOMAIN_BLOCKS}${NEWLINE}${NEWLINE}"
             fi
             DOMAIN_BLOCKS="${DOMAIN_BLOCKS}${DOMAIN_BLOCK}"
           fi
