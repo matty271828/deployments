@@ -64,15 +64,15 @@ runs:
         echo "Generating nginx.conf..."
         
         # Create the nginx.conf by concatenating the template parts
-        sed -n '/^user/,/{{domain_blocks}}/p' nginx/nginx.conf.template | sed '$d' > nginx/nginx.conf
-        echo "$DOMAIN_BLOCKS" >> nginx/nginx.conf
-        sed -n '/{{domain_blocks}}/,$p' nginx/nginx.conf.template | sed '1d' >> nginx/nginx.conf
+        sed -n '/^user/,/{{domain_blocks}}/p' nginx/nginx.conf.template | sed '$d' > nginx/nginx.conf.generated
+        echo "$DOMAIN_BLOCKS" >> nginx/nginx.conf.generated
+        sed -n '/{{domain_blocks}}/,$p' nginx/nginx.conf.template | sed '1d' >> nginx/nginx.conf.generated
         
         echo "Final nginx.conf:"
-        cat nginx/nginx.conf
+        cat nginx/nginx.conf.generated
         
         # Upload the configuration
-        scp -o StrictHostKeyChecking=no nginx/nginx.conf root@$DROPLET_IP:/etc/nginx/nginx.conf
+        scp -o StrictHostKeyChecking=no nginx/nginx.conf.generated root@$DROPLET_IP:/etc/nginx/nginx.conf
         
         # Test the configuration
         ssh -o StrictHostKeyChecking=no root@$DROPLET_IP "nginx -t"
@@ -85,18 +85,12 @@ runs:
       id: commit
       shell: bash
       run: |
-        # Create a directory for the generated configs if it doesn't exist
-        mkdir -p generated/nginx
-        
-        # Copy the generated config to the generated directory
-        cp nginx/nginx.conf generated/nginx/
-                
         # Configure git
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         
         # Add and commit changes
-        git add generated/nginx/
+        git add nginx/nginx.conf.generated
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
