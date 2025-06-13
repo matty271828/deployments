@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure user
-        uses: ./.github/actions/configure-user
+        uses: ./.github/actions/configure_user
         with:
           droplet_ip: ${{ inputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }}
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure Nginx
-        uses: ./.github/actions/configure-nginx
+        uses: ./.github/actions/configure_nginx
         with:
           droplet_ip: ${{ inputs.droplet_ip }}
           digital_ocean_ssh_private_key: ${{ secrets.DIGITAL_OCEAN_SSH_PRIVATE_KEY }} 

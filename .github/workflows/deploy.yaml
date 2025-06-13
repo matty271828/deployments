@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Frontend
-        uses: ./.github/actions/deploy-frontend
+        uses: ./.github/actions/deploy_frontend
         with:
           domain: ${{ inputs.domain }}
           droplet_ip: ${{ inputs.droplet_ip }}
