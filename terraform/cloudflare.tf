@@ -38,7 +38,7 @@ resource "cloudflare_pages_project" "frontend" {
 resource "cloudflare_pages_domain" "custom_domain" {
   for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  project_name = split(".", each.value.domain)[0]
+  project_name = each.value.frontend_repo
   domain = each.key
 
   depends_on = [cloudflare_pages_project.frontend]
