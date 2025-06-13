@@ -6,17 +6,11 @@ resource "cloudflare_zone" "domains" {
   account_id = var.cloudflare_account_id
 }
 
-# Output the zone IDs for reference
-output "zone_ids" {
-  value = { for domain, zone in cloudflare_zone.domains : domain => zone.id }
-  description = "Map of domain names to their Cloudflare zone IDs"
-}
-
 # Create Cloudflare Pages projects
 resource "cloudflare_pages_project" "frontend" {
   for_each = local.domain_map
   account_id = var.cloudflare_account_id
-  name       = split(".", each.value.domain)[0]
+  name       = each.value.frontend_repo
   production_branch = "main"
   
   build_config {
