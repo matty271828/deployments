@@ -11,9 +11,6 @@ inputs:
   cloudflare_email:
     description: 'Cloudflare email'
     required: true
-  projects:
-    description: 'List of projects to deploy'
-    required: true
 
 runs:
   using: "composite"
@@ -21,9 +18,11 @@ runs:
     - name: Create Deployments
       shell: bash
       run: |
-        # Split projects string into array and deploy each project
-        IFS=',' read -ra PROJECTS <<< "${{ inputs.projects }}"
-        for project in "${PROJECTS[@]}"; do
+        # Read domains.json and extract project names
+        PROJECTS=$(jq -r '.[].frontend_repo | split("/") | last' domains.json)
+        
+        # Deploy each project
+        for project in $PROJECTS; do
           echo "Deploying project: $project"
           curl https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
             -H 'Content-Type: multipart/form-data' \
