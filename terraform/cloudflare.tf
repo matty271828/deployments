@@ -18,11 +18,10 @@ resource "cloudflare_pages_project" "frontend" {
   account_id = var.cloudflare_account_id
   name       = "${each.value.owner}"
   production_branch = "main"
-  build_output_dir = "dist"
-  node_version = "20"
   
   build_config {
     build_command = "npm run build -- --mode production"
+    destination_dir = "dist"
   }
 
   source {
