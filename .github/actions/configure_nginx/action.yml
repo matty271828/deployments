@@ -50,7 +50,9 @@ runs:
             echo "$DOMAIN_BLOCK"
             # Add newline before each block except the first one
             if [ -n "$DOMAIN_BLOCKS" ]; then
-              DOMAIN_BLOCKS="${DOMAIN_BLOCKS}\n\n"
+              DOMAIN_BLOCKS="${DOMAIN_BLOCKS}
+
+"
             fi
             DOMAIN_BLOCKS="${DOMAIN_BLOCKS}${DOMAIN_BLOCK}"
           fi
@@ -61,8 +63,10 @@ runs:
         
         # Generate final Nginx configuration
         echo "Attempting to generate nginx.conf..."
-        # Use printf to properly handle newlines
-        sed "s|{{domain_blocks}}|$(printf "$DOMAIN_BLOCKS" | sed 's/[\&/]/\\&/g')|" nginx/nginx.conf.template > nginx/nginx.conf
+        # Use a temporary file to handle the substitution
+        echo "$DOMAIN_BLOCKS" > /tmp/domain_blocks.txt
+        sed "s|{{domain_blocks}}|$(cat /tmp/domain_blocks.txt | sed 's/[\&/]/\\&/g')|" nginx/nginx.conf.template > nginx/nginx.conf
+        rm /tmp/domain_blocks.txt
         
         echo "Generated nginx.conf content:"
         cat nginx/nginx.conf
