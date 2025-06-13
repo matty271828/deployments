@@ -1,0 +1,7 @@
+# Terraform files
+.terraform/
+*.tfplan
+.terraform.lock.hcl
+
+# Keep terraform.tfstate as it's needed for state management
+!terraform/terraform.tfstate 

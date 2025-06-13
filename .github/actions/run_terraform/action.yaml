@@ -116,11 +116,21 @@ runs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git pull --rebase origin main
-        git add .
+        
+        # Reset any local changes and get latest
+        git reset --hard
+        git clean -fd
+        git fetch origin main
+        git checkout main
+        
+        # Only add specific files we want to track
+        git add domains.json
+        git add terraform/terraform.tfstate
+        
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Save Terraform state, lock file and domain list"
-          git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
+          git commit -m "Update domains.json and Terraform state"
+          # Force push since we're managing state
+          git push -f https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
         fi
