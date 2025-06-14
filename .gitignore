@@ -24,4 +24,7 @@ terraform.rc
 tfplan
 
 # Ignore any local backup files
-*.backup 
+*.backup
+*.tfstate.backup
+# Don't ignore the main terraform.tfstate file
+!terraform/terraform.tfstate 
