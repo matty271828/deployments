@@ -1,7 +1,3 @@
-interface Env {
-  // We'll add environment variables here later
-}
-
 addEventListener('fetch', (event: FetchEvent) => {
   event.respondWith(handleRequest(event.request));
 });
