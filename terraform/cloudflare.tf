@@ -29,7 +29,7 @@ resource "cloudflare_dns_record" "pages_cname" {
   content = "${each.value.repo_name}.pages.dev"
   type    = "CNAME"
   proxied = true
-  ttl     = 3600
+  ttl     = 1
 }
 
 # Create Cloudflare Pages projects
