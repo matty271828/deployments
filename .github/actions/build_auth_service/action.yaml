@@ -1,9 +1,31 @@
 name: 'Build Auth Service'
 description: 'Builds the auth service'
 
+inputs:
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
 runs:
   using: 'composite'
   steps:
+    - name: 'Clean up old artifacts'
+      shell: bash
+      run: |
+        # Get the list of artifacts
+        artifacts=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/artifacts")
+        
+        # Extract and delete auth-service artifacts
+        echo "$artifacts" | jq -r '.artifacts[] | select(.name=="auth-service") | .id' | while read -r artifact_id; do
+          if [ ! -z "$artifact_id" ]; then
+            echo "Deleting artifact $artifact_id"
+            curl -s -X DELETE \
+              -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$artifact_id"
+          fi
+        done
+
     - name: 'Checkout code'
       uses: 'actions/checkout@v4'
 
