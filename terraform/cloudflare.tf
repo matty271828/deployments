@@ -14,12 +14,12 @@ resource "cloudflare_zone" "domain" {
   for_each = local.frontend_repos
 
   name = each.value.repo_name
-  account = var.cloudflare_account_id
+  account_id = var.cloudflare_account_id
   type       = "full"
 }
 
 # Create DNS records for each domain
-resource "cloudflare_record" "pages_cname" {
+resource "cloudflare_zone_record" "pages_cname" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
@@ -38,27 +38,27 @@ resource "cloudflare_pages_project" "frontend" {
   name       = each.value.repo_name
   production_branch = "main"
   
-  build_config {
+  build_config = {
     build_command = "npm run build -- --mode production"
     destination_dir = "dist"
   }
 
-  source {
+  source = {
     type = "github"
-    config {
+    config = {
       owner = "matty271828"
       repo_name = each.value.repo_name
       production_branch = "main"
     }
   }
 
-deployment_configs {
-    preview {
+  deployment_configs = {
+    preview = {
       d1_databases = {
         TEST_DB = cloudflare_d1_database.domain_db[each.key].id
       }
     }
-    production {
+    production = {
       d1_databases = {
         PROD_DB = cloudflare_d1_database.domain_db[each.key].id
       }
@@ -77,9 +77,8 @@ resource "cloudflare_d1_database" "domain_db" {
 # Create the shared auth service worker
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
-  name             = "auth-service"
-  content          = file("${path.module}/../auth-service/dist/worker.js")
   script_name      = "auth-service"
+  content          = file("${path.module}/../auth-service/dist/worker.js")
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
@@ -88,7 +87,7 @@ resource "cloudflare_workers_route" "auth_route" {
 
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
-  script      = "auth-service"
+  script_name = "auth-service"
 
   depends_on = [cloudflare_workers_script.auth_service]
 }
