@@ -27,7 +27,6 @@ jobs:
 
   build-auth-service:
     name: 'Build Auth Service'
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
