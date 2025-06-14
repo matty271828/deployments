@@ -7,7 +7,7 @@ async function handleRequest(request: Request): Promise<Response> {
   
   // Health check endpoint
   if (url.pathname === '/auth/health') {
-    return new Response('Auth Service is healthy!', {
+    return new Response('Auth Service is Healthy!', {
       status: 200,
       headers: {
         'Content-Type': 'text/plain'
@@ -16,7 +16,7 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   // Handle unknown routes
-  return new Response('Not Found', {
+  return new Response('Auth-Service: Route Not Found', {
     status: 404,
     headers: {
       'Content-Type': 'text/plain'
