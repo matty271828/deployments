@@ -13,7 +13,7 @@ variable "cloudflare_account_id" {
 resource "cloudflare_zone" "domain" {
   for_each = local.frontend_repos
 
-  name = each.value.repo_name
+  name = each.key
   account = {
     id = var.cloudflare_account_id
   }
