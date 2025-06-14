@@ -75,7 +75,7 @@ resource "cloudflare_d1_database" "domain_db" {
 }
 
 # Create the shared auth service worker
-resource "cloudflare_workers_script" "auth_service" {
+resource "cloudflare_worker_script" "auth_service" {
   account_id = var.cloudflare_account_id
   name       = "auth-service"
   content    = file("${path.module}/../auth-service/dist/worker.js")
@@ -87,5 +87,4 @@ resource "cloudflare_worker_route" "auth_route" {
 
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
-  script      = cloudflare_workers_script.auth_service.name
 }
