@@ -85,7 +85,6 @@ resource "cloudflare_workers_script" "auth_service" {
 resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
 
-  zone_id        = cloudflare_zone.domain[each.key].id
-  pattern        = "${each.key}/auth/*"
-  allow_overwrite = true
+  zone_id     = cloudflare_zone.domain[each.key].id
+  pattern     = "${each.key}/auth/*"
 }
