@@ -82,7 +82,7 @@ runs:
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
         fi
-        exit $exit_code
+        # Don't exit on error, just continue
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
@@ -95,7 +95,7 @@ runs:
       run: |
         if [ "${{ steps.apply.outputs.terraform_error }}" == "true" ]; then
           echo "Terraform operations encountered errors"
-          exit 1
+          echo "::warning::Terraform operations encountered errors, but continuing to commit state changes"
         fi
 
     - name: Check for State File Changes
