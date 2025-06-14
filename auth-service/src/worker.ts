@@ -1,9 +1,5 @@
-interface Env {
-  // We'll add environment variables here later
-}
-
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     
     // Health check endpoint
