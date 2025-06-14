@@ -18,11 +18,11 @@ runs:
 
     - name: 'Build'
       working-directory: './auth-service'
-      run: 'npm run build'
+      run: 'npx wrangler build'
 
     - name: 'Upload artifact'
       uses: 'actions/upload-artifact@v4'
       with:
         name: 'auth-service'
-        path: 'auth-service/dist'
+        path: 'auth-service/.wrangler'
         retention-days: 1
