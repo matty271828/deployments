@@ -63,11 +63,22 @@ resource "cloudflare_d1_database" "domain_db" {
   name       = "${each.value.repo_name}-db"
 }
 
+# Create the shared auth service database
+resource "cloudflare_d1_database" "auth_service_db" {
+  account_id = var.cloudflare_account_id
+  name       = "auth-service-db"
+}
+
 # Create the shared auth service worker
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
   script_name      = "auth-service"
   content          = file("${path.module}/../auth-service/dist/worker.js")
+
+  d1_database_bindings {
+    name         = "AUTH_DB"
+    database_id  = cloudflare_d1_database.auth_service_db.id
+  }
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker

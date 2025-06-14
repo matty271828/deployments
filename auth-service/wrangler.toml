@@ -1,3 +1,8 @@
 name = "auth-service"
 main = "src/worker.ts"
 compatibility_date = "2025-06-14"
+
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "auth-service-db"
+database_id = ""  # This will be filled in by Terraform
