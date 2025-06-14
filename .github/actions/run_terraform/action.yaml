@@ -133,9 +133,6 @@ runs:
         if [ -f "terraform/terraform.tfstate" ]; then
           git add terraform/terraform.tfstate
         fi
-        if [ -f "terraform/terraform.tfstate.backup" ]; then
-          git add terraform/terraform.tfstate.backup
-        fi
         # Add any other state files that exist
         for state_file in terraform/*.tfstate.*; do
           if [ -f "$state_file" ]; then
