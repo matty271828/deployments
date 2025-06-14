@@ -64,7 +64,7 @@ resource "cloudflare_d1_database" "domain_db" {
 }
 
 # Create the shared auth service database
-resource "cloudflare_d1_database" "auth_service_db" {
+resource "cloudflare_d1_database" "AUTH_DB" {
   account_id = var.cloudflare_account_id
   name       = "auth-service-db"
 }
@@ -76,7 +76,7 @@ resource "cloudflare_workers_script" "auth_service" {
   content          = file("${path.module}/../auth-service/dist/worker.js")
   
   bindings = [{
-    name = "auth_service_db"
+    name = "AUTH_DB"
     type = "d1"
   }]
 }
