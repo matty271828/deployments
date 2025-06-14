@@ -82,10 +82,9 @@ resource "cloudflare_workers_script" "auth_service" {
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
-resource "cloudflare_worker_route" "auth_route" {
+resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
 
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
-  script_name = cloudflare_workers_script.auth_service.name
 }
