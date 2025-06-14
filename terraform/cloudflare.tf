@@ -13,8 +13,8 @@ variable "cloudflare_account_id" {
 resource "cloudflare_zone" "domain" {
   for_each = local.frontend_repos
 
-  account_id = var.cloudflare_account_id
-  zone       = each.key  # This is the root domain (e.g., leetrepeat.com)
+  name = each.value.repo_name
+  account = var.cloudflare_account_id
   type       = "full"
 }
 
@@ -76,9 +76,10 @@ resource "cloudflare_d1_database" "domain_db" {
 
 # Create the shared auth service worker
 resource "cloudflare_workers_script" "auth_service" {
-  account_id = var.cloudflare_account_id
-  name       = "auth-service"
-  content    = file("${path.module}/../auth-service/dist/worker.js")
+  account_id       = var.cloudflare_account_id
+  name             = "auth-service"
+  content          = file("${path.module}/../auth-service/dist/worker.js")
+  script_name      = "auth-service""
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
