@@ -6,7 +6,7 @@ async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
   
   // Health check endpoint
-  if (url.pathname === '/health') {
+  if (url.pathname === '/auth/health') {
     return new Response('OK', {
       status: 200,
       headers: {
