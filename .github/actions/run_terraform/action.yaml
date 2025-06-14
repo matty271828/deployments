@@ -126,8 +126,22 @@ runs:
         # Apply our changes on top of latest
         git stash pop || true
         
-        # Add all files
-        git add terraform/.terraform.lock.hcl terraform/terraform.tfstate terraform/terraform.tfstate.backup terraform/*.tfstate.*
+        # Add files that exist
+        if [ -f "terraform/.terraform.lock.hcl" ]; then
+          git add terraform/.terraform.lock.hcl
+        fi
+        if [ -f "terraform/terraform.tfstate" ]; then
+          git add terraform/terraform.tfstate
+        fi
+        if [ -f "terraform/terraform.tfstate.backup" ]; then
+          git add terraform/terraform.tfstate.backup
+        fi
+        # Add any other state files that exist
+        for state_file in terraform/*.tfstate.*; do
+          if [ -f "$state_file" ]; then
+            git add "$state_file"
+          fi
+        done
         
         if git diff --staged --quiet; then
           echo "No changes to commit"
