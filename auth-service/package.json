@@ -1,0 +1,16 @@
+{
+  "name": "auth-service",
+  "version": "1.0.0",
+  "description": "Authentication service for multiple domains",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev --port 3000",
+    "build": "tsc",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.28.1"
+  }
+}

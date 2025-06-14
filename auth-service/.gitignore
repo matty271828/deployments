@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+.wrangler/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log* 
