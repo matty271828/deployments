@@ -14,12 +14,14 @@ resource "cloudflare_zone" "domain" {
   for_each = local.frontend_repos
 
   name = each.value.repo_name
-  account_id = var.cloudflare_account_id
+  account = {
+    id = var.cloudflare_account_id
+  }
   type       = "full"
 }
 
 # Create DNS records for each domain
-resource "cloudflare_zone_record" "pages_cname" {
+resource "cloudflare_dns_record" "pages_cname" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
@@ -28,6 +30,7 @@ resource "cloudflare_zone_record" "pages_cname" {
   type    = "CNAME"
   proxied = true
   allow_overwrite = true
+  ttl     = 3600
 }
 
 # Create Cloudflare Pages projects
