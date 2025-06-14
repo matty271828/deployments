@@ -29,7 +29,6 @@ resource "cloudflare_dns_record" "pages_cname" {
   content = "${each.value.repo_name}.pages.dev"
   type    = "CNAME"
   proxied = true
-  allow_overwrite = true
   ttl     = 3600
 }
 
@@ -90,7 +89,7 @@ resource "cloudflare_workers_route" "auth_route" {
 
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
-  script_name = "auth-service"
+  script = "auth-service"
 
   depends_on = [cloudflare_workers_script.auth_service]
 }
