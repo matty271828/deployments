@@ -127,13 +127,13 @@ runs:
         git stash pop || true
         
         # Add all files
-        git add .
+        git add terraform/.terraform.lock.hcl terraform/terraform.tfstate terraform/terraform.tfstate.backup terraform/*.tfstate.*
         
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
           # Try to commit and push normally first
-          if git commit -m "Update all files" && git pull --rebase origin main; then
+          if git commit -m "Update Terraform state and lock files" && git pull --rebase origin main; then
             git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
           else
             echo "::error::Failed to commit and push changes. Please check the repository state."
