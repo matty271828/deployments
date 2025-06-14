@@ -19,12 +19,15 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Ignore all terraform files
+terraform/*
+# But don't ignore the main terraform.tfstate file
+!terraform/terraform.tfstate
+
 # Ignore plan files
 *.tfplan
 tfplan
 
 # Ignore any local backup files
 *.backup
-*.tfstate.backup
-# Don't ignore the main terraform.tfstate file
-!terraform/terraform.tfstate 
+*.tfstate.backup 
