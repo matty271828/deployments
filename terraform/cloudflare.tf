@@ -66,7 +66,7 @@ resource "cloudflare_d1_database" "domain_db" {
 # Create the shared auth service database
 resource "cloudflare_d1_database" "AUTH_DB" {
   account_id = var.cloudflare_account_id
-  name       = "auth-service-db"
+  name       = "AUTH_DB"
 }
 
 # Create the shared auth service worker
