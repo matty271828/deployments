@@ -53,19 +53,6 @@ resource "cloudflare_pages_project" "frontend" {
       production_branch = "main"
     }
   }
-
-  deployment_configs = {
-    preview = {
-      d1_databases = {
-        TEST_DB = cloudflare_d1_database.domain_db[each.key].id
-      }
-    }
-    production = {
-      d1_databases = {
-        PROD_DB = cloudflare_d1_database.domain_db[each.key].id
-      }
-    }
-  }
 }
 
 # Create D1 databases for each domain
