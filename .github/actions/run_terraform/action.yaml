@@ -19,6 +19,9 @@ outputs:
   terraform_error:
     description: 'Indicates if there was an error in Terraform operations'
     value: ${{ steps.apply.outputs.terraform_error }}
+  auth_db_id:
+    description: 'The ID of the AUTH_DB D1 database'
+    value: ${{ steps.apply.outputs.auth_db_id }}
 
 runs:
   using: "composite"
