@@ -12,7 +12,7 @@ This platform provides a streamlined deployment solution for frontend applicatio
 
 ## Architecture
 
-- **Frontend**: Deployed to Cloudflare Pages with automatic builds
+- **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
 - **Database**: Each project gets a dedicated D1 database
 - **Authentication**: Centralized auth service running on Cloudflare Workers
 - **Infrastructure**: Managed via Terraform and GitHub Actions
@@ -26,12 +26,12 @@ This platform provides a streamlined deployment solution for frontend applicatio
    - `GH_PERSONAL_ACCESS_TOKEN`
 3. Run the deployment workflow with:
    - Your frontend repository URL
-   - Desired domain name
+   - Your acquired domain name
 
 The system will automatically:
-- Configure DNS and SSL
+- Configure DNS and SSL for each domain
 - Set up Cloudflare Pages
-- Provision a D1 database
+- Provision a D1 database for each project
 - Deploy the auth service
 - Configure all necessary bindings
 
