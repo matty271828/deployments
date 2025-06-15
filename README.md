@@ -1,11 +1,11 @@
+```
 ___ _______ _   _____   __  ______  ________   ____   _   _  ____________   _ 
 |  \|___|__]|   |  | \_/ |\/||___|\ | | [__    |__]\_/    |\/||__| |  |  \_/  
 |__/|___|   |___|__|  |  |  ||___| \| | ___]   |__] |     |  ||  | |  |   |   
                                                                               
+```
 
-# 🚀 Serverless Deployment Platform
-
-A modern, serverless deployment platform for frontend applications with built-in authentication and database support.
+A serverless deployment platform for frontend applications with built-in authentication and database support.
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange?style=flat-square&logo=cloudflare)](https://workers.cloudflare.com/)
 [![D1 Database](https://img.shields.io/badge/Cloudflare-D1-blue?style=flat-square&logo=cloudflare)](https://developers.cloudflare.com/d1/)
@@ -13,28 +13,12 @@ A modern, serverless deployment platform for frontend applications with built-in
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 ## 📑 Table of Contents
-
 - [Overview](#-overview)
-  - [What's Included](#whats-included)
-  - [Key Features](#key-features)
 - [Architecture](#-architecture)
-  - [Infrastructure](#infrastructure)
-  - [Authentication](#authentication)
-  - [External Services](#external-services)
 - [Cost & Limitations](#-cost--limitations)
-  - [Free Tier](#free-tier)
-  - [Usage Limits](#usage-limits)
 - [Deployment](#-deployment)
-  - [Prerequisites](#prerequisites)
-  - [Setup Guide](#setup-guide)
-  - [Configuration](#configuration)
 - [Customization](#-customization)
-  - [Backend Integration](#backend-integration)
-  - [Environment Setup](#environment-setup)
 - [AI-Powered Development](#-ai-powered-development)
-  - [Frontend Generation](#frontend-generation)
-  - [Backend Services](#backend-services)
-  - [Workflow](#workflow)
 
 ## 📋 Overview
 
