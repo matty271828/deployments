@@ -77,7 +77,7 @@ resource "cloudflare_workers_script" "auth_service" {
   
   bindings = [{
     name = "AUTH_DB"
-    type = "d1"
+    database_id = cloudflare_d1_database.AUTH_DB.id
   }]
 }
 
