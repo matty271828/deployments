@@ -7,6 +7,12 @@ A serverless deployment platform for frontend applications with built-in authent
 [![Pages](https://img.shields.io/badge/Cloudflare-Pages-yellow?style=flat-square&logo=cloudflare)](https://pages.cloudflare.com/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
+```
+___ _______ _   _____   __  ______  ________   ____   _   _  ____________   _ 
+|  \|___|__]|   |  | \_/ |\/||___|\ | | [__    |__]\_/    |\/||__| |  |  \_/  
+|__/|___|   |___|__|  |  |  ||___| \| | ___]   |__] |     |  ||  | |  |   |   
+                                                                              
+```
 
 ## 📑 Table of Contents
 - [Overview](#-overview)
