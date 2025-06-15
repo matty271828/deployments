@@ -8,4 +8,4 @@ compatibility_date = "2025-06-14"
 # creating module workers (needed to bind to a D1 database).
 binding = "Auth-Service Worker Binding"
 database_name = "AUTH_DB"
-database_id = "AUTH_DB"
+database_id = ""
