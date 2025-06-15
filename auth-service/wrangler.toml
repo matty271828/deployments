@@ -3,6 +3,9 @@ main = "src/worker.ts"
 compatibility_date = "2025-06-14"
 
 [[d1_databases]]
+# We define the binding here and not in the terraform config
+# because there is a bug in the terraform provider relating to
+# creating module workers (needed to bind to a D1 database).
 binding = "Auth-Service Worker Binding"
 database_name = "AUTH_DB"
 database_id = "AUTH_DB"
