@@ -157,8 +157,11 @@ Note: The auth service uses one D1 database, so the platform can support up to 9
 
 3. **Deploy**
    Run the deployment workflow with:
-   - Your frontend repository URL
+   - Your frontend repository URL (must be a Vite project)
    - Your acquired domain name
+
+   Note: The platform currently only supports Vite-based frontend projects. 
+   Support for other frameworks will be added in future updates.
 
 The system will automatically:
 - Configure DNS and SSL for each domain
