@@ -7,6 +7,15 @@ A serverless deployment platform for frontend applications with built-in authent
 [![Pages](https://img.shields.io/badge/Cloudflare-Pages-yellow?style=flat-square&logo=cloudflare)](https://pages.cloudflare.com/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
+
+## 📑 Table of Contents
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Cost & Limitations](#-cost--limitations)
+- [Deployment](#-deployment)
+- [Customization](#-customization)
+- [AI-Powered Development](#-ai-powered-development)
+
 ## 📋 Overview
 
 This platform provides a streamlined deployment solution for frontend applications using Cloudflare's infrastructure. Each project gets:
