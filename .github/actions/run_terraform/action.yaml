@@ -84,6 +84,8 @@ runs:
           echo "terraform_error=true" >> $GITHUB_OUTPUT
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
+          auth_db_id=$(terraform output -raw auth_db_id)
+          echo "auth_db_id=$auth_db_id" >> $GITHUB_OUTPUT
         fi
         # Don't exit on error, just continue
       env:
