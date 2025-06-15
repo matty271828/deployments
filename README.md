@@ -17,6 +17,36 @@ This platform provides a streamlined deployment solution for frontend applicatio
 - **Authentication**: Centralized auth service running on Cloudflare Workers
 - **Infrastructure**: Managed via Terraform and GitHub Actions
 
+## Authentication Service
+
+The platform includes a centralized authentication service built with:
+- **Framework**: Lucia Auth running on Cloudflare Workers
+- **Database**: D1 SQL database for user management and sessions
+- **Routing**: Each project's auth requests are automatically routed to their respective database
+
+### Auth Endpoints
+
+The auth service exposes the following endpoints:
+
+- `GET /auth/health` - Service health check
+- `POST /auth/signup` - User registration
+- `POST /auth/login` - User authentication
+- `POST /auth/logout` - Session termination
+- `GET /auth/session` - Session validation
+- `POST /auth/refresh` - Session token refresh
+
+Each project can access these endpoints through their custom domain:
+```bash
+# Example health check
+curl https://yourdomain.com/auth/health
+```
+
+The auth service automatically routes requests to the correct project's database based on the domain.
+
+## External Backends
+
+Projects can optionally connect to external backend services:
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Cloudflare Infrastructure                │
@@ -50,7 +80,33 @@ This platform provides a streamlined deployment solution for frontend applicatio
 │  │    D1 DB    │    │    D1 DB    │    │    D1 DB    │          │
 │  └─────────────┘    └─────────────┘    └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ External Backend Services (Optional and outside of this repo)   │
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │  Backend 1  │    │  Backend 2  │    │  Backend N  │          │
+│  │  (Custom)   │    │  (Custom)   │    │  (Custom)   │          │
+│  └─────────────┘    └─────────────┘    └─────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+External backends are not part of this platform and should be deployed separately. They can be integrated with your frontend application through environment variables and API calls.
+
+## Future Plans
+
+The platform has several planned enhancements:
+
+1. **Standardized UI Components**
+   - Shared component library for consistent user experience
+   - Pre-built authentication flows and forms
+   - Responsive design templates
+
+2. **Extended Auth Service**
+   - Payment processing integration
+   - Social login providers
+   - Multi-factor authentication
+   - Role-based access control
 
 ## Cost & Limitations
 
