@@ -46,6 +46,8 @@ jobs:
     name: 'Run Terraform'
     needs: [add-to-domains, validate]
     runs-on: ubuntu-latest
+    outputs:
+      auth_db_id: ${{ steps.run-terraform.outputs.auth_db_id }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,6 +73,7 @@ jobs:
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
 
   deploy-pages:
     name: 'Deploy Pages'

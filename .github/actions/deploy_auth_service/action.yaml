@@ -8,6 +8,12 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
+  auth_db_id:
+    description: 'The ID of the AUTH_DB D1 database'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
 
 runs:
   using: 'composite'
@@ -24,6 +30,17 @@ runs:
       working-directory: './auth-service'
       shell: bash
       run: 'npm install'
+
+    # Due to the bug in the cloudflare terraform provider, we need to manually
+    # update the wrangler.toml file to include the AUTH_DB database ID.
+    - name: Update wrangler.toml
+      working-directory: './auth-service'
+      shell: bash
+      run: |
+        sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
+        git add wrangler.toml
+        git commit -m "Update wrangler.toml to include AUTH_DB database ID"
+        git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main:main
 
     # There is a bug in the cloudflare terraform provider. We will have to reupload an ES module worker
     # using the API after our terraform run has completed.
