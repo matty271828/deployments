@@ -75,10 +75,9 @@ resource "cloudflare_workers_script" "auth_service" {
   script_name      = "auth-service"
   content          = file("${path.module}/../auth-service/dist/worker.js")
   
-  d1_databases = [{
-    binding = "AUTH_DB"
-    database_name = "AUTH_DB"
-    database_id = cloudflare_d1_database.AUTH_DB.id
+  bindings = [{
+    name = "AUTH_DB"
+    type = "d1"
   }]
 }
 
