@@ -10,7 +10,12 @@ This platform provides a streamlined deployment solution for frontend applicatio
 - Access to shared authentication services
 - Automatic DNS configuration
 
-## Architecture Diagram
+## Architecture
+
+- **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
+- **Database**: Each project gets a dedicated D1 database
+- **Authentication**: Centralized auth service running on Cloudflare Workers
+- **Infrastructure**: Managed via Terraform and GitHub Actions
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -46,13 +51,6 @@ This platform provides a streamlined deployment solution for frontend applicatio
 │  └─────────────┘    └─────────────┘    └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
-## Architecture
-
-- **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
-- **Database**: Each project gets a dedicated D1 database
-- **Authentication**: Centralized auth service running on Cloudflare Workers
-- **Infrastructure**: Managed via Terraform and GitHub Actions
 
 ## Cost & Limitations
 
