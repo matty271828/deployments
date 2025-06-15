@@ -79,8 +79,10 @@ resource "cloudflare_d1_database" "AUTH_DB" {
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
   script_name      = "auth-service"
-  content          = "export default { fetch() { return new Response('OK') } }"
-  module = true
+  # Use commonJS syntax for the no-op deployment. This is because there is a 
+  # bug in the cloudflare terraform provider. We will have to output every created worker
+  # and reupload an ES module worker using the API after our terraform run has completed.
+  content          = "module.exports = { fetch() { return new Response('OK') } }"
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
