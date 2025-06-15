@@ -1,5 +1,5 @@
 export default {
-  async fetch(request: Request, env: { AUTH_DB: D1Database }): Promise<Response> {
+  fetch(request: Request): Response {
     const url = new URL(request.url);
     
     // Health check endpoint
