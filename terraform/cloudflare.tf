@@ -53,6 +53,18 @@ resource "cloudflare_pages_project" "frontend" {
       production_branch = "main"
     }
   }
+
+  deployment_configs {
+    production {
+      d1_databases = {
+        D1_BINDING = {
+          id = cloudflare_d1_database.domain_db[each.key].id
+        }
+      }
+    }
+  }
+
+  depends_on = [cloudflare_d1_database.domain_db]
 }
 
 # Create D1 databases for each domain
