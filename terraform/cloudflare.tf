@@ -79,7 +79,8 @@ resource "cloudflare_d1_database" "AUTH_DB" {
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
   script_name      = "auth-service"
-  content          = ""
+  content          = "export default { fetch() { return new Response('OK') } }"
+  module = true
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
