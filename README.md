@@ -10,6 +10,43 @@ This platform provides a streamlined deployment solution for frontend applicatio
 - Access to shared authentication services
 - Automatic DNS configuration
 
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Cloudflare Infrastructure                │
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │  Project 1  │    │  Project 2  │    │  Project N  │          │
+│  │  Frontend   │    │  Frontend   │    │  Frontend   │          │
+│  │  (Pages)    │    │  (Pages)    │    │  (Pages)    │          │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘          │
+│         │                  │                  │                 │
+│         └──────────────────┼──────────────────┘                 │
+│                            │                                    │
+│                    ┌───────▼───────┐                            │
+│                    │   Shared      │                            │
+│                    │  Auth Service │                            │
+│                    │   (Worker)    │                            │
+│                    └───────┬───────┘                            │
+│                            │                                    │
+│                    ┌───────▼───────┐                            │
+│                    │   Shared      │                            │
+│                    │  Auth D1 DB   │                            │
+│                    └───────┬───────┘                            │
+│                            │                                    │
+│                            │                                    │
+│                            │                                    │
+│                            ▼                                    │
+│          ┌─────────────────────────────────────┐                │
+│          │                  │                  │                │
+│  ┌───────▼─────┐    ┌───────▼─────┐    ┌───────▼─────┐          │
+│  │  Project 1  │    │  Project 2  │    │  Project N  │          │
+│  │    D1 DB    │    │    D1 DB    │    │    D1 DB    │          │
+│  └─────────────┘    └─────────────┘    └─────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Architecture
 
 - **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
