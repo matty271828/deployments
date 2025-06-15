@@ -61,12 +61,18 @@ resource "cloudflare_d1_database" "domain_db" {
 
   account_id = var.cloudflare_account_id
   name       = "${each.value.repo_name}-db"
+  read_replication = {
+    mode = "disabled"
+  }
 }
 
 # Create the shared auth service database
 resource "cloudflare_d1_database" "AUTH_DB" {
   account_id = var.cloudflare_account_id
   name       = "AUTH_DB"
+  read_replication = {
+    mode = "disabled"
+  }
 }
 
 # Create the shared auth service worker
