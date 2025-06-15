@@ -79,9 +79,9 @@ resource "cloudflare_d1_database" "AUTH_DB" {
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
   script_name      = "auth-service"
-  # Use addEventListener pattern for the no-op deployment. This is because there is a 
-  # bug in the cloudflare terraform provider. We will have to output every created worker
-  # and reupload an ES module worker using the API after our terraform run has completed.
+  # Use addEventListener pattern for a no-op deployment. This is because there is a 
+  # bug in the cloudflare terraform provider. We will have to reupload an ES module worker 
+  # using the API after our terraform run has completed.
   content          = "addEventListener('fetch', event => { event.respondWith(new Response('OK')) })"
 }
 
