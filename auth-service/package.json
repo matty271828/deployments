@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Authentication service for multiple domains",
   "main": "src/worker.ts",
-  "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 3000",
     "build": "wrangler build",
