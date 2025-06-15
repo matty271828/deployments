@@ -133,12 +133,30 @@ Note: The auth service uses one D1 database, so the platform can support up to 9
 
 ## Deployment
 
-1. Fork this repository
-2. Add required secrets:
-   - `CLOUDFLARE_API_TOKEN`
-   - `CLOUDFLARE_ACCOUNT_ID`
-   - `GH_PERSONAL_ACCESS_TOKEN`
-3. Run the deployment workflow with:
+1. **Setup Required Accounts**
+   - Create a Cloudflare account if you don't have one
+   - Note your Account ID from the dashboard
+   - Create a Cloudflare API token with:
+     - Account Settings: Read
+     - Workers: Edit
+     - Pages: Edit
+     - D1: Edit
+     - DNS: Edit
+   - Create a GitHub Personal Access Token with:
+     - `repo` scope (for private repositories)
+     - `workflow` scope (for GitHub Actions)
+
+2. **Fork and Configure**
+   - Fork this repository
+   - Add required secrets to your fork:
+     ```
+     CLOUDFLARE_ACCOUNT_ID    # Your Cloudflare account ID
+     CLOUDFLARE_API_TOKEN     # Your Cloudflare API token
+     GH_PERSONAL_ACCESS_TOKEN # Your GitHub personal access token
+     ```
+
+3. **Deploy**
+   Run the deployment workflow with:
    - Your frontend repository URL
    - Your acquired domain name
 
