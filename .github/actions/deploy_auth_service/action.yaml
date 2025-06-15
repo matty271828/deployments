@@ -38,9 +38,13 @@ runs:
       shell: bash
       run: |
         sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
-        git add wrangler.toml
-        git commit -m "Update wrangler.toml to include AUTH_DB database ID"
-        git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main:main
+        if git diff --quiet wrangler.toml; then
+          echo "No changes to wrangler.toml, skipping commit"
+        else
+          git add wrangler.toml
+          git commit -m "Update wrangler.toml to include AUTH_DB database ID"
+          git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main:main
+        fi
 
     # There is a bug in the cloudflare terraform provider. We will have to reupload an ES module worker
     # using the API after our terraform run has completed.
