@@ -40,7 +40,6 @@ runs:
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         echo "Debug: auth_db_id = ${{ inputs.auth_db_id }}"
-        echo "Debug: sed command = sed -i \"s/database_id = \\\"\\\"/database_id = \\\"${{ inputs.auth_db_id }}\\\"/\" wrangler.toml"
         sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
         if git diff --quiet wrangler.toml; then
           echo "No changes to wrangler.toml, skipping commit"
