@@ -75,11 +75,20 @@ resource "cloudflare_d1_database" "AUTH_DB" {
   }
 }
 
+# Create the shared auth service worker (intial no-op to ensure worker exists)
+resource "cloudflare_workers_script" "auth_service" {
+  account_id       = var.cloudflare_account_id
+  script_name      = "auth-service"
+  content          = "export default { fetch() { return new Response('OK') } }"
+}
+
 # Create worker routes for each domain to direct /auth/* traffic to the worker
 resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
 
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
-  script = "auth-service"
+  script      = "auth-service"
+
+  depends_on = [cloudflare_workers_script.auth_service]
 }
