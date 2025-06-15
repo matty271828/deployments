@@ -54,8 +54,8 @@ resource "cloudflare_pages_project" "frontend" {
     }
   }
 
-  deployment_configs {
-    production {
+  deployment_configs = {
+    production = {
       d1_databases = {
         D1_BINDING = {
           id = cloudflare_d1_database.domain_db[each.key].id
