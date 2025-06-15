@@ -54,6 +54,29 @@ This platform provides a streamlined deployment solution for frontend applicatio
 - **Authentication**: Centralized auth service running on Cloudflare Workers
 - **Infrastructure**: Managed via Terraform and GitHub Actions
 
+## Cost & Limitations
+
+This platform is completely free to use within Cloudflare's generous free tier limits:
+
+- **Pages**: 
+  - Unlimited sites
+  - 500 builds per month
+  - 100,000 requests per day
+  - 500GB bandwidth per month
+
+- **Workers**:
+  - 100,000 requests per day
+  - 128MB memory per request
+  - 30ms CPU time per request
+
+- **D1 Databases**:
+  - 10 databases total
+  - 10GB total storage
+  - 1,000,000 read operations per day
+  - 100,000 write operations per day
+
+Note: The auth service uses one D1 database, so the platform can support up to 9 additional projects before requiring a paid plan.
+
 ## Deployment
 
 1. Fork this repository
