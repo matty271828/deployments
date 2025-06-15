@@ -8,9 +8,6 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
-  cloudflare_email:
-    description: 'Cloudflare email'
-    required: true
 
 runs:
   using: "composite"

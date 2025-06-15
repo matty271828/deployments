@@ -25,18 +25,6 @@ jobs:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  build-auth-service:
-    name: 'Build Auth Service'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build Auth Service
-        uses: ./.github/actions/build_auth_service
-        with:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-
   add-to-domains:
     name: 'Add to Domains'
     needs: validate
@@ -56,17 +44,11 @@ jobs:
 
   run-terraform:
     name: 'Run Terraform'
-    needs: [add-to-domains, validate, build-auth-service]
+    needs: [add-to-domains, validate]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Download auth service artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: auth-service
-          path: auth-service/dist
 
       - name: Run Terraform
         uses: ./.github/actions/run_terraform
@@ -75,6 +57,20 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+  deploy-auth-service:
+    name: 'Deploy Auth Service'
+    needs: [run-terraform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Auth Service
+        uses: ./.github/actions/deploy_auth_service
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-pages:
     name: 'Deploy Pages'
@@ -89,4 +85,3 @@ jobs:
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_email: ${{ secrets.CLOUDFLARE_EMAIL }}

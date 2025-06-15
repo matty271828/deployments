@@ -75,13 +75,6 @@ resource "cloudflare_d1_database" "AUTH_DB" {
   }
 }
 
-# Create the shared auth service worker
-resource "cloudflare_workers_script" "auth_service" {
-  account_id       = var.cloudflare_account_id
-  script_name      = "auth-service"
-  content          = file("${path.module}/../auth-service/dist/worker.js")
-}
-
 # Create worker routes for each domain to direct /auth/* traffic to the worker
 resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
