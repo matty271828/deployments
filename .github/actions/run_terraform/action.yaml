@@ -140,3 +140,11 @@ runs:
             exit 1
           fi
         fi
+
+    - name: Final Terraform Error Check
+      shell: bash
+      run: |
+        if [ "${{ steps.apply.outputs.terraform_error }}" == "true" ]; then
+          echo "::error::Terraform operations encountered errors"
+          exit 1
+        fi
