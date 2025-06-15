@@ -82,6 +82,4 @@ resource "cloudflare_workers_route" "auth_route" {
   zone_id     = cloudflare_zone.domain[each.key].id
   pattern     = "${each.key}/auth/*"
   script = "auth-service"
-
-  depends_on = [cloudflare_workers_script.auth_service]
 }
