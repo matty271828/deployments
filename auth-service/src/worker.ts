@@ -1,23 +1,10 @@
 export default {
-  fetch(request: Request): Response {
-    const url = new URL(request.url);
-    
-    // Health check endpoint
-    if (url.pathname === '/auth/health') {
-      return new Response('Auth Service is Healthy!', {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/plain'
-        }
-      });
-    }
+  fetch(request: Request) {
+    const base = "https://example.com";
+    const statusCode = 301;
 
-    // Handle unknown routes
-    return new Response('Auth-Service: Route Not Found', {
-      status: 404,
-      headers: {
-        'Content-Type': 'text/plain'
-      }
-    });
-  }
-}; 
+    const source = new URL(request.url);
+    const destination = new URL(source.pathname, base);
+    return Response.redirect(destination.toString(), statusCode);
+  },
+};
