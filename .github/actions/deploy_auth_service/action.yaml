@@ -37,6 +37,8 @@ runs:
       working-directory: './auth-service'
       shell: bash
       run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
         sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
         if git diff --quiet wrangler.toml; then
           echo "No changes to wrangler.toml, skipping commit"
