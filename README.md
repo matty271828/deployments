@@ -44,8 +44,8 @@ This platform provides a streamlined deployment solution for frontend applicatio
 │                            │                                    │
 │                            ▼                                    │
 │          ┌─────────────────────────────────────┐                │
-│          │                  │                  │                │
-│  ┌───────▼─────┐    ┌───────▼─────┐    ┌───────▼─────┐          │
+│          │                 │                   │                │
+│  ┌───────▼─────┐    ┌──────▼───── ┐    ┌───────▼─────┐          │
 │  │  Project 1  │    │  Project 2  │    │  Project N  │          │
 │  │    D1 DB    │    │    D1 DB    │    │    D1 DB    │          │
 │  └─────────────┘    └─────────────┘    └─────────────┘          │
