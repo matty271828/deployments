@@ -1,5 +1,9 @@
+interface Env {
+  AUTH_DB: D1Database;
+}
+
 export default {
-  async fetch(request: Request, env: { AUTH_DB: D1Database }): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     
     // Health check endpoint
