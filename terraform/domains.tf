@@ -5,20 +5,36 @@ data "external" "domain_mappings" {
       -H "Authorization: Bearer ${var.cloudflare_api_token}" \
       -H "Content-Type: application/json")
     
-    if echo "$response" | jq -e '.success == true' > /dev/null; then
-      echo "$response" | jq -r '.result.data'
-    else
-      echo "Error: Failed to get domain mappings"
+    # Check if the response is valid JSON
+    if ! echo "$response" | jq empty 2>/dev/null; then
+      echo "Error: Invalid JSON response from R2 API" >&2
+      echo "$response" >&2
+      exit 1
+    fi
+
+    # Check if the object exists
+    if echo "$response" | jq -e '.errors[0].code == 10007' > /dev/null; then
+      # Object doesn't exist, return empty array
+      echo '{"result": "[]"}'
+      exit 0
+    fi
+
+    # Check for other errors
+    if echo "$response" | jq -e '.errors' > /dev/null; then
+      echo "Error: Failed to get domain mappings" >&2
       echo "$response" | jq -r '.errors[0].message' >&2
       exit 1
     fi
+
+    # Return the object data
+    echo "$response" | jq -r '{result: .result.data}'
   EOT
   ]
 }
 
 locals {
   # Parse the domains JSON from R2
-  domains = jsondecode(data.external.domain_mappings.result)
+  domains = jsondecode(data.external.domain_mappings.result.result)
   
   # Create a map of domains for easier iteration
   domain_map = {
