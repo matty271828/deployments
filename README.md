@@ -61,9 +61,7 @@ curl https://yourdomain.com/auth/health
 
 The auth service automatically routes requests to the correct project's database based on the domain.
 
-## External Backends
-
-Projects can optionally connect to external backend services:
+## Project Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
