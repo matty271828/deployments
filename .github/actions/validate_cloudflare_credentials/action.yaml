@@ -135,25 +135,39 @@ runs:
     - name: Validate R2 is enabled
       shell: bash
       run: |
-        # Check if R2 is enabled
-        R2_STATUS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2" \
+        # Check if R2 is enabled by attempting to list buckets
+        R2_STATUS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
         if ! echo "$R2_STATUS" | jq -e '.success == true' > /dev/null; then
-          echo "::error::R2 is not enabled for your account"
-          echo ""
-          echo "Please enable R2 through the Cloudflare Dashboard:"
-          echo "1. Go to Cloudflare Dashboard → R2"
-          echo "2. Click 'Enable R2'"
-          echo "3. Follow the prompts to add payment information"
-          echo "4. Once enabled, you can use R2 for storing domain mappings"
-          echo ""
-          echo "Note: R2 requires payment information to be set up, even for the free tier."
-          echo "This is a one-time setup requirement from Cloudflare."
+          ERROR_CODE=$(echo "$R2_STATUS" | jq -r '.errors[0].code // "unknown"')
+          ERROR_MESSAGE=$(echo "$R2_STATUS" | jq -r '.errors[0].message // "Unknown error"')
+          
+          if [[ "$ERROR_CODE" == "10001" ]]; then
+            echo "::error::R2 is not enabled for your account"
+            echo ""
+            echo "Please enable R2 through the Cloudflare Dashboard:"
+            echo "1. Go to Cloudflare Dashboard → R2"
+            echo "2. Click 'Enable R2'"
+            echo "3. Follow the prompts to add payment information"
+            echo "4. Once enabled, you can use R2 for storing domain mappings"
+            echo ""
+            echo "Note: R2 requires payment information to be set up, even for the free tier."
+            echo "This is a one-time setup requirement from Cloudflare."
+          else
+            echo "::error::Failed to access R2: $ERROR_MESSAGE"
+            echo ""
+            echo "This could be because:"
+            echo "1. Your API token doesn't have R2 permissions"
+            echo "2. R2 is not properly enabled"
+            echo "3. There's an issue with your Cloudflare account"
+            echo ""
+            echo "Please check your API token permissions and ensure R2 is enabled."
+          fi
           exit 1
         fi
         
-        echo "✅ R2 is enabled for your account"
+        echo "✅ R2 is enabled and accessible for your account"
 
 
