@@ -19,8 +19,8 @@ data "external" "domain_mappings" {
       exit 1
     fi
 
-    # Return the array directly
-    echo "$response" | jq -r '{result: .}'
+    # Return the array as a stringified JSON
+    echo "$response" | jq -r '{result: tostring}'
   EOT
   ]
 }
