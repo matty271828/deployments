@@ -12,22 +12,15 @@ data "external" "domain_mappings" {
       exit 1
     fi
 
-    # Check if the object exists
-    if echo "$response" | jq -e '.errors[0].code == 10007' > /dev/null; then
-      # Object doesn't exist, return empty array
-      echo '{"result": "[]"}'
-      exit 0
-    fi
-
-    # Check for other errors
+    # Check for errors
     if echo "$response" | jq -e '.errors' > /dev/null; then
       echo "Error: Failed to get domain mappings" >&2
       echo "$response" | jq -r '.errors[0].message' >&2
       exit 1
     fi
 
-    # Return the object data
-    echo "$response" | jq -r '{result: .result.data}'
+    # Return the array directly
+    echo "$response" | jq -r '{result: .}'
   EOT
   ]
 }
