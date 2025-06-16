@@ -46,6 +46,30 @@ runs:
           exit 1
         fi
 
+    - name: Enable R2 if not enabled
+      shell: bash
+      run: |
+        # Check if R2 is enabled
+        R2_STATUS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$R2_STATUS" | jq -e '.success == true' > /dev/null; then
+          # Enable R2
+          ENABLE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+          
+          if ! echo "$ENABLE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            echo "Error: Failed to enable R2"
+            echo "$ENABLE_RESPONSE" | jq -r '.errors[0].message'
+            exit 1
+          fi
+          
+          # Wait a moment for R2 to be fully enabled
+          sleep 5
+        fi
+
     - name: Create R2 bucket if it doesn't exist
       shell: bash
       run: |
