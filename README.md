@@ -38,7 +38,7 @@ This platform provides a streamlined deployment solution for frontend applicatio
 ## Authentication Service
 
 The platform includes a centralized authentication service built with:
-- **Framework**: Lucia Auth running on Cloudflare Workers
+- **Framework**: Lucia Auth running on a Cloudflare Worker
 - **Database**: D1 SQL database for user management and sessions
 - **Routing**: Each project's auth requests are automatically routed to their respective database
 
@@ -185,7 +185,7 @@ For projects requiring custom backend services, deploy their backends separately
 
 ## 🤖 AI-Powered Development
 
-This platform is designed to enable rapid development of full-stack SaaS applications using AI:
+This platform is envisanged to enable rapid development of full-stack SaaS applications using AI:
 
 1. **Frontend Generation**
    - Generate frontend code using AI
@@ -194,7 +194,7 @@ This platform is designed to enable rapid development of full-stack SaaS applica
 
 2. **Instant Backend**
    - Authentication ready to go
-   - Payment processing included
+   - Payment processing included (planned)
    - Database automatically provisioned
    - Global CDN deployment
 
