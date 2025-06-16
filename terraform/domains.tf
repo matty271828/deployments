@@ -1,6 +1,24 @@
+# Get domain mappings from R2
+data "external" "domain_mappings" {
+  program = ["bash", "-c", <<-EOT
+    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${var.cloudflare_account_id}/r2/buckets/domain-mappings/objects/mappings.json" \
+      -H "Authorization: Bearer ${var.cloudflare_api_token}" \
+      -H "Content-Type: application/json")
+    
+    if echo "$response" | jq -e '.success == true' > /dev/null; then
+      echo "$response" | jq -r '.result.data'
+    else
+      echo "Error: Failed to get domain mappings"
+      echo "$response" | jq -r '.errors[0].message' >&2
+      exit 1
+    fi
+  EOT
+  ]
+}
+
 locals {
-  # Parse the domains JSON from the TF_VAR_domains_json variable
-  domains = jsondecode(var.domains_json)
+  # Parse the domains JSON from R2
+  domains = jsondecode(data.external.domain_mappings.result)
   
   # Create a map of domains for easier iteration
   domain_map = {
@@ -13,9 +31,4 @@ locals {
       repo_name = split("/", domain.frontend_repo)[length(split("/", domain.frontend_repo)) - 1]
     }
   }
-}
-
-variable "domains_json" {
-  description = "JSON string containing the list of domains and their frontend repos"
-  type        = string
 }

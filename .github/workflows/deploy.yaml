@@ -41,6 +41,8 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           frontend_repo: ${{ inputs.frontend_repo }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   run-terraform:
     name: 'Run Terraform'

@@ -8,6 +8,12 @@ inputs:
   frontend_repo:
     description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
     required: true
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  cloudflare_api_token:
+    description: 'Cloudflare API Token'
+    required: true
 
 outputs:
   domains:
@@ -28,13 +34,6 @@ runs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Create domains.json if it doesn't exist
-      shell: bash
-      run: |
-        if [ ! -f domains.json ]; then
-          echo '[]' > domains.json
-        fi
-
     - name: Validate domain format
       shell: bash
       run: |
@@ -47,57 +46,64 @@ runs:
           exit 1
         fi
 
-    - name: Check if domain exists
-      id: check-domain
+    - name: Create R2 bucket if it doesn't exist
       shell: bash
       run: |
-        if jq -e --arg domain "${{ inputs.domain }}" '.[] | select(.domain == $domain)' domains.json > /dev/null; then
-          echo "domain_exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "domain_exists=false" >> $GITHUB_OUTPUT
+        # Check if bucket exists
+        BUCKET_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$BUCKET_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          # Create bucket if it doesn't exist
+          CREATE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "domain-mappings"}')
+          
+          if ! echo "$CREATE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            echo "Error: Failed to create R2 bucket"
+            echo "$CREATE_RESPONSE" | jq -r '.errors[0].message'
+            exit 1
+          fi
         fi
 
-    - name: Append domain if new
-      if: steps.check-domain.outputs.domain_exists == 'false'
+    - name: Get current mappings
+      id: get-current
+      shell: bash
+      run: |
+        # Try to get current mappings
+        MAPPINGS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          # If mappings exist, get their content
+          MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -r '.result.data')
+        else
+          # If no mappings exist, start with empty array
+          MAPPINGS='[]'
+        fi
+        
+        echo "current_mappings=$MAPPINGS" >> $GITHUB_OUTPUT
+
+    - name: Add new domain mapping
       shell: bash
       run: |
         # Create new entry
         NEW_ENTRY=$(jq -n --arg domain "${{ inputs.domain }}" --arg repo "${{ inputs.frontend_repo }}" '{domain: $domain, frontend_repo: $repo}')
         
-        # Add to existing array and ensure proper formatting
-        jq --argjson new "$NEW_ENTRY" '. + [$new]' domains.json | jq -c '.' > domains.json.tmp && mv domains.json.tmp domains.json
-
-    - name: Get all domains
-      id: get-domains
-      shell: bash
-      run: |
-        if [ ! -s domains.json ]; then
-          echo "Error: domains.json is empty or invalid"
+        # Add to existing array
+        UPDATED_MAPPINGS=$(echo "${{ steps.get-current.outputs.current_mappings }}" | jq --argjson new "$NEW_ENTRY" '. + [$new]')
+        
+        # Upload updated mappings
+        UPLOAD_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json" \
+          -d "$UPDATED_MAPPINGS")
+        
+        if ! echo "$UPLOAD_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          echo "Error: Failed to upload updated mappings"
+          echo "$UPLOAD_RESPONSE" | jq -r '.errors[0].message'
           exit 1
         fi
-        
-        # Validate JSON format
-        if ! jq empty domains.json 2>/dev/null; then
-          echo "Error: domains.json contains invalid JSON"
-          exit 1
-        fi
-        
-        # Output the JSON array with proper escaping and no whitespace
-        DOMAINS=$(jq -c '.' domains.json)
-        
-        # Set output with proper escaping
-        {
-          echo "domains<<EOF"
-          echo "$DOMAINS"
-          echo "EOF"
-        } >> $GITHUB_OUTPUT 
-
-    # TODO - Remove this duplicate commit and only commit at the end of run terraform.
-    - name: Commit domains.json
-      shell: bash
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add domains.json
-        git commit -m "Update domains.json with new domain" || exit 0
-        git push 
