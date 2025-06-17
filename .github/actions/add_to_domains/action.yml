@@ -125,10 +125,8 @@ runs:
           MAPPINGS="$MAPPINGS_RESPONSE"
         fi
         
-        # Properly escape the JSON for GitHub output
-        echo "current_mappings<<EOF" >> $GITHUB_OUTPUT
-        echo "$MAPPINGS" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        # Store the mappings as a single line JSON string
+        echo "current_mappings=$(echo "$MAPPINGS" | jq -c '.')" >> $GITHUB_OUTPUT
 
     - name: Add new domain mapping
       shell: bash
@@ -136,8 +134,14 @@ runs:
         # Create new entry
         NEW_ENTRY=$(jq -n --arg domain "${{ inputs.domain }}" --arg repo "${{ inputs.frontend_repo }}" '{domain: $domain, frontend_repo: $repo}')
         
+        # Parse the current mappings from the output
+        CURRENT_MAPPINGS=$(echo '${{ steps.get-current.outputs.current_mappings }}' | jq -r '.')
+        
         # Add to existing array
-        UPDATED_MAPPINGS=$(echo "${{ steps.get-current.outputs.current_mappings }}" | jq --argjson new "$NEW_ENTRY" '. + [$new]')
+        UPDATED_MAPPINGS=$(echo "$CURRENT_MAPPINGS" | jq --argjson new "$NEW_ENTRY" '. + [$new]')
+        
+        echo "Debug: Updated mappings:"
+        echo "$UPDATED_MAPPINGS"
         
         # Upload updated mappings
         UPLOAD_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
