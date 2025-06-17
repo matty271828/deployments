@@ -26,12 +26,6 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Fetch Terraform Files
-      shell: bash
-      run: |
-        git fetch origin main
-        git checkout origin/main -- terraform/ || true
-
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
