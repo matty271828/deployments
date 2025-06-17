@@ -31,6 +31,28 @@ runs:
       with:
         terraform_version: "1.7.0"
 
+    - name: Create R2 bucket if it doesn't exist
+      shell: bash
+      run: |
+        # Check if bucket exists
+        BUCKET_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$BUCKET_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          # Create bucket if it doesn't exist
+          CREATE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "terraform-state"}')
+          
+          if ! echo "$CREATE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            echo "Error: Failed to create R2 bucket"
+            echo "$CREATE_RESPONSE" | jq -r '.errors[0].message'
+            exit 1
+          fi
+        fi
+
     - name: Get State from R2
       id: get-state
       shell: bash
