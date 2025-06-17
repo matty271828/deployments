@@ -11,9 +11,6 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
-  GH_PERSONAL_ACCESS_TOKEN:
-    description: 'GitHub Personal Access Token'
-    required: true
 
 outputs:
   terraform_error:
