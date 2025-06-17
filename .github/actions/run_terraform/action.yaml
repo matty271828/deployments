@@ -48,11 +48,10 @@ runs:
           echo "No existing state file found - this is expected on first run"
           echo "state_exists=false" >> $GITHUB_OUTPUT
         else
-          # State file exists, save it
-          # The state file is stored in the 'result' field of the response
-          echo "$STATE_RESPONSE" | jq -r '.result' > terraform/terraform.tfstate
+          # State file exists, save it directly
+          echo "$STATE_RESPONSE" > terraform/terraform.tfstate
           
-          echo "Debug: Extracted state file content:"
+          echo "Debug: Saved state file content:"
           cat terraform/terraform.tfstate
           
           # Verify the state file has the required version field
