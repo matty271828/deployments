@@ -32,9 +32,6 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        echo "Debug: Raw R2 Response:"
-        echo "$MAPPINGS_RESPONSE"
-        
         # Check if we got a valid response and if the file exists
         if echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
           # File doesn't exist, start with empty array

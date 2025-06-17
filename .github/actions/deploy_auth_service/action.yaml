@@ -37,8 +37,6 @@ runs:
       working-directory: './auth-service'
       shell: bash
       run: |
-        echo "Debug: Input auth_db_id = ${{ inputs.auth_db_id }}"
-        echo "Debug: Full sed command = sed -i \"s/database_id = \\\"\\\"/database_id = \\\"${{ inputs.auth_db_id }}\\\"/\" wrangler.toml"
         sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
 
     # There is a bug in the cloudflare terraform provider. We will have to reupload an ES module worker

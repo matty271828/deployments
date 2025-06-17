@@ -62,9 +62,6 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        echo "Debug: Raw R2 Response:"
-        echo "$STATE_RESPONSE"
-        
         # Check if we got a valid response and if the file exists
         if echo "$STATE_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
           echo "No existing state file found - this is expected on first run"
@@ -72,9 +69,6 @@ runs:
         elif echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
           # State file exists, save it directly
           echo "$STATE_RESPONSE" > terraform/terraform.tfstate
-          
-          echo "Debug: Saved state file content:"
-          cat terraform/terraform.tfstate
           
           # Verify the state file has the required version field
           if ! jq -e '.version' terraform/terraform.tfstate > /dev/null; then
@@ -139,7 +133,6 @@ runs:
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
           auth_db_id=$(terraform output -raw auth_db_id)
-          echo "Debug: Terraform output auth_db_id = $auth_db_id"
           echo "auth_db_id=$auth_db_id" >> $GITHUB_OUTPUT
         fi
         # Don't exit on error, just continue
