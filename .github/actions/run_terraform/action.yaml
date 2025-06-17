@@ -46,8 +46,17 @@ runs:
           echo "state_exists=false" >> $GITHUB_OUTPUT
         else
           # State file exists, save it
+          # The state file is stored in the 'result' field of the response
           echo "$STATE_RESPONSE" | jq -r '.result' > terraform/terraform.tfstate
-          echo "state_exists=true" >> $GITHUB_OUTPUT
+          
+          # Verify the state file has the required version field
+          if ! jq -e '.version' terraform/terraform.tfstate > /dev/null; then
+            echo "::error::Invalid state file format - missing version field"
+            echo "state_exists=false" >> $GITHUB_OUTPUT
+            rm terraform/terraform.tfstate
+          else
+            echo "state_exists=true" >> $GITHUB_OUTPUT
+          fi
         fi
 
     - name: Terraform Init
