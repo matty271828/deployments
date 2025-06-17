@@ -65,11 +65,11 @@ runs:
         echo "Debug: Raw R2 Response:"
         echo "$STATE_RESPONSE"
         
-        # Check if we got a valid response
-        if ! echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
+        # Check if we got a valid response and if the file exists
+        if echo "$STATE_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
           echo "No existing state file found - this is expected on first run"
           echo "state_exists=false" >> $GITHUB_OUTPUT
-        else
+        elif echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
           # State file exists, save it directly
           echo "$STATE_RESPONSE" > terraform/terraform.tfstate
           
@@ -85,6 +85,10 @@ runs:
           else
             echo "state_exists=true" >> $GITHUB_OUTPUT
           fi
+        else
+          echo "::error::Unexpected error from R2"
+          echo "$STATE_RESPONSE"
+          exit 1
         fi
 
     - name: Terraform Init
