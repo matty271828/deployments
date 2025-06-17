@@ -121,7 +121,7 @@ runs:
       working-directory: ./terraform
       run: |
         set +e
-        timeout 900 terraform apply -auto-approve
+        timeout 900 terraform apply -auto-approve tfplan
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform apply timed out after 15 minutes"
