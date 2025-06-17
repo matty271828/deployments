@@ -137,8 +137,16 @@ runs:
         # Parse the current mappings from the output
         CURRENT_MAPPINGS=$(echo '${{ steps.get-current.outputs.current_mappings }}' | jq -r '.')
         
-        # Add to existing array
-        UPDATED_MAPPINGS=$(echo "$CURRENT_MAPPINGS" | jq --argjson new "$NEW_ENTRY" '. + [$new]')
+        # Check if domain exists and update or add accordingly
+        if echo "$CURRENT_MAPPINGS" | jq -e --arg domain "${{ inputs.domain }}" '.[] | select(.domain == $domain)' > /dev/null; then
+          echo "Domain ${{ inputs.domain }} exists, updating frontend repo..."
+          # Update existing mapping
+          UPDATED_MAPPINGS=$(echo "$CURRENT_MAPPINGS" | jq --arg domain "${{ inputs.domain }}" --arg repo "${{ inputs.frontend_repo }}" 'map(if .domain == $domain then {domain: $domain, frontend_repo: $repo} else . end)')
+        else
+          echo "Adding new domain mapping..."
+          # Add new mapping
+          UPDATED_MAPPINGS=$(echo "$CURRENT_MAPPINGS" | jq --argjson new "$NEW_ENTRY" '. + [$new]')
+        fi
         
         echo "Debug: Updated mappings:"
         echo "$UPDATED_MAPPINGS"
