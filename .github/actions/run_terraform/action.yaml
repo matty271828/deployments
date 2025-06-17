@@ -35,31 +35,19 @@ runs:
       id: get-state
       shell: bash
       run: |
-        # Check if bucket exists and create it if it doesn't
-        BUCKET_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state" \
-          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-          -H "Content-Type: application/json")
-        
-        if ! echo "$BUCKET_CHECK" | jq -e '.success == true' > /dev/null; then
-          echo "Creating terraform-state bucket..."
-          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "terraform-state"}'
-        fi
-
         # Try to get the state file
         STATE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        if echo "$STATE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+        # Check if we got a valid response
+        if ! echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
+          echo "No existing state file found - this is expected on first run"
+          echo "state_exists=false" >> $GITHUB_OUTPUT
+        else
           # State file exists, save it
           echo "$STATE_RESPONSE" | jq -r '.result' > terraform/terraform.tfstate
           echo "state_exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "No existing state file found - this is expected on first run"
-          echo "state_exists=false" >> $GITHUB_OUTPUT
         fi
 
     - name: Terraform Init
