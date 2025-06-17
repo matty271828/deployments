@@ -125,7 +125,10 @@ runs:
           MAPPINGS="$MAPPINGS_RESPONSE"
         fi
         
-        echo "current_mappings=$MAPPINGS" >> $GITHUB_OUTPUT
+        # Properly escape the JSON for GitHub output
+        echo "current_mappings<<EOF" >> $GITHUB_OUTPUT
+        echo "$MAPPINGS" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Add new domain mapping
       shell: bash
