@@ -37,16 +37,20 @@ runs:
         
         # Check if we got a valid response and if the file exists
         if echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
-          echo "No existing mappings file found - this is expected on first run"
-          echo "mappings=[]" >> $GITHUB_OUTPUT
+          # File doesn't exist, start with empty array
+          echo "No existing mappings file found, starting fresh"
+          MAPPINGS='[]'
         elif echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
           # File exists and is valid JSON
-          echo "mappings=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
+          MAPPINGS="$MAPPINGS_RESPONSE"
         else
-          echo "::error::Unexpected error from R2"
+          echo "::error::Invalid response from R2"
           echo "$MAPPINGS_RESPONSE"
           exit 1
         fi
+        
+        # Store the mappings as a single line JSON string
+        echo "mappings=$(echo "$MAPPINGS" | jq -c '.')" >> $GITHUB_OUTPUT
 
     - name: Create Deployments
       shell: bash
