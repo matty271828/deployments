@@ -25,19 +25,19 @@ jobs:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  add-to-domains:
-    name: 'Add to Domains'
+  manage-domains:
+    name: 'Manage Domains'
     needs: validate
     runs-on: ubuntu-latest
     outputs:
-      domains: ${{ steps.add-to-domains.outputs.domains }}
+      domains: ${{ steps.manage-domains.outputs.domains }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Add to domains
-        id: add-to-domains
-        uses: ./.github/actions/add_to_domains
+      - name: Manage domains
+        id: manage-domains
+        uses: ./.github/actions/manage_domains
         with:
           domain: ${{ inputs.domain }}
           frontend_repo: ${{ inputs.frontend_repo }}
@@ -46,7 +46,7 @@ jobs:
 
   run-terraform:
     name: 'Run Terraform'
-    needs: [add-to-domains, validate]
+    needs: [manage-domains, validate]
     runs-on: ubuntu-latest
     outputs:
       auth_db_id: ${{ steps.run-terraform.outputs.auth_db_id }}
@@ -58,7 +58,7 @@ jobs:
         id: run-terraform
         uses: ./.github/actions/run_terraform
         with:
-          domains: ${{ needs.add-to-domains.outputs.domains }}
+          domains: ${{ needs.manage-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
