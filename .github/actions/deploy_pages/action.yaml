@@ -15,11 +15,38 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Install jq
+      shell: bash
+      run: |
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y jq
+        fi
+
+    - name: Get Domain Mappings from R2
+      id: get-mappings
+      shell: bash
+      run: |
+        # Get domain mappings from R2
+        MAPPINGS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          echo "::error::Failed to get domain mappings from R2"
+          echo "$MAPPINGS_RESPONSE" | jq -r '.errors[0].message'
+          exit 1
+        fi
+        
+        # Extract the mappings data - it's stored directly in the result
+        MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -r '.result')
+        echo "mappings=$MAPPINGS" >> $GITHUB_OUTPUT
+
     - name: Create Deployments
       shell: bash
       run: |
-        # Read domains.json and extract project names
-        PROJECTS=$(jq -r '.[].frontend_repo | split("/") | last' domains.json)
+        # Extract project names from mappings
+        PROJECTS=$(echo "${{ steps.get-mappings.outputs.mappings }}" | jq -r '.[].frontend_repo | split("/") | last')
         
         # Deploy each project
         for project in $PROJECTS; do
@@ -40,9 +67,10 @@ runs:
     - name: Configure Custom Domains
       shell: bash
       run: |
-        # Read domains.json and extract project names and domains
-        PROJECTS=$(jq -r '.[].frontend_repo | split("/") | last' domains.json)
-        DOMAINS=$(jq -r '.[].domain' domains.json)
+        # Extract project names and domains from mappings
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
+        DOMAINS=$(echo "$MAPPINGS" | jq -r '.[].domain')
         
         # Convert to arrays
         readarray -t project_array <<< "$PROJECTS"
