@@ -98,7 +98,7 @@ runs:
       shell: bash
       run: |
         set +e
-        timeout 900 terraform plan -out=tfplan
+        timeout 900 terraform plan -quiet -out=tfplan
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform plan timed out after 15 minutes"
@@ -121,7 +121,7 @@ runs:
       working-directory: ./terraform
       run: |
         set +e
-        timeout 900 terraform apply -auto-approve tfplan
+        timeout 900 terraform apply -quiet -auto-approve tfplan
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform apply timed out after 15 minutes"
