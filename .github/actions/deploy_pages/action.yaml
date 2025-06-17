@@ -32,21 +32,33 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        # Check if we got a valid response
-        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
-          echo "::error::Invalid JSON response from R2"
+        echo "Debug: Raw R2 Response:"
+        echo "$MAPPINGS_RESPONSE"
+        
+        # Check if we got a valid response and if the file exists
+        if echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
+          echo "No existing mappings file found - this is expected on first run"
+          echo "mappings=[]" >> $GITHUB_OUTPUT
+        elif echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          # File exists and is valid JSON
+          echo "mappings=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
+        else
+          echo "::error::Unexpected error from R2"
           echo "$MAPPINGS_RESPONSE"
           exit 1
         fi
-
-        MAPPINGS="$MAPPINGS_RESPONSE"
-        echo "mappings=$MAPPINGS" >> $GITHUB_OUTPUT
 
     - name: Create Deployments
       shell: bash
       run: |
         # Extract project names from mappings
-        PROJECTS=$(echo "${{ steps.get-mappings.outputs.mappings }}" | jq -r '.[].frontend_repo | split("/") | last')
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        if [ "$MAPPINGS" = "[]" ]; then
+          echo "No domain mappings found, skipping deployments"
+          exit 0
+        fi
+        
+        PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
         
         # Deploy each project
         for project in $PROJECTS; do
@@ -69,6 +81,11 @@ runs:
       run: |
         # Extract project names and domains from mappings
         MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        if [ "$MAPPINGS" = "[]" ]; then
+          echo "No domain mappings found, skipping domain configuration"
+          exit 0
+        fi
+        
         PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
         DOMAINS=$(echo "$MAPPINGS" | jq -r '.[].domain')
         
