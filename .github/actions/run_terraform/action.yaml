@@ -98,7 +98,7 @@ runs:
       shell: bash
       run: |
         set +e
-        timeout 900 terraform plan -quiet -out=tfplan
+        timeout 900 terraform plan -out=tfplan
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform plan timed out after 15 minutes"
@@ -114,6 +114,7 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
+        TF_IN_AUTOMATION: "true"
 
     - name: Terraform Apply
       id: apply
@@ -121,7 +122,7 @@ runs:
       working-directory: ./terraform
       run: |
         set +e
-        timeout 900 terraform apply -quiet -auto-approve tfplan
+        timeout 900 terraform apply -auto-approve tfplan
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform apply timed out after 15 minutes"
@@ -139,6 +140,7 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
+        TF_IN_AUTOMATION: "true"
 
     - name: Save State to R2
       id: save-state
