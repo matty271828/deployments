@@ -7,6 +7,7 @@ variable "cloudflare_api_token" {
 variable "cloudflare_account_id" {
   description = "Cloudflare Account ID"
   type        = string
+  sensitive   = true
 }
 
 # Create Cloudflare zone for each domain
@@ -91,6 +92,7 @@ resource "cloudflare_d1_database" "AUTH_DB" {
 output "auth_db_id" {
   description = "The ID of the AUTH_DB D1 database"
   value       = cloudflare_d1_database.AUTH_DB.id
+  sensitive   = true
 }
 
 # Create the shared auth service worker (intial no-op to ensure worker exists)
