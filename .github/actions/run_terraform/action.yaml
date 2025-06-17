@@ -37,6 +37,37 @@ runs:
       with:
         terraform_version: "1.7.0"
 
+    - name: Get State from R2
+      id: get-state
+      shell: bash
+      run: |
+        # Check if bucket exists and create it if it doesn't
+        BUCKET_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$BUCKET_CHECK" | jq -e '.success == true' > /dev/null; then
+          echo "Creating terraform-state bucket..."
+          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "terraform-state"}'
+        fi
+
+        # Try to get the state file
+        STATE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if echo "$STATE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          # State file exists, save it
+          echo "$STATE_RESPONSE" | jq -r '.result' > terraform/terraform.tfstate
+          echo "state_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "No existing state file found - this is expected on first run"
+          echo "state_exists=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Terraform Init
       id: init
       working-directory: ./terraform
@@ -95,24 +126,11 @@ runs:
         TF_VAR_domains_json: ${{ inputs.domains }}
         TF_LOG: DEBUG
 
-    - name: Save Terraform State to R2
-      id: save_state
+    - name: Save State to R2
+      id: save-state
       shell: bash
       working-directory: ./terraform
       run: |
-        # Check if bucket exists and create it if it doesn't
-        BUCKET_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state" \
-          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-          -H "Content-Type: application/json")
-        
-        if ! echo "$BUCKET_CHECK" | jq -e '.success == true' > /dev/null; then
-          echo "Creating terraform-state bucket..."
-          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "terraform-state"}'
-        fi
-        
         # Save the state file
         curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
@@ -125,58 +143,6 @@ runs:
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -H "Content-Type: application/json" \
             --data-binary @terraform.tfstate.lock.info
-        fi
-
-    - name: Check for Terraform Errors
-      id: check_errors
-      shell: bash
-      run: |
-        if [ "${{ steps.apply.outputs.terraform_error }}" == "true" ]; then
-          echo "Terraform operations encountered errors"
-          echo "::warning::Terraform operations encountered errors, but continuing to commit state changes"
-        fi
-
-    - name: Check for State File Changes
-      id: check_state_changes
-      shell: bash
-      run: |
-        git fetch origin main
-        if git diff origin/main | grep .; then
-          echo "changes=true" >> $GITHUB_ENV
-        else
-          echo "changes=false" >> $GITHUB_ENV
-        fi
-
-    - name: Commit and push changes
-      id: commit
-      shell: bash
-      run: |
-        git config --global user.name "github-actions"
-        git config --global user.email "github-actions@github.com"
-        
-        # Stash any local changes
-        git stash
-        
-        # Get latest changes
-        git fetch origin main
-        git checkout main
-        
-        # Apply our changes on top of latest
-        git stash pop || true
-        
-        # Add all changes
-        git add .
-        
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          # Try to commit and push normally first
-          if git commit -m "Update Terraform state and lock files" && git pull --rebase origin main; then
-            git push https://${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git main
-          else
-            echo "::error::Failed to commit and push changes. Please check the repository state."
-            exit 1
-          fi
         fi
 
     - name: Final Terraform Error Check
