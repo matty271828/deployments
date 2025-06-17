@@ -95,6 +95,38 @@ runs:
         TF_VAR_domains_json: ${{ inputs.domains }}
         TF_LOG: DEBUG
 
+    - name: Save Terraform State to R2
+      id: save_state
+      shell: bash
+      working-directory: ./terraform
+      run: |
+        # Check if bucket exists and create it if it doesn't
+        BUCKET_CHECK=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        if ! echo "$BUCKET_CHECK" | jq -e '.success == true' > /dev/null; then
+          echo "Creating terraform-state bucket..."
+          curl -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "terraform-state"}'
+        fi
+        
+        # Save the state file
+        curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json" \
+          --data-binary @terraform.tfstate
+        
+        # Save the state lock file if it exists
+        if [ -f "terraform.tfstate.lock.info" ]; then
+          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate.lock.info" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            --data-binary @terraform.tfstate.lock.info
+        fi
+
     - name: Check for Terraform Errors
       id: check_errors
       shell: bash
