@@ -40,6 +40,9 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
+        echo "Debug: Raw R2 Response:"
+        echo "$STATE_RESPONSE"
+        
         # Check if we got a valid response
         if ! echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
           echo "No existing state file found - this is expected on first run"
@@ -49,11 +52,15 @@ runs:
           # The state file is stored in the 'result' field of the response
           echo "$STATE_RESPONSE" | jq -r '.result' > terraform/terraform.tfstate
           
+          echo "Debug: Extracted state file content:"
+          cat terraform/terraform.tfstate
+          
           # Verify the state file has the required version field
           if ! jq -e '.version' terraform/terraform.tfstate > /dev/null; then
             echo "::error::Invalid state file format - missing version field"
             echo "state_exists=false" >> $GITHUB_OUTPUT
             rm terraform/terraform.tfstate
+            exit 1
           else
             echo "state_exists=true" >> $GITHUB_OUTPUT
           fi
