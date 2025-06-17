@@ -113,12 +113,16 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        if echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
-          # If mappings exist, get their content
-          MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -r '.result.data')
-        else
+        echo "Debug: Raw R2 Response:"
+        echo "$MAPPINGS_RESPONSE"
+        
+        # Check if we got a valid response
+        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
           # If no mappings exist, start with empty array
           MAPPINGS='[]'
+        else
+          # The response is the mappings array directly
+          MAPPINGS="$MAPPINGS_RESPONSE"
         fi
         
         echo "current_mappings=$MAPPINGS" >> $GITHUB_OUTPUT
@@ -138,8 +142,8 @@ runs:
           -H "Content-Type: application/json" \
           -d "$UPDATED_MAPPINGS")
         
-        if ! echo "$UPLOAD_RESPONSE" | jq -e '.success == true' > /dev/null; then
+        if ! echo "$UPLOAD_RESPONSE" | jq empty 2>/dev/null; then
           echo "Error: Failed to upload updated mappings"
-          echo "$UPLOAD_RESPONSE" | jq -r '.errors[0].message'
+          echo "$UPLOAD_RESPONSE"
           exit 1
         fi
