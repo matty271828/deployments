@@ -95,7 +95,17 @@ runs:
       shell: bash
       run: |
         set +e
-        timeout 900 terraform plan -out=tfplan
+        # Create a custom output formatter
+        cat > mask_uuids.sh << 'EOF'
+        #!/bin/bash
+        # Replace UUIDs with placeholders
+        sed -E 's/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[UUID]/g' | \
+        sed -E 's/[0-9a-f]{32}/[HASH]/g'
+        EOF
+        chmod +x mask_uuids.sh
+
+        # Run terraform plan and pipe through our formatter
+        timeout 900 terraform plan -out=tfplan 2>&1 | ./mask_uuids.sh
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform plan timed out after 15 minutes"
@@ -119,7 +129,8 @@ runs:
       working-directory: ./terraform
       run: |
         set +e
-        timeout 900 terraform apply -auto-approve tfplan
+        # Run terraform apply and pipe through our formatter
+        timeout 900 terraform apply -auto-approve tfplan 2>&1 | ./mask_uuids.sh
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform apply timed out after 15 minutes"
