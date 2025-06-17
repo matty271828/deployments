@@ -116,13 +116,18 @@ runs:
         echo "Debug: Raw R2 Response:"
         echo "$MAPPINGS_RESPONSE"
         
-        # Check if we got a valid response
-        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
-          # If no mappings exist, start with empty array
+        # Check if we got a valid response and if the file exists
+        if echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
+          # File doesn't exist, start with empty array
+          echo "No existing mappings file found, starting fresh"
           MAPPINGS='[]'
-        else
-          # The response is the mappings array directly
+        elif echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          # File exists and is valid JSON
           MAPPINGS="$MAPPINGS_RESPONSE"
+        else
+          echo "::error::Invalid response from R2"
+          echo "$MAPPINGS_RESPONSE"
+          exit 1
         fi
         
         # Store the mappings as a single line JSON string
