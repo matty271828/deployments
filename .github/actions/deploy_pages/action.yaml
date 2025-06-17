@@ -32,14 +32,14 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        if ! echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
-          echo "::error::Failed to get domain mappings from R2"
-          echo "$MAPPINGS_RESPONSE" | jq -r '.errors[0].message'
+        # Check if we got a valid response
+        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          echo "::error::Invalid JSON response from R2"
+          echo "$MAPPINGS_RESPONSE"
           exit 1
         fi
-        
-        # Extract the mappings data - it's stored directly in the result
-        MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -r '.result')
+
+        MAPPINGS="$MAPPINGS_RESPONSE"
         echo "mappings=$MAPPINGS" >> $GITHUB_OUTPUT
 
     - name: Create Deployments
