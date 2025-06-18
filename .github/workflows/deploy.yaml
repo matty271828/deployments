@@ -1,4 +1,4 @@
-name: Deploy Project to Serverless
+name: Deploy
 description: 'Deploys a new project to the serverless infrastructure'
 
 on:
