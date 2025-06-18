@@ -24,6 +24,7 @@ A serverless deployment platform for frontend applications with built-in authent
 - [Cost & Limitations](#-cost--limitations)
 - [Disclaimer](#-disclaimer)
 - [Customization](#-customization)
+- [Contributing](#-contributing)
 
 ## 📋 Overview
 
@@ -274,3 +275,14 @@ Use this platform at your own risk and ensure you understand the implications of
 ## 🛠️ Customization
 
 For projects requiring custom backend services, deploy their backends separately and integrate with the frontend application.
+
+## 🤝 Contributing
+
+We welcome contributions to make this platform better! We would like this to become an open-source project, and your help is appreciated.
+
+### How to Contribute
+
+1. **Fork the Repository**: Create your own fork of this template repository.
+2. **Make Changes**: Implement your improvements or bug fixes.
+3. **Test Your Changes**: Deploy and test your changes.
+4. **Submit a Pull Request**: Create a PR with a clear description and evidence of your testing.
