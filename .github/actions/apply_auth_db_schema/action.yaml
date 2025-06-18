@@ -27,6 +27,11 @@ runs:
           sudo apt-get install -y jq
         fi
 
+    - name: Install Wrangler CLI
+      shell: bash
+      run: |
+        npm install -g wrangler
+
     - name: Get domain mappings from R2
       id: get-mappings
       shell: bash
