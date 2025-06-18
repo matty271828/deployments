@@ -8,6 +8,7 @@ A serverless deployment platform for frontend applications with built-in authent
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-orange?style=flat-square&logo=cloudflare)](https://workers.cloudflare.com/)
 [![D1 Database](https://img.shields.io/badge/Cloudflare-D1-blue?style=flat-square&logo=cloudflare)](https://developers.cloudflare.com/d1/)
+[![R2 Object Storage](https://img.shields.io/badge/Cloudflare-R2-purple?style=flat-square&logo=cloudflare)](https://developers.cloudflare.com/r2/)
 [![Pages](https://img.shields.io/badge/Cloudflare-Pages-yellow?style=flat-square&logo=cloudflare)](https://pages.cloudflare.com/)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
