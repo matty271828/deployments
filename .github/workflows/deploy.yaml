@@ -77,21 +77,6 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
 
-  apply-auth-schema:
-    name: 'Apply Auth Database Schema'
-    needs: [run-terraform]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Apply Auth DB Schema
-        uses: ./.github/actions/apply_auth_db_schema
-        with:
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
-
   deploy-pages:
     name: 'Deploy Pages'
     needs: [run-terraform]
@@ -105,3 +90,18 @@ jobs:
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  apply-auth-schema:
+    name: 'Apply Auth Database Schema'
+    needs: [run-terraform, deploy-auth-service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Apply Auth DB Schema
+        uses: ./.github/actions/apply_auth_db_schema
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
