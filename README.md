@@ -15,8 +15,8 @@ A serverless deployment platform for frontend applications with built-in authent
 
 ## 📑 Table of Contents
 - [Overview](#-overview)
-- [Quick Start](#-quick-start)
 - [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start)
 - [Supported Frontend Frameworks](#-supported-frontend-frameworks)
 - [Important Notes](#-important-notes)
 - [Architecture](#-architecture)
