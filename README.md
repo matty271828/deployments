@@ -42,26 +42,6 @@ The platform includes a centralized authentication service built with:
 - **Database**: D1 SQL database for user management and sessions
 - **Routing**: Each project's auth requests are automatically routed to their respective database
 
-### Auth Endpoints
-
-The auth service exposes the following endpoints:
-
-- `GET /auth/health` - Service health check
-- `POST /auth/signup` - User registration
-- `POST /auth/login` - User authentication
-- `POST /auth/logout` - Session termination
-- `GET /auth/session` - Session validation
-- `POST /auth/refresh` - Session token refresh
-
-Each project can access these endpoints through their custom domain:
-```bash
-# Example health check
-curl https://yourdomain.com/auth/health
-```
-
-The auth service automatically routes requests to the correct project's database based on the domain.
-
-## Project Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -101,6 +81,25 @@ The auth service automatically routes requests to the correct project's database
 ```
 
 External backends are not part of this platform and should be deployed separately. They can be integrated with your frontend application through environment variables and API calls.
+
+### Auth Endpoints
+
+The auth service exposes the following endpoints:
+
+- `GET /auth/health` - Service health check
+- `POST /auth/signup` - User registration
+- `POST /auth/login` - User authentication
+- `POST /auth/logout` - Session termination
+- `GET /auth/session` - Session validation
+- `POST /auth/refresh` - Session token refresh
+
+Each project can access these endpoints through their custom domain:
+```bash
+# Example health check
+curl https://yourdomain.com/auth/health
+```
+
+The auth service automatically routes requests to the correct project's database based on the domain.
 
 ## Future Plans
 
