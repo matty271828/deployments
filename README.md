@@ -29,11 +29,13 @@ A serverless deployment platform for frontend applications with built-in authent
 
 ## 📋 Overview
 
-This platform provides a streamlined deployment solution for frontend applications using Cloudflare's infrastructure. Each project gets:
+A serverless deployment platform for frontend applications with built-in authentication and database support. Each project gets:
+
 - 🏗️ A Cloudflare Pages deployment
 - 💾 A dedicated D1 database
 - 🔐 Access to shared authentication services
-- 🌐 Automatic DNS configuration
+
+Up to 9 projects can be deployed without any financial cost. 
 
 ## 🚀 Quick Start
 
