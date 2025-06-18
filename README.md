@@ -35,14 +35,6 @@ This platform provides a streamlined deployment solution for frontend applicatio
 - **Authentication**: Centralized auth service running on Cloudflare Workers
 - **Infrastructure**: Managed via Terraform and GitHub Actions
 
-## Authentication Service
-
-The platform includes a centralized authentication service built with:
-- **Framework**: Lucia Auth running on a Cloudflare Worker
-- **Database**: D1 SQL database for user management and sessions
-- **Routing**: Each project's auth requests are automatically routed to their respective database
-
-
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                  Cloudflare Infrastructure               │
@@ -82,7 +74,12 @@ The platform includes a centralized authentication service built with:
 
 External backends are not part of this platform and should be deployed separately. They can be integrated with your frontend application through environment variables and API calls.
 
-### Auth Endpoints
+## Authentication Service
+
+The platform includes a centralized authentication service built with:
+- **Framework**: Lucia Auth running on a Cloudflare Worker
+- **Database**: D1 SQL database for user management and sessions
+- **Routing**: Each project's auth requests are automatically routed to their respective database
 
 The auth service exposes the following endpoints:
 
