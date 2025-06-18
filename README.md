@@ -1,4 +1,3 @@
-```
 ___ _______ _   _____   __  ______  ________   
 |  \|___|__]|   |  | \_/ |\/||___|\ | | [__ 
 |__/|___|   |___|__|  |  |  ||___| \| | ___] 
@@ -23,6 +22,7 @@ A serverless deployment platform for frontend applications with built-in authent
 - [Authentication Service](#authentication-service)
 - [Future Plans](#future-plans)
 - [Cost & Limitations](#-cost--limitations)
+- [Disclaimer](#-disclaimer)
 - [Customization](#-customization)
 
 ## 📋 Overview
@@ -47,7 +47,10 @@ Click the **"Use this template"** button at the top of this repository to create
 - Enable **R2 Object Storage** in your Cloudflare dashboard:
   - Go to **R2 Object Storage** in the sidebar
   - Click **"Get started with R2"**
+  - **Important**: You'll need to add payment information to enable R2, even though we'll stay well within the free tier limits
   - Follow the setup process (this is required for the platform to work)
+
+> **💳 Payment Information Required**: Cloudflare requires payment information to enable R2 Object Storage, even for free tier usage. The platform uses R2 to store Terraform state files (typically <1MB per project) and will never approach the free tier limits (10GB storage, 1M Class A operations, 10M Class B operations per month).
 
 #### Create Cloudflare API Token
 Create a Cloudflare API token with the following permissions:
@@ -139,6 +142,9 @@ Support for other frameworks (Next.js, Nuxt, etc.) will be added in future updat
 ## 🚨 Important Notes
 
 - **R2 Requirement**: You must enable R2 Object Storage in your Cloudflare account before deployment
+  - R2 is used to store Terraform state files for infrastructure management
+  - Payment information is required to enable R2, even for free tier usage
+  - Usage is minimal (<1MB per project) and well within free tier limits
 - **Domain Ownership**: You must own the domain you're deploying to
 - **Vite Projects Only**: Currently only supports Vite-based frontend projects
 - **Free Tier Limits**: Be aware of Cloudflare's free tier limitations (see Cost & Limitations section)
@@ -250,6 +256,20 @@ This platform is completely free to use within Cloudflare's generous free tier l
   - ✍️ 100,000 write operations per day
 
 Note: The auth service uses one D1 database, so the platform can support up to 9 additional projects before requiring a paid plan.
+
+## ⚠️ Disclaimer
+
+This platform is provided "as is" without any warranties. By using this template and platform:
+
+- **No Guarantees**: We make no guarantees about uptime, performance, or suitability for any purpose.
+- **User Responsibility**: You are responsible for your own deployments, data, and compliance with applicable laws.
+- **Cloudflare Services**: This platform relies on Cloudflare services which may have their own limitations, downtime, or policy changes.
+- **No Liability**: We are not liable for any damages, data loss, or issues arising from the use of this platform.
+- **Third-Party Services**: We are not responsible for the actions, policies, or changes made by Cloudflare, GitHub, or other third-party services.
+- **Security**: While we strive for security best practices, you are responsible for securing your own applications and data.
+- **Costs**: You are responsible for all costs incurred through Cloudflare or other services, including any accidental charges that may occur.
+
+Use this platform at your own risk and ensure you understand the implications of deploying infrastructure and applications.
 
 ## 🛠️ Customization
 
