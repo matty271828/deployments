@@ -37,6 +37,16 @@ A serverless deployment platform for frontend applications with built-in authent
 
 Up to 9 projects can be deployed without any financial cost. 
 
+## 📋 Prerequisites
+
+Before using this platform, ensure you have:
+
+- ✅ A Cloudflare account with R2 enabled
+- ✅ A domain name (can be a subdomain)
+- ✅ A Vite-based frontend project in a GitHub repository
+- ✅ GitHub Personal Access Token with required permissions
+- ✅ Cloudflare API Token with required permissions
+
 ## 🚀 Quick Start
 
 ### 1. Use This Template
@@ -124,16 +134,6 @@ After deployment completes (usually 2-3 minutes), your application will be avail
 - ✅ Authentication service running
 - ✅ Database provisioned and connected
 - ✅ SSL certificate automatically configured
-
-## 📋 Prerequisites
-
-Before using this platform, ensure you have:
-
-- ✅ A Cloudflare account with R2 enabled
-- ✅ A domain name (can be a subdomain)
-- ✅ A Vite-based frontend project in a GitHub repository
-- ✅ GitHub Personal Access Token with required permissions
-- ✅ Cloudflare API Token with required permissions
 
 ## 🔧 Supported Frontend Frameworks
 
