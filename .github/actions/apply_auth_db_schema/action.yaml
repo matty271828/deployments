@@ -1,0 +1,83 @@
+name: 'Apply Auth DB Schema'
+description: 'Applies the auth db schema for all domains'
+
+inputs:
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  cloudflare_api_token:
+    description: 'Cloudflare API token'
+    required: true
+  auth_db_id:
+    description: 'The ID of the AUTH_DB D1 database'
+    required: true
+  
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install jq
+      shell: bash
+      run: |
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y jq
+        fi
+
+    - name: Get domain mappings from R2
+      id: get-mappings
+      shell: bash
+      run: |
+        # Get current mappings from R2
+        MAPPINGS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        # Check if we got a valid response
+        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          echo "::error::Failed to retrieve domain mappings from R2"
+          echo "$MAPPINGS_RESPONSE"
+          exit 1
+        fi
+        
+        # Store the mappings
+        echo "mappings=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
+
+    - name: Process schema for each domain
+      shell: bash
+      run: |
+        # Parse the mappings
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        
+        # Process each domain
+        echo "$MAPPINGS" | jq -c '.[]' | while read -r mapping; do
+          DOMAIN=$(echo "$mapping" | jq -r '.domain')
+          FRONTEND_REPO=$(echo "$mapping" | jq -r '.frontend_repo')
+          
+          # Extract repo name from GitHub URL (part after last slash)
+          REPO_NAME=$(echo "$FRONTEND_REPO" | sed 's|.*/||')
+          
+          echo "Processing domain: $DOMAIN (repo: $REPO_NAME)"
+          echo "Full repo URL: $FRONTEND_REPO"
+          
+          # Create schema file with prefix
+          SCHEMA_FILE="schema_${REPO_NAME}.sql"
+          
+          # Replace {PREFIX} with repo name in the template
+          sed "s/{PREFIX}/$REPO_NAME/g" auth-service/schema.sql > "$SCHEMA_FILE"
+          
+          echo "Generated schema for $REPO_NAME:"
+          cat "$SCHEMA_FILE"
+          
+          # Apply schema to database using wrangler
+          echo "Applying schema to database..."
+          wrangler d1 execute ${{ inputs.auth_db_id }} --file="$SCHEMA_FILE" --local=false
+          
+          # Clean up temporary file
+          rm "$SCHEMA_FILE"
+          
+          echo "Schema applied successfully for $REPO_NAME"
+        done
