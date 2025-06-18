@@ -27,11 +27,6 @@ runs:
           sudo apt-get install -y jq
         fi
 
-    - name: Install Wrangler CLI
-      shell: bash
-      run: |
-        npm install -g wrangler
-
     - name: Get domain mappings from R2
       id: get-mappings
       shell: bash
@@ -77,12 +72,27 @@ runs:
           echo "Generated schema for $REPO_NAME:"
           cat "$SCHEMA_FILE"
           
-          # Apply schema to database using wrangler
+          # Apply schema to database using Cloudflare API
           echo "Applying schema to database..."
-          wrangler d1 execute ${{ inputs.auth_db_id }} --file="$SCHEMA_FILE" --local=false
+          
+          # Read the schema file and escape it for JSON
+          SCHEMA_SQL=$(cat "$SCHEMA_FILE" | jq -Rs .)
+          
+          # Execute the SQL via Cloudflare API
+          API_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/d1/database/${{ inputs.auth_db_id }}/query" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"sql\": $SCHEMA_SQL}")
+          
+          # Check if the API call was successful
+          if echo "$API_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            echo "Schema applied successfully for $REPO_NAME"
+          else
+            echo "::error::Failed to apply schema for $REPO_NAME"
+            echo "$API_RESPONSE" | jq -r '.errors[0].message // "Unknown error"'
+            exit 1
+          fi
           
           # Clean up temporary file
           rm "$SCHEMA_FILE"
-          
-          echo "Schema applied successfully for $REPO_NAME"
         done
