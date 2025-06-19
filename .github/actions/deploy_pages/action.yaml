@@ -61,8 +61,35 @@ runs:
         
         PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
         
-        # Deploy each project
+        # Deploy each project only if there are new commits
         for project in $PROJECTS; do
+          echo "Checking for new commits in project: $project"
+          
+          # Get the latest deployment to check if we need to deploy
+          latest_deployment=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments?per_page=1" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+          
+          if ! echo "$latest_deployment" | jq -e '.success == true' > /dev/null; then
+            echo "::error::Failed to get latest deployment for project $project"
+            echo "$latest_deployment" | jq -r '.errors[0].message'
+            exit 1
+          fi
+          
+          # Get the commit hash of the latest deployment
+          latest_commit=$(echo "$latest_deployment" | jq -r '.result[0].deployment_trigger.metadata.commit_hash // empty')
+          
+          # Get the current commit hash from the main branch
+          current_commit=$(curl -s "https://api.github.com/repos/${{ github.repository_owner }}/$project/commits/main" \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/vnd.github.v3+json" | jq -r '.sha')
+          
+          if [ "$latest_commit" = "$current_commit" ]; then
+            echo "No new commits for project $project, skipping deployment"
+            continue
+          fi
+          
+          echo "New commits detected for project $project, triggering deployment"
           echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
           response=$(curl -s https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
             -H 'Content-Type: multipart/form-data' \
@@ -75,6 +102,8 @@ runs:
             echo "$response" | jq -r '.errors[0].message'
             exit 1
           fi
+          
+          echo "Successfully triggered deployment for project $project"
         done
 
     - name: Configure Custom Domains
