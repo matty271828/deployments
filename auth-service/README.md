@@ -343,6 +343,12 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 - **Input Validation**: Comprehensive validation of all inputs
 - **SQL Injection Protection**: Parameterized queries throughout
 
+### CORS Security
+- **Origin Validation**: Only allows requests from registered domains
+- **Dynamic Allowlist**: Automatically updates as domains are added/removed
+- **Fail Secure**: Blocks unauthorized origins by default
+- **Security Headers**: Comprehensive security headers on all responses
+
 ### Rate Limiting
 - **Token Bucket Algorithm**: Smooth handling of request bursts
 - **Login Protection**: 5 attempts per 15 minutes per IP
@@ -354,15 +360,41 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 
 ## CORS Support
 
-The service includes full CORS support for cross-origin requests:
+The service includes secure CORS support that validates origins against actual domains in the system:
+
+- **Origin Validation**: Only allows requests from domains that exist in the database
+- **Dynamic Allowlist**: Automatically updates as new domains are added
+- **Security Headers**: Includes comprehensive security headers
+- **Fail Secure**: Blocks unauthorized origins by default
+
+### Security Headers
+
+All responses include the following security headers:
 
 ```
-Access-Control-Allow-Origin: *
-Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
 ```
 
-## Development
+### How It Works
+
+1. **Domain Discovery**: Fetches domain mappings from R2 storage (with database fallback)
+2. **Origin Validation**: Validates the `Origin` header against allowed domains
+3. **Dynamic Response**: Sets `Access-Control-Allow-Origin` only for valid origins
+4. **Logging**: Logs blocked requests for security monitoring
+
+### Domain Validation
+
+The service validates origins against the actual domain mappings stored in R2:
+
+- **Primary Source**: R2 bucket `domain-mappings/mappings.json` containing domain objects
+- **Structure**: `[{"domain": "leetrepeat.com", "frontend_repo": "https://github.com/..."}]`
+- **Fallback**: Database table names if R2 is unavailable
+- **Real-time**: Automatically updates as new domains are added via GitHub Actions
+- **Subdomain Support**: Allows subdomains (e.g., `www.leetrepeat.com` matches `leetrepeat.com`)
 
 ### Prerequisites
 - Node.js 18+

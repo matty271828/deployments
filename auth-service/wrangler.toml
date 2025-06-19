@@ -9,3 +9,7 @@ compatibility_date = "2025-06-14"
 binding = "AUTH_DB_BINDING"
 database_name = "AUTH_DB"
 database_id = ""
+
+[[r2_buckets]]
+binding = "DOMAIN_MAPPINGS_BUCKET"
+bucket_name = "domain-mappings"

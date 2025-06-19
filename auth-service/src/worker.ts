@@ -19,6 +19,7 @@ import { createSession, deleteSession, validateSessionToken } from './sessions';
 import { SignupRequest, LoginRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { performCleanup, shouldRunCleanup } from './cleanup';
+import { getSecureCorsHeaders, handlePreflight } from './cors';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -472,16 +473,11 @@ export default {
     const subdomain = domain.split('.')[0];
     
     // CORS headers for cross-origin requests
-    const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Content-Type': 'application/json'
-    };
+    const corsHeaders = await getSecureCorsHeaders(request, env);
 
     // Handle CORS preflight requests
     if (method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
+      return await handlePreflight(request, env);
     }
 
     // Run automated cleanup in the background (non-blocking)
