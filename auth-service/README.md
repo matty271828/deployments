@@ -291,7 +291,7 @@ curl -X GET https://leetrepeat.com/auth/csrf-token
 {
   "success": true,
   "message": "CSRF token generated successfully",
-  "token": "abc123xyz789"
+  "token": "5r5cfvhwhcdgp3h88sn8dhw4"
 }
 ```
 
@@ -317,6 +317,69 @@ fetch('/auth/csrf-token')
 
 ---
 
+## Testing CSRF Protection
+
+### Complete Test Sequence
+
+```bash
+# 1. Get CSRF token
+curl -X GET https://leetrepeat.com/auth/csrf-token
+
+# 2. Sign up with CSRF token (use strong password)
+curl -X POST https://leetrepeat.com/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "SecurePass123!",
+    "firstName": "John",
+    "lastName": "Doe",
+    "csrfToken": "YOUR_TOKEN_HERE"
+  }'
+
+# 3. Get another CSRF token for login
+curl -X GET https://leetrepeat.com/auth/csrf-token
+
+# 4. Login with CSRF token
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "SecurePass123!",
+    "csrfToken": "YOUR_TOKEN_HERE"
+  }'
+
+# 5. Test duplicate token usage (should fail)
+curl -X POST https://leetrepeat.com/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test2@example.com",
+    "password": "SecurePass123!",
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "csrfToken": "SAME_TOKEN_AS_STEP_2"
+  }'
+```
+
+### Password Requirements
+
+Passwords must meet the following requirements:
+- **Length**: At least 12 characters
+- **Uppercase**: At least one letter A-Z
+- **Lowercase**: At least one letter a-z  
+- **Numbers**: At least one digit 0-9
+- **Special characters**: At least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)
+- **No common passwords**: Cannot be a common password
+- **No sequential patterns**: Cannot contain sequential patterns like "123456"
+- **No repeated characters**: Cannot have more than 2 consecutive identical characters
+
+**Examples of valid passwords:**
+- `SecurePass123!` ✅
+- `MyPassword456@` ✅
+- `TestUser789#` ✅
+- `StrongPass2024$` ✅
+
+---
+
 ## Error Responses
 
 All endpoints return consistent error responses with the following format:
@@ -336,12 +399,13 @@ All endpoints return consistent error responses with the following format:
 | 400 | `Email, password, firstName, and lastName are required` | Missing required fields |
 | 400 | `All fields must be strings` | Invalid field types |
 | 400 | `Invalid email format` | Email validation failed |
-| 400 | `Password must be at least 8 characters long` | Password too weak |
+| 400 | `Password must be at least 12 characters long` | Password too weak |
 | 400 | `Invalid JSON in request body` | Malformed JSON |
 | 400 | `Invalid session token format` | Token format incorrect |
 | 401 | `Authorization header with Bearer token is required` | Missing auth header |
 | 401 | `Invalid email or password` | Login credentials incorrect |
 | 401 | `Invalid or expired session` | Session token invalid |
+| 403 | `Invalid CSRF token` | CSRF token validation failed |
 | 404 | `Endpoint not found` | Invalid endpoint |
 | 404 | `User not found` | User associated with session not found |
 | 405 | `Method not allowed` | Wrong HTTP method |
@@ -349,6 +413,7 @@ All endpoints return consistent error responses with the following format:
 | 429 | `Too many login attempts. Please try again later.` | Rate limited - too many login attempts |
 | 429 | `Too many signup attempts. Please try again later.` | Rate limited - too many signup attempts |
 | 429 | `Too many session requests. Please try again later.` | Rate limited - too many session operations |
+| 429 | `Too many CSRF token requests. Please try again later.` | Rate limited - too many CSRF token requests |
 | 429 | `Too many requests. Please try again later.` | Rate limited - too many general API requests |
 | 500 | `Database not available` | Database connection issue |
 | 503 | `Database schema not initialized` | Tables don't exist |
@@ -497,6 +562,12 @@ CREATE TABLE {PREFIX}_sessions (
     secret_hash BLOB NOT NULL,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
+);
+
+-- CSRF tokens table
+CREATE TABLE {PREFIX}_csrf_tokens (
+    token TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL
 );
 
 -- Rate limiting table
