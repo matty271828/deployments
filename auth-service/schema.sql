@@ -7,6 +7,8 @@
 CREATE TABLE IF NOT EXISTS {PREFIX}_users (
     id TEXT NOT NULL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
     created_at INTEGER NOT NULL -- unix time (seconds)
@@ -16,8 +18,10 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_users (
 -- Following Lucia's recommendations: id + secret_hash + created_at
 CREATE TABLE IF NOT EXISTS {PREFIX}_sessions (
     id TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
     secret_hash BLOB NOT NULL, -- blob is a SQLite data type for raw binary
-    created_at INTEGER NOT NULL -- unix time (seconds)
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
 ) STRICT;
 
 -- Create indexes for better performance

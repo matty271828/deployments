@@ -11,6 +11,8 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 🛡️ **Security**: Constant-time comparisons, secure random generation
 - 🌐 **CORS Support**: Full cross-origin request support
 - 📊 **Health Monitoring**: Built-in health check endpoint
+- 👤 **User Profiles**: Full user information including first and last names
+- 🔗 **Session-User Linking**: Sessions are linked to users for complete user context
 
 ## Architecture
 
@@ -74,7 +76,9 @@ Content-Type: application/json
 ```json
 {
   "email": "user@example.com",
-  "password": "securepassword123"
+  "password": "securepassword123",
+  "firstName": "John",
+  "lastName": "Doe"
 }
 ```
 
@@ -82,7 +86,7 @@ Content-Type: application/json
 ```bash
 curl -X POST https://leetrepeat.com/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"securepassword123"}'
+  -d '{"email":"user@example.com","password":"securepassword123","firstName":"John","lastName":"Doe"}'
 ```
 
 **Example Response:**
@@ -93,6 +97,8 @@ curl -X POST https://leetrepeat.com/auth/signup \
   "user": {
     "id": "tncy8nc46v8grqwfvmifteyt",
     "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
     "createdAt": "2025-06-19T08:01:35.746Z"
   },
   "session": {
@@ -106,6 +112,7 @@ curl -X POST https://leetrepeat.com/auth/signup \
 **Validation Rules:**
 - Email must be a valid email format
 - Password must be at least 8 characters long
+- First name and last name are required
 - Email must be unique within the domain
 
 ---
@@ -144,6 +151,8 @@ curl -X POST https://leetrepeat.com/auth/login \
   "user": {
     "id": "tncy8nc46v8grqwfvmifteyt",
     "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
     "createdAt": "2025-06-19T08:01:35.000Z"
   },
   "session": {
@@ -178,6 +187,13 @@ curl -X GET https://leetrepeat.com/auth/session \
 {
   "success": true,
   "message": "Session is valid",
+  "user": {
+    "id": "tncy8nc46v8grqwfvmifteyt",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "createdAt": "2025-06-19T08:01:35.000Z"
+  },
   "session": {
     "id": "7345nu7zkblqhdrchgslcxys",
     "createdAt": "2025-06-19T08:02:08.000Z",
@@ -271,7 +287,8 @@ All endpoints return consistent error responses with the following format:
 
 | Status | Error Message | Description |
 |--------|---------------|-------------|
-| 400 | `Email and password are required` | Missing required fields |
+| 400 | `Email, password, firstName, and lastName are required` | Missing required fields |
+| 400 | `All fields must be strings` | Invalid field types |
 | 400 | `Invalid email format` | Email validation failed |
 | 400 | `Password must be at least 8 characters long` | Password too weak |
 | 400 | `Invalid JSON in request body` | Malformed JSON |
@@ -280,6 +297,7 @@ All endpoints return consistent error responses with the following format:
 | 401 | `Invalid email or password` | Login credentials incorrect |
 | 401 | `Invalid or expired session` | Session token invalid |
 | 404 | `Endpoint not found` | Invalid endpoint |
+| 404 | `User not found` | User associated with session not found |
 | 405 | `Method not allowed` | Wrong HTTP method |
 | 409 | `User already exists` | Email already registered |
 | 500 | `Database not available` | Database connection issue |
@@ -362,6 +380,8 @@ The schema automatically creates domain-prefixed tables:
 CREATE TABLE {PREFIX}_users (
     id TEXT NOT NULL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
     created_at INTEGER NOT NULL
@@ -370,8 +390,10 @@ CREATE TABLE {PREFIX}_users (
 -- Sessions table
 CREATE TABLE {PREFIX}_sessions (
     id TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
     secret_hash BLOB NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
 );
 ```
 

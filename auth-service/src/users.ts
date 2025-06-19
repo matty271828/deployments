@@ -8,9 +8,11 @@ import { generateSecureRandomString, hashPassword, verifyPassword } from './gene
  * @param domain - Domain prefix for table names
  * @param email - User's email address
  * @param password - User's password
+ * @param firstName - User's first name
+ * @param lastName - User's last name
  * @returns Promise<User> - The created user (without password)
  */
-export async function createUser(db: D1Database, domain: string, email: string, password: string): Promise<User> {
+export async function createUser(db: D1Database, domain: string, email: string, password: string, firstName: string, lastName: string): Promise<User> {
   // Validate email format
   if (!isValidEmail(email)) {
     throw new Error('Invalid email format');
@@ -19,6 +21,11 @@ export async function createUser(db: D1Database, domain: string, email: string, 
   // Validate password strength
   if (!isValidPassword(password)) {
     throw new Error('Password must be at least 8 characters long');
+  }
+
+  // Validate name fields
+  if (!firstName || !lastName) {
+    throw new Error('First name and last name are required');
   }
 
   // Check if user already exists
@@ -34,11 +41,13 @@ export async function createUser(db: D1Database, domain: string, email: string, 
 
   // Store user in domain-specific table
   await db.prepare(`
-    INSERT INTO ${domain}_users (id, email, password_hash, password_salt, created_at) 
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO ${domain}_users (id, email, first_name, last_name, password_hash, password_salt, created_at) 
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     email.toLowerCase(), // Store email in lowercase
+    firstName.trim(),
+    lastName.trim(),
     passwordHash,
     salt,
     Math.floor(now.getTime() / 1000)
@@ -48,6 +57,8 @@ export async function createUser(db: D1Database, domain: string, email: string, 
   const user: User = {
     id,
     email: email.toLowerCase(),
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
     createdAt: now
   };
 
@@ -76,6 +87,8 @@ export async function getUserByEmail(db: D1Database, domain: string, email: stri
   const user: UserWithPassword = {
     id: result.id as string,
     email: result.email as string,
+    firstName: result.first_name as string,
+    lastName: result.last_name as string,
     passwordHash: result.password_hash as string,
     createdAt: new Date((result.created_at as number) * 1000)
   };
@@ -105,6 +118,8 @@ export async function getUserById(db: D1Database, domain: string, userId: string
   const user: User = {
     id: result.id as string,
     email: result.email as string,
+    firstName: result.first_name as string,
+    lastName: result.last_name as string,
     createdAt: new Date((result.created_at as number) * 1000)
   };
 
@@ -148,6 +163,8 @@ export async function validateCredentials(db: D1Database, domain: string, email:
   const user: User = {
     id: userWithPassword.id,
     email: userWithPassword.email,
+    firstName: userWithPassword.firstName,
+    lastName: userWithPassword.lastName,
     createdAt: userWithPassword.createdAt
   };
 

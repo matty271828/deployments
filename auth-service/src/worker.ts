@@ -116,16 +116,17 @@ const handlers = {
     try {
       // Parse request body
       const body = await request.json() as SignupRequest;
-      const { email, password } = body;
+      const { email, password, firstName, lastName } = body;
 
       // Validate required fields
-      if (!email || !password) {
-        return createErrorResponse('Email and password are required', 400, corsHeaders);
+      if (!email || !password || !firstName || !lastName) {
+        return createErrorResponse('Email, password, firstName, and lastName are required', 400, corsHeaders);
       }
 
       // Validate email and password types
-      if (typeof email !== 'string' || typeof password !== 'string') {
-        return createErrorResponse('Email and password must be strings', 400, corsHeaders);
+      if (typeof email !== 'string' || typeof password !== 'string' || 
+          typeof firstName !== 'string' || typeof lastName !== 'string') {
+        return createErrorResponse('All fields must be strings', 400, corsHeaders);
       }
 
       // Ensure we have database access
@@ -134,10 +135,10 @@ const handlers = {
       }
 
       // Create user
-      const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password);
+      const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password, firstName, lastName);
 
       // Create session for the new user
-      const session = await createSession(env.AUTH_DB_BINDING, subdomain);
+      const session = await createSession(env.AUTH_DB_BINDING, subdomain, user.id);
 
       // Return success response with user and session
       return new Response(JSON.stringify({
@@ -146,6 +147,8 @@ const handlers = {
         user: {
           id: user.id,
           email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
           createdAt: user.createdAt
         },
         session: {
@@ -197,7 +200,7 @@ const handlers = {
       }
 
       // Create session for the authenticated user
-      const session = await createSession(env.AUTH_DB_BINDING, subdomain);
+      const session = await createSession(env.AUTH_DB_BINDING, subdomain, user.id);
 
       // Return success response with user and session
       return new Response(JSON.stringify({
@@ -206,6 +209,8 @@ const handlers = {
         user: {
           id: user.id,
           email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
           createdAt: user.createdAt
         },
         session: {
@@ -250,11 +255,23 @@ const handlers = {
       // Import getUserById function
       const { getUserById } = await import('./users');
 
-      // Get user information (we'll need to store user_id in sessions for this to work)
-      // For now, we'll return session info without user details
+      // Get user information
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, session.userId);
+      if (!user) {
+        return createErrorResponse('User not found', 404, corsHeaders);
+      }
+
+      // Return success response with user and session info
       return new Response(JSON.stringify({
         success: true,
         message: 'Session is valid',
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          createdAt: user.createdAt
+        },
         session: {
           id: session.id,
           createdAt: session.createdAt,
@@ -341,7 +358,7 @@ const handlers = {
       await deleteSession(env.AUTH_DB_BINDING, subdomain, currentSession.id);
 
       // Create a new session
-      const newSession = await createSession(env.AUTH_DB_BINDING, subdomain);
+      const newSession = await createSession(env.AUTH_DB_BINDING, subdomain, currentSession.userId);
 
       // Return success response with new session
       return new Response(JSON.stringify({

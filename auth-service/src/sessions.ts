@@ -14,9 +14,10 @@ const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24;
  * 
  * @param db - D1Database instance
  * @param domain - Domain prefix for table names
+ * @param userId - User ID to associate with the session
  * @returns Promise<SessionWithToken>
  */
-export async function createSession(db: D1Database, domain: string): Promise<SessionWithToken> {
+export async function createSession(db: D1Database, domain: string, userId: string): Promise<SessionWithToken> {
   const now = new Date();
 
   const id = generateSecureRandomString();
@@ -27,6 +28,7 @@ export async function createSession(db: D1Database, domain: string): Promise<Ses
 
   const session: SessionWithToken = {
     id,
+    userId,
     secretHash,
     createdAt: now,
     token
@@ -34,10 +36,11 @@ export async function createSession(db: D1Database, domain: string): Promise<Ses
 
   // Insert session into domain-specific table
   await db.prepare(`
-    INSERT INTO ${domain}_sessions (id, secret_hash, created_at) 
-    VALUES (?, ?, ?)
+    INSERT INTO ${domain}_sessions (id, user_id, secret_hash, created_at) 
+    VALUES (?, ?, ?, ?)
   `).bind(
     session.id,
+    session.userId,
     session.secretHash,
     Math.floor(session.createdAt.getTime() / 1000)
   ).run();
@@ -87,7 +90,7 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   const now = new Date();
 
   const result = await db.prepare(`
-    SELECT id, secret_hash, created_at 
+    SELECT id, user_id, secret_hash, created_at 
     FROM ${domain}_sessions 
     WHERE id = ?
   `).bind(sessionId).first();
@@ -98,6 +101,7 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
 
   const session: Session = {
     id: result.id as string,
+    userId: result.user_id as string,
     secretHash: result.secret_hash as Uint8Array,
     createdAt: new Date((result.created_at as number) * 1000)
   };

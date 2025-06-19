@@ -6,6 +6,7 @@
  */
 export interface Session {
   id: string;
+  userId: string;
   secretHash: Uint8Array; // Uint8Array is a byte array
   createdAt: Date;
 }
@@ -23,6 +24,8 @@ export interface SessionWithToken extends Session {
 export interface User {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
   createdAt: Date;
 }
 
@@ -62,6 +65,8 @@ export interface ErrorResponse {
 export interface SignupRequest {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
 }
 
 /**
