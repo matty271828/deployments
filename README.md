@@ -1,4 +1,3 @@
-```
 ___ _______ _   _____   __  ______  ________   
 |  \|___|__]|   |  | \_/ |\/||___|\ | | [__ 
 |__/|___|   |___|__|  |  |  ||___| \| | ___] 
@@ -222,6 +221,109 @@ curl https://yourdomain.com/auth/health
 ```
 
 The auth service automatically routes requests to the correct project's database based on the domain.
+
+## 🔐 Auth Components Library
+
+The platform includes a ready-to-use React component library for authentication forms that automatically connects to the auth service.
+
+### Features
+
+- 🔐 **Login Form** - User authentication with email/password
+- 📝 **Registration Form** - User registration with validation
+- 🎨 **shadcn/ui Styled** - Beautiful, accessible UI components
+- 🔒 **CSRF Protection** - Built-in CSRF token handling
+- 📱 **Responsive Design** - Works on all device sizes
+- ⚡ **TypeScript** - Full type safety
+- 🧪 **Mock Mode** - Development mode with mock authentication
+
+### Using Auth Components in Your Frontend Projects
+
+#### Option 1: Sparse Checkout (Recommended)
+
+Add the auth components to your frontend project using sparse checkout:
+
+```bash
+# In your frontend repository
+git clone --no-checkout https://github.com/matty271828/deployments.git auth-components
+cd auth-components
+git sparse-checkout init --cone
+git sparse-checkout set auth-components
+git checkout main
+cd ..
+```
+
+#### Option 2: Copy Components
+
+Copy the auth components directly to your frontend project:
+
+```bash
+# Copy the auth-components folder to your frontend project
+cp -r auth-components/src/components/auth-components ./src/
+cp -r auth-components/src/lib/auth.ts ./src/lib/
+```
+
+### Installation Requirements
+
+Add these dependencies to your frontend project:
+
+```bash
+npm install lucide-react class-variance-authority clsx tailwind-merge
+```
+
+### Usage in Your Frontend
+
+```tsx
+// Import components
+import { LoginForm, RegistrationForm, auth } from './auth-components/src'
+
+// Use in your app
+function App() {
+  return (
+    <div>
+      <LoginForm 
+        onSuccess={(user) => console.log('Logged in:', user)}
+        onError={(error) => console.error('Login failed:', error)}
+      />
+    </div>
+  )
+}
+```
+
+### Development vs Production
+
+The components automatically detect the environment:
+
+- **Development (localhost)**: Uses mock authentication for testing
+- **Production**: Connects to the real auth service on your domain
+
+### Updating Auth Components
+
+When you update the auth components in this repository:
+
+```bash
+# In your frontend project
+cd auth-components
+git pull origin main
+cd ..
+```
+
+### Auth Utilities
+
+The library also provides auth utilities for manual authentication:
+
+```tsx
+import { auth } from './auth-components/src'
+
+// Check authentication status
+const isLoggedIn = auth.isAuthenticated()
+const user = auth.getCurrentUser()
+
+// Manual authentication
+const user = await auth.login({ email: 'user@example.com', password: 'password' })
+await auth.logout()
+```
+
+For detailed documentation, see the [auth-components README](auth-components/README.md).
 
 ## Future Plans
 
