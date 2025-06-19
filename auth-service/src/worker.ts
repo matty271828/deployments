@@ -12,6 +12,102 @@
  * - POST /auth/logout - Session termination
  * - POST /auth/refresh - Session token refresh
  */
+
+// Type for handler methods
+type HandlerMethod = (request: Request, env: any, subdomain: string, corsHeaders: any) => Promise<Response>;
+
+// Endpoint configuration with allowed methods
+const ENDPOINTS = {
+  '/auth/health': {
+    GET: 'healthCheck',
+  },
+  '/auth/signup': {
+    POST: 'signup'
+  },
+  '/auth/login': {
+    POST: 'login'
+  },
+  '/auth/session': {
+    GET: 'validateSession'
+  },
+  '/auth/logout': {
+    POST: 'logout'
+  },
+  '/auth/refresh': {
+    POST: 'refreshSession'
+  }
+} as const;
+
+// Helper method to create consistent error responses
+function createErrorResponse(error: string, code: string, status: number, corsHeaders: any): Response {
+  return new Response(JSON.stringify({ 
+    success: false, 
+    error: error,
+    code: code
+  }), {
+    status: status,
+    headers: corsHeaders
+  });
+}
+
+// Handler implementations
+const handlers = {
+  /**
+   * Health check endpoint - returns service status and domain info
+   */
+  async healthCheck(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    return new Response(JSON.stringify({ 
+      status: 'OK', 
+      domain: request.headers.get('host'),
+      subdomain: subdomain,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: corsHeaders
+    });
+  },
+
+  /**
+   * User registration endpoint
+   */
+  async signup(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    // TODO: Implement user signup with email/password validation
+    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+  },
+
+  /**
+   * User authentication endpoint
+   */
+  async login(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    // TODO: Implement user login with credential validation
+    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+  },
+
+  /**
+   * Session validation endpoint
+   */
+  async validateSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    // TODO: Implement session validation using Authorization header
+    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+  },
+
+  /**
+   * Session termination endpoint
+   */
+  async logout(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    // TODO: Implement session invalidation
+    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+  },
+
+  /**
+   * Session refresh endpoint
+   */
+  async refreshSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+    // TODO: Implement session token refresh
+    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+  }
+};
+
 export default {
   /**
    * Main request handler for the authentication service
@@ -24,11 +120,10 @@ export default {
   async fetch(request: Request, env: any, ctx: any) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const method = request.method;
     
     // Extract domain from the request for table routing
     const domain = url.hostname;
-    
-    // Extract repo name from domain (e.g., "leetrepeat" from "leetrepeat.yourdomain.com")
     const subdomain = domain.split('.')[0];
     
     // CORS headers for cross-origin requests
@@ -40,109 +135,32 @@ export default {
     };
 
     // Handle CORS preflight requests
-    if (request.method === 'OPTIONS') {
+    if (method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
     try {
-      // Health check endpoint - returns service status and domain info
-      if (path === '/auth/health' && (request.method === 'GET' || request.method === 'POST')) {
-        return new Response(JSON.stringify({ 
-          status: 'OK', 
-          domain: domain,
-          subdomain: subdomain,
-          timestamp: new Date().toISOString()
-        }), {
-          status: 200,
-          headers: corsHeaders
-        });
+      // Check if endpoint exists and method is allowed
+      const endpoint = ENDPOINTS[path as keyof typeof ENDPOINTS];
+      if (!endpoint) {
+        return createErrorResponse('Endpoint not found', 'NOT_FOUND', 404, corsHeaders);
       }
 
-      // User registration endpoint
-      if (path === '/auth/signup' && request.method === 'POST') {
-        // TODO: Implement user signup with email/password validation
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Not implemented yet',
-          code: 'NOT_IMPLEMENTED'
-        }), {
-          status: 501,
-          headers: corsHeaders
-        });
+      const handlerName = endpoint[method as keyof typeof endpoint];
+      if (!handlerName) {
+        return createErrorResponse('Method not allowed', 'METHOD_NOT_ALLOWED', 405, corsHeaders);
       }
 
-      // User authentication endpoint
-      if (path === '/auth/login' && request.method === 'POST') {
-        // TODO: Implement user login with credential validation
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Not implemented yet',
-          code: 'NOT_IMPLEMENTED'
-        }), {
-          status: 501,
-          headers: corsHeaders
-        });
+      // Call the appropriate handler
+      const handler = handlers[handlerName as keyof typeof handlers] as HandlerMethod;
+      if (typeof handler !== 'function') {
+        return createErrorResponse('Handler not found', 'INTERNAL_ERROR', 500, corsHeaders);
       }
 
-      // Session validation endpoint
-      if (path === '/auth/session' && request.method === 'GET') {
-        // TODO: Implement session validation using Authorization header
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Not implemented yet',
-          code: 'NOT_IMPLEMENTED'
-        }), {
-          status: 501,
-          headers: corsHeaders
-        });
-      }
-
-      // Session termination endpoint
-      if (path === '/auth/logout' && request.method === 'POST') {
-        // TODO: Implement session invalidation
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Not implemented yet',
-          code: 'NOT_IMPLEMENTED'
-        }), {
-          status: 501,
-          headers: corsHeaders
-        });
-      }
-
-      // Session refresh endpoint
-      if (path === '/auth/refresh' && request.method === 'POST') {
-        // TODO: Implement session token refresh
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'Not implemented yet',
-          code: 'NOT_IMPLEMENTED'
-        }), {
-          status: 501,
-          headers: corsHeaders
-        });
-      }
-
-      // 404 for unknown endpoints
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'Endpoint not found',
-        code: 'NOT_FOUND'
-      }), {
-        status: 404,
-        headers: corsHeaders
-      });
+      return await handler(request, env, subdomain, corsHeaders);
 
     } catch (error: any) {
-      // Handle unexpected errors
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: 'Internal server error',
-        code: 'INTERNAL_ERROR'
-      }), {
-        status: 500,
-        headers: corsHeaders
-      });
+      return createErrorResponse('Internal server error', 'INTERNAL_ERROR', 500, corsHeaders);
     }
-  },
+  }
 };
