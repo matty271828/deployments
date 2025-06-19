@@ -26,4 +26,15 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_sessions (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_users_email ON {PREFIX}_users(email);
-CREATE INDEX IF NOT EXISTS idx_{PREFIX}_sessions_created_at ON {PREFIX}_sessions(created_at); 
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_sessions_created_at ON {PREFIX}_sessions(created_at);
+
+-- Rate limiting table for token bucket implementation
+CREATE TABLE IF NOT EXISTS {PREFIX}_rate_limits (
+    key TEXT NOT NULL PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 0,
+    refilled_at_ms INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+) STRICT;
+
+-- Index for rate limiting cleanup
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_rate_limits_created_at ON {PREFIX}_rate_limits(created_at); 

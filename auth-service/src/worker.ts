@@ -11,11 +11,14 @@
  * - GET /auth/session - Session validation
  * - POST /auth/logout - Session termination
  * - POST /auth/refresh - Session token refresh
+ * - POST /auth/cleanup - Rate limit cleanup
  */
 
 import { createUser } from './users';
 import { createSession, deleteSession, validateSessionToken } from './sessions';
 import { SignupRequest, LoginRequest } from './types';
+import { rateLimiters, getClientIP } from './rate-limiter';
+import { performCleanup, shouldRunCleanup } from './cleanup';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -114,6 +117,13 @@ const handlers = {
    */
   async signup(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.signup.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many signup attempts. Please try again later.', 429, corsHeaders);
+      }
+
       // Parse request body
       const body = await request.json() as SignupRequest;
       const { email, password, firstName, lastName } = body;
@@ -171,6 +181,13 @@ const handlers = {
    */
   async login(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.login.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many login attempts. Please try again later.', 429, corsHeaders);
+      }
+
       // Parse request body
       const body = await request.json() as LoginRequest;
       const { email, password } = body;
@@ -233,6 +250,13 @@ const handlers = {
    */
   async validateSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.session.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many session requests. Please try again later.', 429, corsHeaders);
+      }
+
       // Get session token from Authorization header
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -292,6 +316,13 @@ const handlers = {
    */
   async logout(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.session.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many session requests. Please try again later.', 429, corsHeaders);
+      }
+
       // Get session token from Authorization header
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -335,6 +366,13 @@ const handlers = {
    */
   async refreshSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.session.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many session requests. Please try again later.', 429, corsHeaders);
+      }
+
       // Get session token from Authorization header
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -377,6 +415,41 @@ const handlers = {
     } catch (error: any) {
       return handleApiError(error, corsHeaders);
     }
+  },
+
+  /**
+   * Rate limit cleanup endpoint (for maintenance)
+   */
+  async cleanupRateLimits(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting - very strict for maintenance endpoint
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP, 5); // Higher cost
+      if (!isAllowed) {
+        return createErrorResponse('Too many cleanup requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Clean up old rate limit entries (older than 24 hours)
+      await rateLimiters.login.cleanup(env.AUTH_DB_BINDING, subdomain, 24);
+      await rateLimiters.signup.cleanup(env.AUTH_DB_BINDING, subdomain, 24);
+      await rateLimiters.api.cleanup(env.AUTH_DB_BINDING, subdomain, 24);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Rate limit cleanup completed'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
   }
 };
 
@@ -409,6 +482,22 @@ export default {
     // Handle CORS preflight requests
     if (method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Run automated cleanup in the background (non-blocking)
+    if (env?.AUTH_DB_BINDING) {
+      ctx.waitUntil(
+        (async () => {
+          try {
+            const shouldRun = await shouldRunCleanup(env.AUTH_DB_BINDING);
+            if (shouldRun) {
+              await performCleanup(env.AUTH_DB_BINDING);
+            }
+          } catch (error) {
+            console.error('Background cleanup error:', error);
+          }
+        })()
+      );
     }
 
     try {

@@ -13,6 +13,7 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 📊 **Health Monitoring**: Built-in health check endpoint
 - 👤 **User Profiles**: Full user information including first and last names
 - 🔗 **Session-User Linking**: Sessions are linked to users for complete user context
+- 🚫 **Rate Limiting**: Token bucket rate limiting to prevent brute force attacks
 
 ## Architecture
 
@@ -300,6 +301,10 @@ All endpoints return consistent error responses with the following format:
 | 404 | `User not found` | User associated with session not found |
 | 405 | `Method not allowed` | Wrong HTTP method |
 | 409 | `User already exists` | Email already registered |
+| 429 | `Too many login attempts. Please try again later.` | Rate limited - too many login attempts |
+| 429 | `Too many signup attempts. Please try again later.` | Rate limited - too many signup attempts |
+| 429 | `Too many session requests. Please try again later.` | Rate limited - too many session operations |
+| 429 | `Too many requests. Please try again later.` | Rate limited - too many general API requests |
 | 500 | `Database not available` | Database connection issue |
 | 503 | `Database schema not initialized` | Tables don't exist |
 
@@ -332,6 +337,20 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 - **Domain Prefixing**: All tables prefixed with domain name
 - **Cross-Domain Protection**: Users/sessions isolated per domain
 - **Secure IDs**: Cryptographically secure random generation
+
+### Error Handling
+- **Generic Errors**: Internal errors are not exposed to clients
+- **Input Validation**: Comprehensive validation of all inputs
+- **SQL Injection Protection**: Parameterized queries throughout
+
+### Rate Limiting
+- **Token Bucket Algorithm**: Smooth handling of request bursts
+- **Login Protection**: 5 attempts per 15 minutes per IP
+- **Signup Protection**: 3 attempts per hour per IP
+- **Session Operations**: 30 requests per minute per IP (validation, refresh, logout)
+- **General API**: 100 requests per minute per IP (health)
+- **Persistent Storage**: Uses D1 database for cross-request persistence
+- **Automated Cleanup**: Background cleanup runs every 12 hours across all domains
 
 ## CORS Support
 
@@ -394,6 +413,14 @@ CREATE TABLE {PREFIX}_sessions (
     secret_hash BLOB NOT NULL,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
+);
+
+-- Rate limiting table
+CREATE TABLE {PREFIX}_rate_limits (
+    key TEXT NOT NULL PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 0,
+    refilled_at_ms INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
 );
 ```
 
