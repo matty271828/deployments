@@ -67,6 +67,7 @@ export interface SignupRequest {
   password: string;
   firstName: string;
   lastName: string;
+  csrfToken?: string; // Optional CSRF token for form protection
 }
 
 /**
@@ -75,6 +76,7 @@ export interface SignupRequest {
 export interface LoginRequest {
   email: string;
   password: string;
+  csrfToken?: string; // Optional CSRF token for form protection
 }
 
 /**

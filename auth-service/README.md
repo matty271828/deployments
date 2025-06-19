@@ -14,6 +14,7 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 👤 **User Profiles**: Full user information including first and last names
 - 🔗 **Session-User Linking**: Sessions are linked to users for complete user context
 - 🚫 **Rate Limiting**: Token bucket rate limiting to prevent brute force attacks
+- 🛡️ **CSRF Protection**: CSRF tokens for form-based authentication
 
 ## Architecture
 
@@ -272,6 +273,50 @@ curl -X POST https://leetrepeat.com/auth/logout \
 
 ---
 
+### 7. CSRF Token Generation
+
+**Endpoint:** `GET /auth/csrf-token`
+
+**Description:** Generate a CSRF token for form protection
+
+**Headers:** None required
+
+**Example Request:**
+```bash
+curl -X GET https://leetrepeat.com/auth/csrf-token
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "CSRF token generated successfully",
+  "token": "abc123xyz789"
+}
+```
+
+**Usage for Forms:**
+```html
+<!-- Get CSRF token first -->
+<script>
+fetch('/auth/csrf-token')
+  .then(response => response.json())
+  .then(data => {
+    document.getElementById('csrf-token').value = data.token;
+  });
+</script>
+
+<!-- Include in form -->
+<form action="/auth/login" method="POST">
+  <input type="hidden" name="csrfToken" id="csrf-token">
+  <input name="email" type="email" required>
+  <input name="password" type="password" required>
+  <button type="submit">Login</button>
+</form>
+```
+
+---
+
 ## Error Responses
 
 All endpoints return consistent error responses with the following format:
@@ -357,6 +402,13 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 - **General API**: 100 requests per minute per IP (health)
 - **Persistent Storage**: Uses D1 database for cross-request persistence
 - **Automated Cleanup**: Background cleanup runs every 12 hours across all domains
+
+### CSRF Protection
+- **Token Generation**: Secure random tokens for form protection
+- **One-Time Use**: Tokens are consumed after validation
+- **Expiration**: Tokens expire after 1 hour
+- **Form Integration**: Easy integration with HTML forms
+- **Automatic Cleanup**: Expired tokens are automatically removed
 
 ## CORS Support
 
@@ -460,4 +512,142 @@ Where `{PREFIX}` is replaced with the domain name (e.g., `leetrepeat`).
 
 ## License
 
-MIT License - see LICENSE file for details. 
+MIT License - see LICENSE file for details.
+
+## CSRF Protection
+
+The service includes CSRF protection for form-based authentication to prevent cross-site request forgery attacks.
+
+### How CSRF Protection Works
+
+1. **Token Generation**: Call `/auth/csrf-token` to get a unique token
+2. **Form Inclusion**: Include the token as a hidden field in your form
+3. **Server Validation**: The server validates the token before processing the request
+4. **One-Time Use**: Tokens are consumed after use and cannot be reused
+
+### Complete Form Example
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Form with CSRF Protection</title>
+</head>
+<body>
+    <h1>Login</h1>
+    
+    <!-- Login Form -->
+    <form id="loginForm" action="https://leetrepeat.com/auth/login" method="POST">
+        <input type="hidden" name="csrfToken" id="csrfToken">
+        
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" name="email" id="email" required>
+        </div>
+        
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" name="password" id="password" required>
+        </div>
+        
+        <button type="submit">Login</button>
+    </form>
+
+    <script>
+        // Get CSRF token when page loads
+        async function getCSRFToken() {
+            try {
+                const response = await fetch('https://leetrepeat.com/auth/csrf-token');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('csrfToken').value = data.token;
+                } else {
+                    console.error('Failed to get CSRF token:', data.error);
+                }
+            } catch (error) {
+                console.error('Error getting CSRF token:', error);
+            }
+        }
+
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const loginData = {
+                email: formData.get('email'),
+                password: formData.get('password'),
+                csrfToken: formData.get('csrfToken')
+            };
+
+            try {
+                const response = await fetch('https://leetrepeat.com/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(loginData)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Store the session token
+                    localStorage.setItem('authToken', result.session.token);
+                    alert('Login successful!');
+                    // Redirect or update UI
+                } else {
+                    alert('Login failed: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Login failed. Please try again.');
+            }
+        });
+
+        // Load CSRF token when page loads
+        getCSRFToken();
+    </script>
+</body>
+</html>
+```
+
+### Signup Form Example
+
+```html
+<form id="signupForm" action="https://leetrepeat.com/auth/signup" method="POST">
+    <input type="hidden" name="csrfToken" id="csrfToken">
+    
+    <div>
+        <label for="firstName">First Name:</label>
+        <input type="text" name="firstName" id="firstName" required>
+    </div>
+    
+    <div>
+        <label for="lastName">Last Name:</label>
+        <input type="text" name="lastName" id="lastName" required>
+    </div>
+    
+    <div>
+        <label for="email">Email:</label>
+        <input type="email" name="email" id="email" required>
+    </div>
+    
+    <div>
+        <label for="password">Password:</label>
+        <input type="password" name="password" id="password" required minlength="8">
+    </div>
+    
+    <button type="submit">Sign Up</button>
+</form>
+```
+
+### Security Benefits
+
+- **Prevents CSRF Attacks**: Malicious sites cannot submit forms on behalf of users
+- **Token Expiration**: Tokens expire after 1 hour for security
+- **One-Time Use**: Each token can only be used once
+- **Automatic Cleanup**: Expired tokens are automatically removed from the database
+
+## CORS Support 

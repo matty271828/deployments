@@ -12,14 +12,16 @@
  * - POST /auth/logout - Session termination
  * - POST /auth/refresh - Session token refresh
  * - POST /auth/cleanup - Rate limit cleanup
+ * - GET /auth/csrf-token - CSRF token generation
  */
 
 import { createUser } from './users';
-import { createSession, deleteSession, validateSessionToken } from './sessions';
+import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
 import { SignupRequest, LoginRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { performCleanup, shouldRunCleanup } from './cleanup';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
+import { generateSecureRandomString } from './generator';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -43,6 +45,9 @@ const ENDPOINTS = {
   },
   '/auth/refresh': {
     POST: 'refreshSession'
+  },
+  '/auth/csrf-token': {
+    GET: 'getCSRFToken'
   }
 } as const;
 
@@ -127,7 +132,7 @@ const handlers = {
 
       // Parse request body
       const body = await request.json() as SignupRequest;
-      const { email, password, firstName, lastName } = body;
+      const { email, password, firstName, lastName, csrfToken } = body;
 
       // Validate required fields
       if (!email || !password || !firstName || !lastName) {
@@ -138,6 +143,15 @@ const handlers = {
       if (typeof email !== 'string' || typeof password !== 'string' || 
           typeof firstName !== 'string' || typeof lastName !== 'string') {
         return createErrorResponse('All fields must be strings', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        // For form submissions, validate CSRF token
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
       }
 
       // Ensure we have database access
@@ -191,7 +205,7 @@ const handlers = {
 
       // Parse request body
       const body = await request.json() as LoginRequest;
-      const { email, password } = body;
+      const { email, password, csrfToken } = body;
 
       // Validate required fields
       if (!email || !password) {
@@ -201,6 +215,15 @@ const handlers = {
       // Validate email and password types
       if (typeof email !== 'string' || typeof password !== 'string') {
         return createErrorResponse('Email and password must be strings', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        // For form submissions, validate CSRF token
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
       }
 
       // Ensure we have database access
@@ -443,6 +466,41 @@ const handlers = {
       return new Response(JSON.stringify({
         success: true,
         message: 'Rate limit cleanup completed'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * CSRF token generation endpoint
+   */
+  async getCSRFToken(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP, 5); // Higher cost
+      if (!isAllowed) {
+        return createErrorResponse('Too many CSRF token requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Generate a new CSRF token
+      const token = await generateCSRFToken(env.AUTH_DB_BINDING, subdomain);
+
+      // Return success response with CSRF token
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'CSRF token generated successfully',
+        token: token
       }), {
         status: 200,
         headers: corsHeaders

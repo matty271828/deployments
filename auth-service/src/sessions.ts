@@ -49,6 +49,57 @@ export async function createSession(db: D1Database, domain: string, userId: stri
 }
 
 /**
+ * Generate a CSRF token for form protection
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @returns Promise<string> - The generated CSRF token
+ */
+export async function generateCSRFToken(db: D1Database, domain: string): Promise<string> {
+  const csrfToken = generateSecureRandomString();
+  const now = getCurrentUnixTime();
+  
+  // Store CSRF token in a separate table with expiration
+  await db.prepare(`
+    INSERT INTO ${domain}_csrf_tokens (token, created_at) 
+    VALUES (?, ?)
+  `).bind(csrfToken, now).run();
+  
+  return csrfToken;
+}
+
+/**
+ * Validate a CSRF token
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param csrfToken - CSRF token to validate
+ * @returns Promise<boolean> - True if token is valid
+ */
+export async function validateCSRFToken(db: D1Database, domain: string, csrfToken: string): Promise<boolean> {
+  const now = getCurrentUnixTime();
+  const expirationTime = now - (60 * 60); // 1 hour expiration
+  
+  const result = await db.prepare(`
+    SELECT token 
+    FROM ${domain}_csrf_tokens 
+    WHERE token = ? AND created_at > ?
+  `).bind(csrfToken, expirationTime).first();
+  
+  if (!result) {
+    return false;
+  }
+  
+  // Delete the token after use (one-time use)
+  await db.prepare(`
+    DELETE FROM ${domain}_csrf_tokens 
+    WHERE token = ?
+  `).bind(csrfToken).run();
+  
+  return true;
+}
+
+/**
  * Validate a session token
  * 
  * @param db - D1Database instance
@@ -141,6 +192,22 @@ export async function cleanupExpiredSessions(db: D1Database, domain: string): Pr
 
   await db.prepare(`
     DELETE FROM ${domain}_sessions 
+    WHERE created_at < ?
+  `).bind(expirationTime).run();
+}
+
+/**
+ * Clean up expired CSRF tokens
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ */
+export async function cleanupExpiredCSRFTokens(db: D1Database, domain: string): Promise<void> {
+  const currentTime = getCurrentUnixTime();
+  const expirationTime = currentTime - (60 * 60); // 1 hour expiration
+
+  await db.prepare(`
+    DELETE FROM ${domain}_csrf_tokens 
     WHERE created_at < ?
   `).bind(expirationTime).run();
 } 

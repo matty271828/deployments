@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_sessions (
     FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
 ) STRICT;
 
+-- CSRF tokens table - stores one-time use CSRF tokens for form protection
+CREATE TABLE IF NOT EXISTS {PREFIX}_csrf_tokens (
+    token TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL -- unix time (seconds)
+) STRICT;
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_users_email ON {PREFIX}_users(email);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_sessions_created_at ON {PREFIX}_sessions(created_at);
