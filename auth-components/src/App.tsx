@@ -1,34 +1,40 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import LoginForm from './components/LoginForm'
+import RegistrationForm from './components/RegistrationForm'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentForm, setCurrentForm] = useState<'login' | 'register'>('login')
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex justify-center pt-8 pb-4">
+        <div className="flex bg-white rounded-lg p-1 shadow-sm border">
+          <button 
+            onClick={() => setCurrentForm('login')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              currentForm === 'login' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Login
+          </button>
+          <button 
+            onClick={() => setCurrentForm('register')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              currentForm === 'register' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Register
+          </button>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+      
+      {currentForm === 'login' ? <LoginForm /> : <RegistrationForm />}
+    </div>
   )
 }
 
