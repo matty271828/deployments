@@ -20,7 +20,7 @@ export async function createUser(db: D1Database, domain: string, email: string, 
 
   // Validate password strength
   if (!isValidPassword(password)) {
-    throw new Error('Password must be at least 8 characters long');
+    throw new Error(getPasswordValidationError(password));
   }
 
   // Validate name fields
@@ -189,5 +189,145 @@ function isValidEmail(email: string): boolean {
  * @returns boolean - True if password meets requirements
  */
 function isValidPassword(password: string): boolean {
-  return password.length >= 8;
+  // Minimum length requirement (increased from 8 to 12)
+  if (password.length < 12) {
+    return false;
+  }
+
+  // Check for complexity requirements
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasNumbers = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+  // All complexity requirements must be met
+  if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+    return false;
+  }
+
+  // Check for common weak passwords and patterns
+  const commonPasswords = [
+    'password', '123456', '123456789', 'qwerty', 'abc123', 'password123',
+    'admin', 'letmein', 'welcome', 'monkey', 'dragon', 'master', 'hello',
+    'freedom', 'whatever', 'qazwsx', 'trustno1', 'jordan', 'harley',
+    'ranger', 'iwantu', 'jennifer', 'hunter', 'buster', 'soccer',
+    'baseball', 'tiger', 'charlie', 'andrew', 'michelle', 'love',
+    'sunshine', 'jessica', 'asshole', '696969', 'amanda', 'access',
+    'yankees', '987654321', 'dallas', 'austin', 'thunder', 'taylor',
+    'matrix', 'mobilemail', 'mom', 'monitor', 'monitoring', 'montana',
+    'moon', 'moscow', 'mother', 'movie', 'mozilla', 'music', 'mustang',
+    'password', 'pa$$w0rd', 'p@ssw0rd', 'p@$$w0rd', 'pass123', 'pass1234',
+    'password1', 'password12', 'password123', 'password1234', 'password12345'
+  ];
+
+  const lowerPassword = password.toLowerCase();
+  if (commonPasswords.includes(lowerPassword)) {
+    return false;
+  }
+
+  // Check for sequential patterns (e.g., 123456, abcdef)
+  const sequentialPatterns = [
+    '123456789', 'abcdefgh', 'qwertyui', 'asdfghjk', 'zxcvbnm',
+    '987654321', 'zyxwvuts', 'poiuytre', 'lkjhgfds', 'mnbvcxz'
+  ];
+
+  for (const pattern of sequentialPatterns) {
+    if (lowerPassword.includes(pattern)) {
+      return false;
+    }
+  }
+
+  // Check for repeated characters (more than 3 consecutive same characters)
+  for (let i = 0; i < password.length - 2; i++) {
+    if (password[i] === password[i + 1] && password[i] === password[i + 2]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Get detailed password validation error message
+ * 
+ * @param password - Password to validate
+ * @returns string - Detailed error message explaining what's missing
+ */
+export function getPasswordValidationError(password: string): string {
+  const errors: string[] = [];
+
+  // Check length
+  if (password.length < 12) {
+    errors.push(`at least 12 characters long (currently ${password.length})`);
+  }
+
+  // Check complexity requirements
+  if (!/[A-Z]/.test(password)) {
+    errors.push('at least one uppercase letter (A-Z)');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('at least one lowercase letter (a-z)');
+  }
+  if (!/\d/.test(password)) {
+    errors.push('at least one number (0-9)');
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)');
+  }
+
+  // Check for common passwords
+  const commonPasswords = [
+    'password', '123456', '123456789', 'qwerty', 'abc123', 'password123',
+    'admin', 'letmein', 'welcome', 'monkey', 'dragon', 'master', 'hello',
+    'freedom', 'whatever', 'qazwsx', 'trustno1', 'jordan', 'harley',
+    'ranger', 'iwantu', 'jennifer', 'hunter', 'buster', 'soccer',
+    'baseball', 'tiger', 'charlie', 'andrew', 'michelle', 'love',
+    'sunshine', 'jessica', 'asshole', '696969', 'amanda', 'access',
+    'yankees', '987654321', 'dallas', 'austin', 'thunder', 'taylor',
+    'matrix', 'mobilemail', 'mom', 'monitor', 'monitoring', 'montana',
+    'moon', 'moscow', 'mother', 'movie', 'mozilla', 'music', 'mustang',
+    'password', 'pa$$w0rd', 'p@ssw0rd', 'p@$$w0rd', 'pass123', 'pass1234',
+    'password1', 'password12', 'password123', 'password1234', 'password12345'
+  ];
+
+  const lowerPassword = password.toLowerCase();
+  if (commonPasswords.includes(lowerPassword)) {
+    errors.push('not be a common password');
+  }
+
+  // Check for sequential patterns
+  const sequentialPatterns = [
+    '123456789', 'abcdefgh', 'qwertyui', 'asdfghjk', 'zxcvbnm',
+    '987654321', 'zyxwvuts', 'poiuytre', 'lkjhgfds', 'mnbvcxz'
+  ];
+
+  for (const pattern of sequentialPatterns) {
+    if (lowerPassword.includes(pattern)) {
+      errors.push('not contain sequential patterns');
+      break;
+    }
+  }
+
+  // Check for repeated characters
+  for (let i = 0; i < password.length - 2; i++) {
+    if (password[i] === password[i + 1] && password[i] === password[i + 2]) {
+      errors.push('not contain more than 2 consecutive identical characters');
+      break;
+    }
+  }
+
+  if (errors.length === 0) {
+    return 'Password meets all requirements';
+  }
+
+  return `Password must be ${errors.join(', ')}`;
+}
+
+/**
+ * Get password requirements for display to users
+ * 
+ * @returns string - Human-readable password requirements
+ */
+export function getPasswordRequirements(): string {
+  return 'Password must be at least 12 characters long and contain at least one uppercase letter (A-Z), one lowercase letter (a-z), one number (0-9), and one special character (!@#$%^&*()_+-=[]{}|;:,.<>?). It cannot be a common password or contain sequential patterns.';
 } 
