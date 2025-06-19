@@ -91,15 +91,15 @@ const handlers = {
       }
 
       // Ensure we have database access
-      if (!env?.AUTH_DB) {
+      if (!env?.AUTH_DB_BINDING) {
         return createErrorResponse('Database not available', 500, corsHeaders);
       }
 
       // Create user
-      const user = await createUser(env.AUTH_DB, subdomain, email, password);
+      const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password);
 
       // Create session for the new user
-      const session = await createSession(env.AUTH_DB, subdomain);
+      const session = await createSession(env.AUTH_DB_BINDING, subdomain);
 
       // Return success response with user and session
       return new Response(JSON.stringify({
@@ -163,7 +163,7 @@ const handlers = {
       }
 
       // Ensure we have database access
-      if (!env?.AUTH_DB) {
+      if (!env?.AUTH_DB_BINDING) {
         return createErrorResponse('Database not available', 500, corsHeaders);
       }
 
@@ -171,13 +171,13 @@ const handlers = {
       const { validateCredentials } = await import('./users');
 
       // Validate credentials
-      const user = await validateCredentials(env.AUTH_DB, subdomain, email, password);
+      const user = await validateCredentials(env.AUTH_DB_BINDING, subdomain, email, password);
       if (!user) {
         return createErrorResponse('Invalid email or password', 401, corsHeaders);
       }
 
       // Create session for the authenticated user
-      const session = await createSession(env.AUTH_DB, subdomain);
+      const session = await createSession(env.AUTH_DB_BINDING, subdomain);
 
       // Return success response with user and session
       return new Response(JSON.stringify({
