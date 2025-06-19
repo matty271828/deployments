@@ -86,7 +86,7 @@ function handleApiError(error: any, corsHeaders: any): Response {
   // Handle other errors with more detail
   console.error('API Error:', error);
   return createErrorResponse(
-    `Internal server error: ${error.message || 'Unknown error'}`, 
+    'Internal server error', 
     500, 
     corsHeaders
   );
