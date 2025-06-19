@@ -15,6 +15,7 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 🔗 **Session-User Linking**: Sessions are linked to users for complete user context
 - 🚫 **Rate Limiting**: Token bucket rate limiting to prevent brute force attacks
 - 🛡️ **CSRF Protection**: CSRF tokens for form-based authentication
+- 🔒 **Account Lockout**: Progressive account lockout after failed login attempts
 
 ## Architecture
 
@@ -404,12 +405,15 @@ All endpoints return consistent error responses with the following format:
 | 400 | `Invalid session token format` | Token format incorrect |
 | 401 | `Authorization header with Bearer token is required` | Missing auth header |
 | 401 | `Invalid email or password` | Login credentials incorrect |
+| 401 | `Invalid email or password. X attempts remaining before lockout.` | Login failed with attempt count |
 | 401 | `Invalid or expired session` | Session token invalid |
 | 403 | `Invalid CSRF token` | CSRF token validation failed |
 | 404 | `Endpoint not found` | Invalid endpoint |
 | 404 | `User not found` | User associated with session not found |
 | 405 | `Method not allowed` | Wrong HTTP method |
 | 409 | `User already exists` | Email already registered |
+| 423 | `Account temporarily locked. Please try again in X minutes.` | Account locked due to failed attempts |
+| 423 | `Account locked due to too many failed attempts. Please try again in X minutes.` | Account locked after failed attempt |
 | 429 | `Too many login attempts. Please try again later.` | Rate limited - too many login attempts |
 | 429 | `Too many signup attempts. Please try again later.` | Rate limited - too many signup attempts |
 | 429 | `Too many session requests. Please try again later.` | Rate limited - too many session operations |
@@ -436,12 +440,25 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 - **Hashing**: PBKDF2 with 100,000 iterations
 - **Salt**: 16-byte random salt per user
 - **Algorithm**: SHA-256
+- **Requirements**: 12+ characters, uppercase, lowercase, numbers, special characters
+- **Validation**: Blocks common passwords and sequential patterns
 
 ### Session Security
 - **Token Format**: `{session_id}.{session_secret}`
 - **Secret Storage**: Hashed secrets in database
 - **Expiration**: 24 hours from creation
 - **Validation**: Constant-time comparison
+- **Revocation**: Immediate session termination
+
+### Account Lockout Protection
+- **Progressive Lockout**: Increasing lockout durations
+- **Lockout Levels**:
+  - 3 failed attempts → 5-minute lockout
+  - 5 failed attempts → 15-minute lockout
+  - 7 failed attempts → 1-hour lockout
+  - 10 failed attempts → 24-hour lockout
+- **Automatic Reset**: Successful login clears lockout status
+- **User Feedback**: Clear messages about remaining attempts and lockout duration
 
 ### Data Isolation
 - **Domain Prefixing**: All tables prefixed with domain name
@@ -475,67 +492,64 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 - **Form Integration**: Easy integration with HTML forms
 - **Automatic Cleanup**: Expired tokens are automatically removed
 
-## CORS Support
-
-The service includes secure CORS support that validates origins against actual domains in the system:
-
-- **Origin Validation**: Only allows requests from domains that exist in the database
-- **Dynamic Allowlist**: Automatically updates as new domains are added
-- **Security Headers**: Includes comprehensive security headers
-- **Fail Secure**: Blocks unauthorized origins by default
-
-### Security Headers
-
-All responses include the following security headers:
-
-```
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-XSS-Protection: 1; mode=block
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-Referrer-Policy: strict-origin-when-cross-origin
-```
-
-### How It Works
-
-1. **Domain Discovery**: Fetches domain mappings from R2 storage (with database fallback)
-2. **Origin Validation**: Validates the `Origin` header against allowed domains
-3. **Dynamic Response**: Sets `Access-Control-Allow-Origin` only for valid origins
-4. **Logging**: Logs blocked requests for security monitoring
-
-### Domain Validation
-
-The service validates origins against the actual domain mappings stored in R2:
-
-- **Primary Source**: R2 bucket `domain-mappings/mappings.json` containing domain objects
-- **Structure**: `[{"domain": "leetrepeat.com", "frontend_repo": "https://github.com/..."}]`
-- **Fallback**: Database table names if R2 is unavailable
-- **Real-time**: Automatically updates as new domains are added via GitHub Actions
-- **Subdomain Support**: Allows subdomains (e.g., `www.leetrepeat.com` matches `leetrepeat.com`)
-
-### Prerequisites
-- Node.js 18+
-- Wrangler CLI
-- Cloudflare account with D1 database
-
-### Setup
-
-This service is deployed automatically using Terraform and GitHub Actions. The deployment process:
-
-1. **Infrastructure**: Terraform creates the D1 database and worker
-2. **Schema**: GitHub Actions applies the database schema template
-3. **Deployment**: Worker code is deployed via Cloudflare API
-
-For manual development and testing:
+### Testing Account Lockout
 
 ```bash
-# Install dependencies
-npm install
+# 1. Create a test user first
+curl -X POST https://leetrepeat.com/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "lockout-test@example.com",
+    "password": "SecurePass123!",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
 
-# Configure wrangler.toml with your database ID
-# Deploy locally
-wrangler dev
+# 2. Test progressive lockout (run these in sequence)
+# Attempt 1-3: Normal error messages
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "lockout-test@example.com",
+    "password": "wrongpassword"
+  }'
+
+# Response: "Invalid email or password. 2 attempts remaining before lockout."
+
+# Attempt 4: 5-minute lockout
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "lockout-test@example.com",
+    "password": "wrongpassword"
+  }'
+
+# Response: "Account locked due to too many failed attempts. Please try again in 5 minutes."
+
+# 3. Try correct password during lockout (should fail)
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "lockout-test@example.com",
+    "password": "SecurePass123!"
+  }'
+
+# Response: "Account temporarily locked. Please try again in X minutes."
+
+# 4. After lockout expires, successful login resets everything
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "lockout-test@example.com",
+    "password": "SecurePass123!"
+  }'
+
+# Response: "Login successful" (and failed attempts reset to 0)
 ```
+
+---
+
+## CORS Support
 
 ### Database Schema
 
@@ -552,7 +566,9 @@ CREATE TABLE {PREFIX}_users (
     last_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until INTEGER -- unix time (seconds) when account unlocks
 );
 
 -- Sessions table
@@ -580,145 +596,3 @@ CREATE TABLE {PREFIX}_rate_limits (
 ```
 
 Where `{PREFIX}` is replaced with the domain name (e.g., `leetrepeat`).
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## CSRF Protection
-
-The service includes CSRF protection for form-based authentication to prevent cross-site request forgery attacks.
-
-### How CSRF Protection Works
-
-1. **Token Generation**: Call `/auth/csrf-token` to get a unique token
-2. **Form Inclusion**: Include the token as a hidden field in your form
-3. **Server Validation**: The server validates the token before processing the request
-4. **One-Time Use**: Tokens are consumed after use and cannot be reused
-
-### Complete Form Example
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login Form with CSRF Protection</title>
-</head>
-<body>
-    <h1>Login</h1>
-    
-    <!-- Login Form -->
-    <form id="loginForm" action="https://leetrepeat.com/auth/login" method="POST">
-        <input type="hidden" name="csrfToken" id="csrfToken">
-        
-        <div>
-            <label for="email">Email:</label>
-            <input type="email" name="email" id="email" required>
-        </div>
-        
-        <div>
-            <label for="password">Password:</label>
-            <input type="password" name="password" id="password" required>
-        </div>
-        
-        <button type="submit">Login</button>
-    </form>
-
-    <script>
-        // Get CSRF token when page loads
-        async function getCSRFToken() {
-            try {
-                const response = await fetch('https://leetrepeat.com/auth/csrf-token');
-                const data = await response.json();
-                
-                if (data.success) {
-                    document.getElementById('csrfToken').value = data.token;
-                } else {
-                    console.error('Failed to get CSRF token:', data.error);
-                }
-            } catch (error) {
-                console.error('Error getting CSRF token:', error);
-            }
-        }
-
-        // Handle form submission
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            const loginData = {
-                email: formData.get('email'),
-                password: formData.get('password'),
-                csrfToken: formData.get('csrfToken')
-            };
-
-            try {
-                const response = await fetch('https://leetrepeat.com/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(loginData)
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    // Store the session token
-                    localStorage.setItem('authToken', result.session.token);
-                    alert('Login successful!');
-                    // Redirect or update UI
-                } else {
-                    alert('Login failed: ' + result.error);
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                alert('Login failed. Please try again.');
-            }
-        });
-
-        // Load CSRF token when page loads
-        getCSRFToken();
-    </script>
-</body>
-</html>
-```
-
-### Signup Form Example
-
-```html
-<form id="signupForm" action="https://leetrepeat.com/auth/signup" method="POST">
-    <input type="hidden" name="csrfToken" id="csrfToken">
-    
-    <div>
-        <label for="firstName">First Name:</label>
-        <input type="text" name="firstName" id="firstName" required>
-    </div>
-    
-    <div>
-        <label for="lastName">Last Name:</label>
-        <input type="text" name="lastName" id="lastName" required>
-    </div>
-    
-    <div>
-        <label for="email">Email:</label>
-        <input type="email" name="email" id="email" required>
-    </div>
-    
-    <div>
-        <label for="password">Password:</label>
-        <input type="password" name="password" id="password" required minlength="8">
-    </div>
-    
-    <button type="submit">Sign Up</button>
-</form>
-```
-
-### Security Benefits
-
-- **Prevents CSRF Attacks**: Malicious sites cannot submit forms on behalf of users
-- **Token Expiration**: Tokens expire after 1 hour for security
-- **One-Time Use**: Each token can only be used once
-- **Automatic Cleanup**: Expired tokens are automatically removed from the database
-
-## CORS Support 
