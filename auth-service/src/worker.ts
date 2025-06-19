@@ -13,8 +13,12 @@
  * - POST /auth/refresh - Session token refresh
  */
 
+import { createUser } from './users';
+import { createSession } from './sessions';
+import { SignupRequest } from './types';
+
 // Type for handler methods
-type HandlerMethod = (request: Request, env: any, subdomain: string, corsHeaders: any) => Promise<Response>;
+type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
 
 // Endpoint configuration with allowed methods
 const ENDPOINTS = {
@@ -55,7 +59,7 @@ const handlers = {
   /**
    * Health check endpoint - returns service status and domain info
    */
-  async healthCheck(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+  async healthCheck(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     return new Response(JSON.stringify({ 
       status: 200, 
       domain: request.headers.get('host'),
@@ -70,9 +74,73 @@ const handlers = {
   /**
    * User registration endpoint
    */
-  async signup(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
-    // TODO: Implement user signup with email/password validation
-    return createErrorResponse('Not implemented yet', 501, corsHeaders);
+  async signup(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Parse request body
+      const body = await request.json() as SignupRequest;
+      const { email, password } = body;
+
+      // Validate required fields
+      if (!email || !password) {
+        return createErrorResponse('Email and password are required', 400, corsHeaders);
+      }
+
+      // Validate email and password types
+      if (typeof email !== 'string' || typeof password !== 'string') {
+        return createErrorResponse('Email and password must be strings', 400, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Create user
+      const user = await createUser(env.AUTH_DB, subdomain, email, password);
+
+      // Create session for the new user
+      const session = await createSession(env.AUTH_DB, subdomain);
+
+      // Return success response with user and session
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'User created successfully',
+        user: {
+          id: user.id,
+          email: user.email,
+          createdAt: user.createdAt
+        },
+        session: {
+          id: session.id,
+          token: session.token,
+          expiresAt: new Date(session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+        }
+      }), {
+        status: 201,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      // Handle specific validation errors
+      if (error.message === 'Invalid email format') {
+        return createErrorResponse('Invalid email format', 400, corsHeaders);
+      }
+      if (error.message === 'Password must be at least 8 characters long') {
+        return createErrorResponse('Password must be at least 8 characters long', 400, corsHeaders);
+      }
+      if (error.message === 'User already exists') {
+        return createErrorResponse('User already exists', 409, corsHeaders);
+      }
+
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError) {
+        return createErrorResponse('Invalid JSON in request body', 400, corsHeaders);
+      }
+
+      // Handle other errors
+      console.error('Signup error:', error);
+      return createErrorResponse('Internal server error', 500, corsHeaders);
+    }
   },
 
   /**
@@ -157,7 +225,7 @@ export default {
         return createErrorResponse('Handler not found', 500, corsHeaders);
       }
 
-      return await handler(request, env, subdomain, corsHeaders);
+      return await handler(request, subdomain, corsHeaders, env);
 
     } catch (error: any) {
       return createErrorResponse('Internal server error', 500, corsHeaders);

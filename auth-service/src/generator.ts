@@ -62,4 +62,65 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
  */
 export function getCurrentUnixTime(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+/**
+ * Hash a password using PBKDF2 with salt
+ * Following security best practices for password storage
+ * 
+ * @param password - The password to hash
+ * @param salt - Optional salt (will generate if not provided)
+ * @returns Object containing hash and salt
+ */
+export async function hashPassword(password: string, salt?: string): Promise<{ hash: string; salt: string }> {
+  // Generate salt if not provided
+  if (!salt) {
+    const saltBytes = new Uint8Array(16);
+    crypto.getRandomValues(saltBytes);
+    salt = Array.from(saltBytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Convert password and salt to bytes
+  const passwordBytes = new TextEncoder().encode(password);
+  const saltBytes = new Uint8Array(salt.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+
+  // Use PBKDF2 to derive key
+  const key = await crypto.subtle.importKey(
+    'raw',
+    passwordBytes,
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  );
+
+  const hashBytes = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBytes,
+      iterations: 100000, // High iteration count for security
+      hash: 'SHA-256'
+    },
+    key,
+    256 // 256 bits = 32 bytes
+  );
+
+  const hash = Array.from(new Uint8Array(hashBytes), byte => byte.toString(16).padStart(2, '0')).join('');
+
+  return { hash, salt };
+}
+
+/**
+ * Verify a password against a stored hash
+ * 
+ * @param password - The password to verify
+ * @param storedHash - The stored hash
+ * @param storedSalt - The stored salt
+ * @returns True if password matches, false otherwise
+ */
+export async function verifyPassword(password: string, storedHash: string, storedSalt: string): Promise<boolean> {
+  const { hash } = await hashPassword(password, storedSalt);
+  return constantTimeEqual(
+    new Uint8Array(hash.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))),
+    new Uint8Array(storedHash.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
+  );
 } 
