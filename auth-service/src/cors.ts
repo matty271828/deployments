@@ -157,6 +157,30 @@ function isOriginAllowed(origin: string, allowedDomains: string[]): boolean {
 }
 
 /**
+ * Generate comprehensive security headers for all responses
+ * 
+ * This function provides a centralized way to ensure all responses
+ * include the same set of security headers to protect against
+ * various types of attacks.
+ * 
+ * @returns Record<string, string> - Object containing all security headers
+ */
+function getSecurityHeaders(): Record<string, string> {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';",
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin'
+  };
+}
+
+/**
  * Get secure CORS headers for a request
  * 
  * This is the main function that validates the request origin and returns
@@ -182,12 +206,7 @@ export async function getSecureCorsHeaders(request: Request, env: any): Promise<
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
     'Content-Type': 'application/json',
-    // Security headers to protect against common attacks
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    'Referrer-Policy': 'strict-origin-when-cross-origin'
+    ...getSecurityHeaders()
   };
 
   // If no origin header, return headers without Access-Control-Allow-Origin
@@ -241,7 +260,8 @@ export async function handlePreflight(request: Request, env: any): Promise<Respo
     return new Response('Forbidden', { 
       status: 403,
       headers: {
-        'Content-Type': 'text/plain'
+        'Content-Type': 'text/plain',
+        ...getSecurityHeaders()
       }
     });
   }
