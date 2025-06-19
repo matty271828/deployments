@@ -39,11 +39,11 @@ const ENDPOINTS = {
 } as const;
 
 // Helper method to create consistent error responses
-function createErrorResponse(error: string, code: string, status: number, corsHeaders: any): Response {
+function createErrorResponse(error: string, status: number, corsHeaders: any): Response {
   return new Response(JSON.stringify({ 
     success: false, 
     error: error,
-    code: code
+    status: status
   }), {
     status: status,
     headers: corsHeaders
@@ -72,7 +72,7 @@ const handlers = {
    */
   async signup(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     // TODO: Implement user signup with email/password validation
-    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+    return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
 
   /**
@@ -80,7 +80,7 @@ const handlers = {
    */
   async login(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     // TODO: Implement user login with credential validation
-    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+    return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
 
   /**
@@ -88,7 +88,7 @@ const handlers = {
    */
   async validateSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     // TODO: Implement session validation using Authorization header
-    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+    return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
 
   /**
@@ -96,7 +96,7 @@ const handlers = {
    */
   async logout(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     // TODO: Implement session invalidation
-    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+    return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
 
   /**
@@ -104,7 +104,7 @@ const handlers = {
    */
   async refreshSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     // TODO: Implement session token refresh
-    return createErrorResponse('Not implemented yet', 'NOT_IMPLEMENTED', 501, corsHeaders);
+    return createErrorResponse('Not implemented yet', 501, corsHeaders);
   }
 };
 
@@ -143,24 +143,24 @@ export default {
       // Check if endpoint exists and method is allowed
       const endpoint = ENDPOINTS[path as keyof typeof ENDPOINTS];
       if (!endpoint) {
-        return createErrorResponse('Endpoint not found', 'NOT_FOUND', 404, corsHeaders);
+        return createErrorResponse('Endpoint not found', 404, corsHeaders);
       }
 
       const handlerName = endpoint[method as keyof typeof endpoint];
       if (!handlerName) {
-        return createErrorResponse('Method not allowed', 'METHOD_NOT_ALLOWED', 405, corsHeaders);
+        return createErrorResponse('Method not allowed', 405, corsHeaders);
       }
 
       // Call the appropriate handler
       const handler = handlers[handlerName as keyof typeof handlers] as HandlerMethod;
       if (typeof handler !== 'function') {
-        return createErrorResponse('Handler not found', 'INTERNAL_ERROR', 500, corsHeaders);
+        return createErrorResponse('Handler not found', 500, corsHeaders);
       }
 
       return await handler(request, env, subdomain, corsHeaders);
 
     } catch (error: any) {
-      return createErrorResponse('Internal server error', 'INTERNAL_ERROR', 500, corsHeaders);
+      return createErrorResponse('Internal server error', 500, corsHeaders);
     }
   }
 };
