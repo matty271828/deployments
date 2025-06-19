@@ -36,10 +36,36 @@ export interface SignupData {
 
 export class AuthClient {
   private baseUrl: string;
+  private csrfToken: string | null = null;
 
   constructor(baseUrl?: string) {
     // Default to current domain if no base URL provided
     this.baseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  }
+
+  /**
+   * Get CSRF token for form protection
+   */
+  async getCSRFToken(): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/csrf-token`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get CSRF token');
+      }
+
+      const data = await response.json();
+      this.csrfToken = data.token;
+      return data.token;
+    } catch (error) {
+      console.error('Error getting CSRF token:', error);
+      throw error;
+    }
   }
 
   /**
@@ -70,12 +96,20 @@ export class AuthClient {
    * Login user
    */
   async login(loginData: LoginData): Promise<User> {
+    // Get CSRF token if not already available
+    if (!this.csrfToken) {
+      await this.getCSRFToken();
+    }
+
     const response = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(loginData),
+      body: JSON.stringify({
+        ...loginData,
+        csrfToken: this.csrfToken,
+      }),
     });
 
     const data: AuthResponse = await response.json();
@@ -94,12 +128,20 @@ export class AuthClient {
    * Register new user
    */
   async signup(signupData: SignupData): Promise<User> {
+    // Get CSRF token if not already available
+    if (!this.csrfToken) {
+      await this.getCSRFToken();
+    }
+
     const response = await fetch(`${this.baseUrl}/auth/signup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(signupData),
+      body: JSON.stringify({
+        ...signupData,
+        csrfToken: this.csrfToken,
+      }),
     });
 
     const data: AuthResponse = await response.json();
@@ -138,6 +180,7 @@ export class AuthClient {
     // Clear local storage regardless of API call success
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
+    this.csrfToken = null; // Clear CSRF token on logout
   }
 
   /**
