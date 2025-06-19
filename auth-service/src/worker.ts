@@ -231,14 +231,62 @@ const handlers = {
         return createErrorResponse('Database not available', 500, corsHeaders);
       }
 
-      // Import validateCredentials function
-      const { validateCredentials } = await import('./users');
+      // Import required functions
+      const { validateCredentials, getUserByEmail, checkAccountLockout, recordFailedLogin, resetFailedLogins } = await import('./users');
+
+      // First, get user by email to check lockout status
+      const userWithPassword = await getUserByEmail(env.AUTH_DB_BINDING, subdomain, email);
+      
+      if (userWithPassword) {
+        // Check if account is locked
+        const lockoutStatus = await checkAccountLockout(env.AUTH_DB_BINDING, subdomain, userWithPassword.id);
+        
+        if (lockoutStatus.isLocked) {
+          const lockoutTime = lockoutStatus.lockedUntil!;
+          const remainingMinutes = Math.ceil((lockoutTime.getTime() - Date.now()) / (1000 * 60));
+          
+          return createErrorResponse(
+            `Account temporarily locked. Please try again in ${remainingMinutes} minutes.`, 
+            423, 
+            corsHeaders
+          );
+        }
+      }
 
       // Validate credentials
       const user = await validateCredentials(env.AUTH_DB_BINDING, subdomain, email, password);
+      
       if (!user) {
+        // Record failed login attempt if user exists
+        if (userWithPassword) {
+          await recordFailedLogin(env.AUTH_DB_BINDING, subdomain, userWithPassword.id);
+          
+          // Check if account is now locked after this failed attempt
+          const newLockoutStatus = await checkAccountLockout(env.AUTH_DB_BINDING, subdomain, userWithPassword.id);
+          
+          if (newLockoutStatus.isLocked) {
+            const lockoutTime = newLockoutStatus.lockedUntil!;
+            const remainingMinutes = Math.ceil((lockoutTime.getTime() - Date.now()) / (1000 * 60));
+            
+            return createErrorResponse(
+              `Account locked due to too many failed attempts. Please try again in ${remainingMinutes} minutes.`, 
+              423, 
+              corsHeaders
+            );
+          } else {
+            return createErrorResponse(
+              `Invalid email or password. ${newLockoutStatus.remainingAttempts} attempts remaining before lockout.`, 
+              401, 
+              corsHeaders
+            );
+          }
+        }
+        
         return createErrorResponse('Invalid email or password', 401, corsHeaders);
       }
+
+      // Reset failed login attempts on successful login
+      await resetFailedLogins(env.AUTH_DB_BINDING, subdomain, user.id);
 
       // Create session for the authenticated user
       const session = await createSession(env.AUTH_DB_BINDING, subdomain, user.id);

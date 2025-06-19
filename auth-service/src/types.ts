@@ -27,6 +27,8 @@ export interface User {
   firstName: string;
   lastName: string;
   createdAt: Date;
+  failedLoginAttempts: number;
+  lockedUntil?: Date;
 }
 
 /**

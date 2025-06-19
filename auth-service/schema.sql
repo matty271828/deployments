@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_users (
     last_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
-    created_at INTEGER NOT NULL -- unix time (seconds)
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until INTEGER -- unix time (seconds) when account unlocks
 ) STRICT;
 
 -- Sessions table - stores secure session data

@@ -59,7 +59,9 @@ export async function createUser(db: D1Database, domain: string, email: string, 
     email: email.toLowerCase(),
     firstName: firstName.trim(),
     lastName: lastName.trim(),
-    createdAt: now
+    createdAt: now,
+    failedLoginAttempts: 0,
+    lockedUntil: undefined
   };
 
   return user;
@@ -75,7 +77,7 @@ export async function createUser(db: D1Database, domain: string, email: string, 
  */
 export async function getUserByEmail(db: D1Database, domain: string, email: string): Promise<UserWithPassword | null> {
   const result = await db.prepare(`
-    SELECT id, email, password_hash, password_salt, created_at 
+    SELECT id, email, first_name, last_name, password_hash, password_salt, created_at, failed_login_attempts, locked_until
     FROM ${domain}_users 
     WHERE email = ?
   `).bind(email.toLowerCase()).first();
@@ -90,7 +92,9 @@ export async function getUserByEmail(db: D1Database, domain: string, email: stri
     firstName: result.first_name as string,
     lastName: result.last_name as string,
     passwordHash: result.password_hash as string,
-    createdAt: new Date((result.created_at as number) * 1000)
+    createdAt: new Date((result.created_at as number) * 1000),
+    failedLoginAttempts: result.failed_login_attempts as number,
+    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined
   };
 
   return user;
@@ -106,7 +110,7 @@ export async function getUserByEmail(db: D1Database, domain: string, email: stri
  */
 export async function getUserById(db: D1Database, domain: string, userId: string): Promise<User | null> {
   const result = await db.prepare(`
-    SELECT id, email, created_at 
+    SELECT id, email, first_name, last_name, created_at, failed_login_attempts, locked_until
     FROM ${domain}_users 
     WHERE id = ?
   `).bind(userId).first();
@@ -120,7 +124,9 @@ export async function getUserById(db: D1Database, domain: string, userId: string
     email: result.email as string,
     firstName: result.first_name as string,
     lastName: result.last_name as string,
-    createdAt: new Date((result.created_at as number) * 1000)
+    createdAt: new Date((result.created_at as number) * 1000),
+    failedLoginAttempts: result.failed_login_attempts as number,
+    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined
   };
 
   return user;
@@ -165,7 +171,9 @@ export async function validateCredentials(db: D1Database, domain: string, email:
     email: userWithPassword.email,
     firstName: userWithPassword.firstName,
     lastName: userWithPassword.lastName,
-    createdAt: userWithPassword.createdAt
+    createdAt: userWithPassword.createdAt,
+    failedLoginAttempts: userWithPassword.failedLoginAttempts,
+    lockedUntil: userWithPassword.lockedUntil
   };
 
   return user;
@@ -330,4 +338,123 @@ export function getPasswordValidationError(password: string): string {
  */
 export function getPasswordRequirements(): string {
   return 'Password must be at least 12 characters long and contain at least one uppercase letter (A-Z), one lowercase letter (a-z), one number (0-9), and one special character (!@#$%^&*()_+-=[]{}|;:,.<>?). It cannot be a common password or contain sequential patterns.';
+}
+
+/**
+ * Check if user account is locked
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param userId - User ID to check
+ * @returns Promise<{isLocked: boolean, lockedUntil?: Date, remainingAttempts: number}>
+ */
+export async function checkAccountLockout(db: D1Database, domain: string, userId: string): Promise<{isLocked: boolean, lockedUntil?: Date, remainingAttempts: number}> {
+  const result = await db.prepare(`
+    SELECT failed_login_attempts, locked_until 
+    FROM ${domain}_users 
+    WHERE id = ?
+  `).bind(userId).first();
+
+  if (!result) {
+    return { isLocked: false, remainingAttempts: 5 };
+  }
+
+  const failedAttempts = result.failed_login_attempts as number;
+  const lockedUntil = result.locked_until as number | null;
+
+  // Check if account is currently locked
+  if (lockedUntil && lockedUntil > Math.floor(Date.now() / 1000)) {
+    return {
+      isLocked: true,
+      lockedUntil: new Date(lockedUntil * 1000),
+      remainingAttempts: 0
+    };
+  }
+
+  // Calculate remaining attempts before lockout
+  const maxAttempts = getMaxAttemptsForLevel(failedAttempts);
+  const remainingAttempts = Math.max(0, maxAttempts - failedAttempts);
+
+  return {
+    isLocked: false,
+    remainingAttempts
+  };
+}
+
+/**
+ * Record a failed login attempt
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param userId - User ID
+ * @returns Promise<void>
+ */
+export async function recordFailedLogin(db: D1Database, domain: string, userId: string): Promise<void> {
+  const result = await db.prepare(`
+    SELECT failed_login_attempts 
+    FROM ${domain}_users 
+    WHERE id = ?
+  `).bind(userId).first();
+
+  if (!result) {
+    return;
+  }
+
+  const currentAttempts = (result.failed_login_attempts as number) + 1;
+  const maxAttempts = getMaxAttemptsForLevel(currentAttempts);
+  
+  let lockedUntil: number | null = null;
+  
+  // If we've reached the limit, calculate lockout period
+  if (currentAttempts >= maxAttempts) {
+    lockedUntil = Math.floor(Date.now() / 1000) + getLockoutDuration(currentAttempts);
+  }
+
+  await db.prepare(`
+    UPDATE ${domain}_users 
+    SET failed_login_attempts = ?, locked_until = ? 
+    WHERE id = ?
+  `).bind(currentAttempts, lockedUntil, userId).run();
+}
+
+/**
+ * Reset failed login attempts on successful login
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param userId - User ID
+ * @returns Promise<void>
+ */
+export async function resetFailedLogins(db: D1Database, domain: string, userId: string): Promise<void> {
+  await db.prepare(`
+    UPDATE ${domain}_users 
+    SET failed_login_attempts = 0, locked_until = NULL 
+    WHERE id = ?
+  `).bind(userId).run();
+}
+
+/**
+ * Get maximum attempts allowed for current failure level
+ * 
+ * @param failedAttempts - Current number of failed attempts
+ * @returns number - Maximum attempts allowed before lockout
+ */
+function getMaxAttemptsForLevel(failedAttempts: number): number {
+  if (failedAttempts < 3) return 3;
+  if (failedAttempts < 5) return 5;
+  if (failedAttempts < 7) return 7;
+  return 10;
+}
+
+/**
+ * Get lockout duration in seconds for current failure level
+ * 
+ * @param failedAttempts - Current number of failed attempts
+ * @returns number - Lockout duration in seconds
+ */
+function getLockoutDuration(failedAttempts: number): number {
+  if (failedAttempts <= 3) return 5 * 60;      // 5 minutes
+  if (failedAttempts <= 5) return 15 * 60;     // 15 minutes
+  if (failedAttempts <= 7) return 60 * 60;     // 1 hour
+  return 24 * 60 * 60;                         // 24 hours
 } 
