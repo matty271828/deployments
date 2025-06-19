@@ -1,0 +1,31 @@
+{
+  "name": "@deployments/auth-components",
+  "version": "1.0.0",
+  "description": "Authentication utilities for frontend projects",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "authentication",
+    "auth",
+    "frontend",
+    "vite"
+  ],
+  "author": "Deployments Platform",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "rollup": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+} 
