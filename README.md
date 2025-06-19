@@ -27,6 +27,16 @@ A serverless deployment platform for frontend applications with built-in authent
 - [Customization](#-customization)
 - [Contributing](#-contributing)
 
+## 📋 Prerequisites
+
+Before using this platform, ensure you have:
+
+- ✅ A Cloudflare account with R2 enabled
+- ✅ A domain name (can be a subdomain)
+- ✅ A Vite-based frontend project in a GitHub repository
+- ✅ GitHub Personal Access Token with required permissions
+- ✅ Cloudflare API Token with required permissions
+
 ## 📋 Overview
 
 A serverless deployment platform for frontend applications with built-in authentication and database support. Each project gets:
@@ -37,15 +47,49 @@ A serverless deployment platform for frontend applications with built-in authent
 
 Up to 9 projects can be deployed without any financial cost. 
 
-## 📋 Prerequisites
+- **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
+- **Database**: Each project gets a dedicated D1 database
+- **Authentication**: Centralized auth service running on Cloudflare Workers
+- **Infrastructure**: Managed via Terraform and GitHub Actions
 
-Before using this platform, ensure you have:
+```
+┌──────────────────────────────────────────────────────────┐
+│                  Cloudflare Infrastructure               │
+│                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
+│  │  Project 1  │    │  Project 2  │    │  Project N  │   │
+│  │  Frontend   │    │  Frontend   │    │  Frontend   │   │
+│  │  (Pages)    │    │  (Pages)    │    │  (Pages)    │   │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘   │
+│         │                  │                  │          │
+│         └──────────────────┼──────────────────┘          │
+│                            │                             │
+│                    ┌───────▼───────┐    ┌────────────┐   │
+│                    │   Shared      │    │   Shared   │   │
+│                    │  Auth Service │───►│ Auth D1 DB │   │
+│                    │   (Worker)    │    │            │   │
+│                    └───────┬───────┘    └────────────┘   │
+│                            │                             │
+│                            ▼                             │
+│          ┌─────────────────────────────────────┐         │
+│          │                 │                   │         │
+│  ┌───────▼─────┐    ┌──────▼───── ┐    ┌───────▼─────┐   │
+│  │  Project 1  │    │  Project 2  │    │  Project N  │   │
+│  │    D1 DB    │    │    D1 DB    │    │    D1 DB    │   │
+│  └─────────────┘    └─────────────┘    └─────────────┘   │
+└──────────────────────────────────────────────────────────┘
 
-- ✅ A Cloudflare account with R2 enabled
-- ✅ A domain name (can be a subdomain)
-- ✅ A Vite-based frontend project in a GitHub repository
-- ✅ GitHub Personal Access Token with required permissions
-- ✅ Cloudflare API Token with required permissions
+┌──────────────────────────────────────────────────────────┐
+│           External Backend Services (Optional)           │
+│                                                          │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
+│  │  Backend 1  │    │  Backend 2  │    │  Backend N  │   │
+│  │  (Custom)   │    │  (Custom)   │    │  (Custom)   │   │
+│  └─────────────┘    └─────────────┘    └─────────────┘   │
+└──────────────────────────────────────────────────────────┘
+```
+
+External backends are not part of this platform and should be deployed separately. They can be integrated with your frontend application through environment variables and API calls.
 
 ## 🚀 Quick Start
 
@@ -152,52 +196,6 @@ Support for other frameworks (Next.js, Nuxt, etc.) will be added in future updat
 - **Domain Ownership**: You must own the domain you're deploying to
 - **Vite Projects Only**: Currently only supports Vite-based frontend projects
 - **Free Tier Limits**: Be aware of Cloudflare's free tier limitations (see Cost & Limitations section)
-
-## 🏗️ Architecture
-
-- **Frontend**: Deployed to Cloudflare Pages with automatic builds and redeployments on every push to the main branch
-- **Database**: Each project gets a dedicated D1 database
-- **Authentication**: Centralized auth service running on Cloudflare Workers
-- **Infrastructure**: Managed via Terraform and GitHub Actions
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                  Cloudflare Infrastructure               │
-│                                                          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │  Project 1  │    │  Project 2  │    │  Project N  │   │
-│  │  Frontend   │    │  Frontend   │    │  Frontend   │   │
-│  │  (Pages)    │    │  (Pages)    │    │  (Pages)    │   │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘   │
-│         │                  │                  │          │
-│         └──────────────────┼──────────────────┘          │
-│                            │                             │
-│                    ┌───────▼───────┐    ┌────────────┐   │
-│                    │   Shared      │    │   Shared   │   │
-│                    │  Auth Service │───►│ Auth D1 DB │   │
-│                    │   (Worker)    │    │            │   │
-│                    └───────┬───────┘    └────────────┘   │
-│                            │                             │
-│                            ▼                             │
-│          ┌─────────────────────────────────────┐         │
-│          │                 │                   │         │
-│  ┌───────▼─────┐    ┌──────▼───── ┐    ┌───────▼─────┐   │
-│  │  Project 1  │    │  Project 2  │    │  Project N  │   │
-│  │    D1 DB    │    │    D1 DB    │    │    D1 DB    │   │
-│  └─────────────┘    └─────────────┘    └─────────────┘   │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│           External Backend Services (Optional)           │
-│                                                          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │  Backend 1  │    │  Backend 2  │    │  Backend N  │   │
-│  │  (Custom)   │    │  (Custom)   │    │  (Custom)   │   │
-│  └─────────────┘    └─────────────┘    └─────────────┘   │
-└──────────────────────────────────────────────────────────┘
-```
-
-External backends are not part of this platform and should be deployed separately. They can be integrated with your frontend application through environment variables and API calls.
 
 ## Authentication Service
 
