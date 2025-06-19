@@ -15,7 +15,7 @@
 
 import { createUser } from './users';
 import { createSession } from './sessions';
-import { SignupRequest } from './types';
+import { SignupRequest, LoginRequest } from './types';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -146,15 +146,74 @@ const handlers = {
   /**
    * User authentication endpoint
    */
-  async login(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
-    // TODO: Implement user login with credential validation
-    return createErrorResponse('Not implemented yet', 501, corsHeaders);
+  async login(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Parse request body
+      const body = await request.json() as LoginRequest;
+      const { email, password } = body;
+
+      // Validate required fields
+      if (!email || !password) {
+        return createErrorResponse('Email and password are required', 400, corsHeaders);
+      }
+
+      // Validate email and password types
+      if (typeof email !== 'string' || typeof password !== 'string') {
+        return createErrorResponse('Email and password must be strings', 400, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Import validateCredentials function
+      const { validateCredentials } = await import('./users');
+
+      // Validate credentials
+      const user = await validateCredentials(env.AUTH_DB, subdomain, email, password);
+      if (!user) {
+        return createErrorResponse('Invalid email or password', 401, corsHeaders);
+      }
+
+      // Create session for the authenticated user
+      const session = await createSession(env.AUTH_DB, subdomain);
+
+      // Return success response with user and session
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          createdAt: user.createdAt
+        },
+        session: {
+          id: session.id,
+          token: session.token,
+          expiresAt: new Date(session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+        }
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError) {
+        return createErrorResponse('Invalid JSON in request body', 400, corsHeaders);
+      }
+
+      // Handle other errors
+      console.error('Login error:', error);
+      return createErrorResponse('Internal server error', 500, corsHeaders);
+    }
   },
 
   /**
    * Session validation endpoint
    */
-  async validateSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+  async validateSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     // TODO: Implement session validation using Authorization header
     return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
@@ -162,7 +221,7 @@ const handlers = {
   /**
    * Session termination endpoint
    */
-  async logout(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+  async logout(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     // TODO: Implement session invalidation
     return createErrorResponse('Not implemented yet', 501, corsHeaders);
   },
@@ -170,7 +229,7 @@ const handlers = {
   /**
    * Session refresh endpoint
    */
-  async refreshSession(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
+  async refreshSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     // TODO: Implement session token refresh
     return createErrorResponse('Not implemented yet', 501, corsHeaders);
   }
