@@ -25,30 +25,6 @@ export function generateSecureRandomString(): string {
 }
 
 /**
- * Generate a session ID using secure random generation
- * @returns A secure session ID
- */
-export function generateSessionId(): string {
-  return generateSecureRandomString();
-}
-
-/**
- * Generate a session secret using secure random generation
- * @returns A secure session secret
- */
-export function generateSessionSecret(): string {
-  return generateSecureRandomString();
-}
-
-/**
- * Generate a user ID using secure random generation
- * @returns A secure user ID
- */
-export function generateUserId(): string {
-  return generateSecureRandomString();
-}
-
-/**
  * Hash a secret using SHA-256
  * Following Lucia's recommendations for session secret hashing
  * 
@@ -86,13 +62,4 @@ export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
  */
 export function getCurrentUnixTime(): number {
   return Math.floor(Date.now() / 1000);
-}
-
-/**
- * Convert Unix timestamp to Date object
- * @param unixTime - Unix timestamp in seconds
- * @returns Date object
- */
-export function unixTimeToDate(unixTime: number): Date {
-  return new Date(unixTime * 1000);
 } 
