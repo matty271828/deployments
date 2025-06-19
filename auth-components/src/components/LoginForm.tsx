@@ -8,15 +8,52 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { auth } from "@/lib/auth"
+import type { User } from "@/lib/auth"
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onSuccess?: (user: User) => void
+  onError?: (error: string) => void
+  redirectUrl?: string
+}
+
+export default function LoginForm({ onSuccess, onError, redirectUrl }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log("Login form submitted")
+    
+    if (!email || !password) {
+      setError("Please fill in all fields")
+      return
+    }
+
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const user = await auth.login({ email, password })
+      console.log("Login successful:", user)
+      onSuccess?.(user)
+      
+      // Redirect after a short delay
+      if (redirectUrl) {
+        setTimeout(() => {
+          window.location.href = redirectUrl
+        }, 1000)
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Login failed"
+      setError(errorMessage)
+      onError?.(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -28,9 +65,24 @@ export default function LoginForm() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="john.doe@example.com" required />
+              <Input 
+                id="email" 
+                name="email" 
+                type="email" 
+                placeholder="john.doe@example.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required 
+                disabled={isLoading}
+              />
             </div>
 
             <div className="space-y-2">
@@ -41,7 +93,10 @@ export default function LoginForm() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
                 <Button
                   type="button"
@@ -49,6 +104,7 @@ export default function LoginForm() {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
@@ -58,7 +114,7 @@ export default function LoginForm() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Checkbox id="remember" />
+                <Checkbox id="remember" disabled={isLoading} />
                 <Label htmlFor="remember" className="text-sm font-normal">
                   Remember me
                 </Label>
@@ -70,8 +126,15 @@ export default function LoginForm() {
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full">
-              Sign In
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Don't have an account?{" "}
