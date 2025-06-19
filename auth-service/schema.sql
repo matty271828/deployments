@@ -7,6 +7,8 @@
 CREATE TABLE IF NOT EXISTS {PREFIX}_users (
     id TEXT NOT NULL PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
     created_at INTEGER NOT NULL -- unix time (seconds)
 ) STRICT;
 

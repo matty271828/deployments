@@ -54,6 +54,44 @@ function createErrorResponse(error: string, status: number, corsHeaders: any): R
   });
 }
 
+// Centralized error handling function
+function handleApiError(error: any, corsHeaders: any): Response {
+  // Handle specific validation errors
+  if (error.message === 'Invalid email format') {
+    return createErrorResponse('Invalid email format', 400, corsHeaders);
+  }
+  if (error.message === 'Password must be at least 8 characters long') {
+    return createErrorResponse('Password must be at least 8 characters long', 400, corsHeaders);
+  }
+  if (error.message === 'User already exists') {
+    return createErrorResponse('User already exists', 409, corsHeaders);
+  }
+
+  // Handle JSON parsing errors
+  if (error instanceof SyntaxError) {
+    return createErrorResponse('Invalid JSON in request body', 400, corsHeaders);
+  }
+
+  // Handle database/schema errors
+  if (error.message && error.message.includes('no such table')) {
+    return createErrorResponse('Database schema not initialized. Please contact administrator.', 503, corsHeaders);
+  }
+  if (error.message && error.message.includes('UNIQUE constraint failed')) {
+    return createErrorResponse('User already exists', 409, corsHeaders);
+  }
+  if (error.message && error.message.includes('NOT NULL constraint failed')) {
+    return createErrorResponse('Missing required fields', 400, corsHeaders);
+  }
+
+  // Handle other errors with more detail
+  console.error('API Error:', error);
+  return createErrorResponse(
+    `Internal server error: ${error.message || 'Unknown error'}`, 
+    500, 
+    corsHeaders
+  );
+}
+
 // Handler implementations
 const handlers = {
   /**
@@ -121,25 +159,7 @@ const handlers = {
       });
 
     } catch (error: any) {
-      // Handle specific validation errors
-      if (error.message === 'Invalid email format') {
-        return createErrorResponse('Invalid email format', 400, corsHeaders);
-      }
-      if (error.message === 'Password must be at least 8 characters long') {
-        return createErrorResponse('Password must be at least 8 characters long', 400, corsHeaders);
-      }
-      if (error.message === 'User already exists') {
-        return createErrorResponse('User already exists', 409, corsHeaders);
-      }
-
-      // Handle JSON parsing errors
-      if (error instanceof SyntaxError) {
-        return createErrorResponse('Invalid JSON in request body', 400, corsHeaders);
-      }
-
-      // Handle other errors
-      console.error('Signup error:', error);
-      return createErrorResponse('Internal server error', 500, corsHeaders);
+      return handleApiError(error, corsHeaders);
     }
   },
 
@@ -199,14 +219,7 @@ const handlers = {
       });
 
     } catch (error: any) {
-      // Handle JSON parsing errors
-      if (error instanceof SyntaxError) {
-        return createErrorResponse('Invalid JSON in request body', 400, corsHeaders);
-      }
-
-      // Handle other errors
-      console.error('Login error:', error);
-      return createErrorResponse('Internal server error', 500, corsHeaders);
+      return handleApiError(error, corsHeaders);
     }
   },
 
@@ -287,7 +300,7 @@ export default {
       return await handler(request, subdomain, corsHeaders, env);
 
     } catch (error: any) {
-      return createErrorResponse('Internal server error', 500, corsHeaders);
+      return handleApiError(error, corsHeaders);
     }
   }
 };
