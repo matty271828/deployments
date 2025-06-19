@@ -57,7 +57,7 @@ const handlers = {
    */
   async healthCheck(request: Request, env: any, subdomain: string, corsHeaders: any): Promise<Response> {
     return new Response(JSON.stringify({ 
-      status: 'OK', 
+      status: 200, 
       domain: request.headers.get('host'),
       subdomain: subdomain,
       timestamp: new Date().toISOString()
