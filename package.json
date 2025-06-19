@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "lucia-auth": "^1.8.0"
+  }
+}
