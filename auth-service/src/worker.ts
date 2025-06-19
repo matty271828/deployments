@@ -14,7 +14,7 @@
  */
 
 import { createUser } from './users';
-import { createSession } from './sessions';
+import { createSession, deleteSession, validateSessionToken } from './sessions';
 import { SignupRequest, LoginRequest } from './types';
 
 // Type for handler methods
@@ -227,24 +227,139 @@ const handlers = {
    * Session validation endpoint
    */
   async validateSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
-    // TODO: Implement session validation using Authorization header
-    return createErrorResponse('Not implemented yet', 501, corsHeaders);
+    try {
+      // Get session token from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header with Bearer token is required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Validate the session token
+      const session = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!session) {
+        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      }
+
+      // Import getUserById function
+      const { getUserById } = await import('./users');
+
+      // Get user information (we'll need to store user_id in sessions for this to work)
+      // For now, we'll return session info without user details
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Session is valid',
+        session: {
+          id: session.id,
+          createdAt: session.createdAt,
+          expiresAt: new Date(session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+        }
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
   },
 
   /**
    * Session termination endpoint
    */
   async logout(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
-    // TODO: Implement session invalidation
-    return createErrorResponse('Not implemented yet', 501, corsHeaders);
+    try {
+      // Get session token from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header with Bearer token is required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse token to get session ID
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 2) {
+        return createErrorResponse('Invalid session token format', 400, corsHeaders);
+      }
+
+      const sessionId = tokenParts[0];
+
+      // Delete the session
+      await deleteSession(env.AUTH_DB_BINDING, subdomain, sessionId);
+
+      // Return success response
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Logout successful'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
   },
 
   /**
    * Session refresh endpoint
    */
   async refreshSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
-    // TODO: Implement session token refresh
-    return createErrorResponse('Not implemented yet', 501, corsHeaders);
+    try {
+      // Get session token from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header with Bearer token is required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Validate the current session token
+      const currentSession = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!currentSession) {
+        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      }
+
+      // Delete the old session
+      await deleteSession(env.AUTH_DB_BINDING, subdomain, currentSession.id);
+
+      // Create a new session
+      const newSession = await createSession(env.AUTH_DB_BINDING, subdomain);
+
+      // Return success response with new session
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Session refreshed successfully',
+        session: {
+          id: newSession.id,
+          token: newSession.token,
+          expiresAt: new Date(newSession.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+        }
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
   }
 };
 
