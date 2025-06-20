@@ -13,6 +13,7 @@
  * - POST /auth/refresh - Session token refresh
  * - POST /auth/cleanup - Rate limit cleanup
  * - GET /auth/csrf-token - CSRF token generation
+ * - POST/GET /auth/graphql - GraphQL proxy to domain workers
  */
 
 import { createUser } from './users';
@@ -48,6 +49,10 @@ const ENDPOINTS = {
   },
   '/auth/csrf-token': {
     GET: 'getCSRFToken'
+  },
+  '/auth/graphql': {
+    POST: 'proxyGraphQL',
+    GET: 'proxyGraphQL'
   }
 } as const;
 
@@ -552,6 +557,84 @@ const handlers = {
       }), {
         status: 200,
         headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * GraphQL proxy endpoint - validates user session and proxies to domain worker
+   */
+  async proxyGraphQL(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many GraphQL requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Get session token from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header with Bearer token is required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Validate the session token
+      const session = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!session) {
+        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      }
+
+      // Get user information
+      const { getUserById } = await import('./users');
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, session.userId);
+      if (!user) {
+        return createErrorResponse('User not found', 404, corsHeaders);
+      }
+
+      // Find the domain worker for this subdomain
+      // The domain worker name format is "{repo_name}-worker"
+      // We need to determine which domain worker to call based on the subdomain
+      const domainWorkerName = `${subdomain}-worker`;
+      
+      // Check if we have a binding to this domain worker
+      if (!env[domainWorkerName]) {
+        return createErrorResponse('Domain worker not available', 503, corsHeaders);
+      }
+
+      // Prepare the request to the domain worker
+      const graphqlRequest = new Request('https://domain-worker.local/graphql', {
+        method: request.method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-ID': user.id.toString(),
+          'X-Auth-Service-Token': 'trusted-auth-service',
+          'X-Forwarded-By': 'auth-service'
+        },
+        body: request.method === 'POST' ? await request.text() : undefined
+      });
+
+      // Proxy the request to the domain worker
+      const domainWorkerResponse = await env[domainWorkerName].fetch(graphqlRequest);
+
+      // Return the domain worker's response
+      return new Response(domainWorkerResponse.body, {
+        status: domainWorkerResponse.status,
+        statusText: domainWorkerResponse.statusText,
+        headers: {
+          ...Object.fromEntries(domainWorkerResponse.headers.entries()),
+          ...corsHeaders
+        }
       });
 
     } catch (error: any) {

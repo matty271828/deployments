@@ -25,8 +25,23 @@ export default {
       });
     }
     
-    // Handle GraphQL endpoint
+    // Handle GraphQL endpoint - ONLY from auth service
     if (url.pathname === '/graphql') {
+      // Check if this request is coming from the auth service
+      // We can check the request headers or use a secret token
+      const authHeader = request.headers.get('X-Auth-Service-Token');
+      const isFromAuthService = authHeader === 'trusted-auth-service' || 
+                               request.headers.get('X-Forwarded-By') === 'auth-service';
+      
+      if (!isFromAuthService) {
+        return new Response(JSON.stringify({ 
+          error: 'Unauthorized - GraphQL endpoint only accessible via auth service' 
+        }), { 
+          status: 403, 
+          headers: { 'Content-Type': 'application/json' } 
+        });
+      }
+      
       try {
         // Dynamic imports to handle missing dependencies gracefully
         const { createYoga } = await import('graphql-yoga');
@@ -35,7 +50,7 @@ export default {
         const yoga = createYoga({ 
           schema,
           context: () => createContext(request, env),
-          graphiql: true, // Enable GraphQL Playground for development
+          graphiql: false, // Disable GraphQL Playground for security
           landingPage: false
         });
         
@@ -58,16 +73,10 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID'
+          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID, X-Auth-Service-Token'
         }
       });
     }
-    
-    // Example of how to use the database binding:
-    // if (env?.DOMAIN_DB) {
-    //   const result = await env.DOMAIN_DB.prepare('SELECT * FROM your_table').all();
-    //   // Process the result...
-    // }
     
     // Example of how to use the auth service binding:
     // if (env?.AUTH_SERVICE) {
