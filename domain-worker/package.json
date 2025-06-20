@@ -1,0 +1,16 @@
+{
+  "name": "domain-worker",
+  "version": "1.0.0",
+  "description": "Domain worker for routing traffic between the centralised auth-service and each individual project database",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev --port 3000",
+    "build": "wrangler build",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^4.0.0"
+  }
+}
