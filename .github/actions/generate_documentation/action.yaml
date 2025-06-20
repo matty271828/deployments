@@ -52,6 +52,9 @@ runs:
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
         
+        # Create a JSON object to store schema temp directories
+        SCHEMA_TEMP_DIRS='{}'
+        
         # Loop through each domain worker and fetch the schema file
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Fetching schema for: $worker_name"
@@ -61,7 +64,9 @@ runs:
           
           # Create temp directory for schema file
           schema_temp_dir=$(mktemp -d)
-          echo "schema_temp_dir_${worker_name}=$schema_temp_dir" >> $GITHUB_OUTPUT
+          
+          # Add to our JSON object
+          SCHEMA_TEMP_DIRS=$(echo "$SCHEMA_TEMP_DIRS" | jq --arg worker "$worker_name" --arg dir "$schema_temp_dir" '. + {($worker): $dir}')
           
           # Fetch just the schema.sql file using GitHub API
           cd "$schema_temp_dir"
@@ -80,19 +85,23 @@ runs:
             touch schema.sql
           fi
         done
+        
+        # Store the schema temp directories as a single output
+        echo "schema_temp_dirs=$SCHEMA_TEMP_DIRS" >> $GITHUB_OUTPUT
 
     - name: Generate Documentation
       shell: bash
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         
         # Loop through each domain worker and generate documentation
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Generating documentation for: $worker_name"
           
           # Get the schema temp directory
-          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
+          schema_temp_dir=$(echo "$SCHEMA_TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           
           # Extract repo name from worker name
           repo_name=$(echo "$worker_name" | sed 's/-worker$//')
@@ -103,7 +112,6 @@ runs:
             
             # Create a temporary directory for documentation generation
             docs_temp_dir=$(mktemp -d)
-            echo "docs_temp_dir_${worker_name}=$docs_temp_dir" >> $GITHUB_OUTPUT
             
             # Copy the domain-worker template to get the generator
             cp -r domain-worker/* "$docs_temp_dir/"
@@ -132,13 +140,14 @@ runs:
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         
         # Loop through each domain worker and push documentation
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Pushing documentation for: $worker_name"
           
           # Get the temp directories
-          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
+          schema_temp_dir=$(echo "$SCHEMA_TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
           
           # Extract repo name from worker name
@@ -209,13 +218,14 @@ runs:
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         
         # Loop through each domain worker and cleanup
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Cleaning up temporary files for: $worker_name"
           
           # Get the temp directories
-          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
+          schema_temp_dir=$(echo "$SCHEMA_TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
           
           # Clean up temp directories
