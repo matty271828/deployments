@@ -52,8 +52,8 @@ runs:
       run: |
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         
-        # Create a JSON object to store schema content
-        SCHEMA_CONTENTS='{}'
+        # Create a directory in the workspace to store schema files
+        mkdir -p .github/schemas
         
         # Loop through each domain database and fetch the schema file
         while IFS= read -r repo_name; do
@@ -65,30 +65,18 @@ runs:
             jq -r '.content // empty' | base64 -d)
           
           if [ -n "$SCHEMA_CONTENT" ]; then
-            # Debug: Check the schema content
-            echo "Schema content length: ${#SCHEMA_CONTENT}"
-            echo "Schema content preview: ${SCHEMA_CONTENT:0:100}..."
-            
-            # Add to our JSON object - properly escape the content
-            SCHEMA_CONTENTS=$(echo "$SCHEMA_CONTENTS" | jq --arg repo "$repo_name" --arg content "$SCHEMA_CONTENT" '. + {($repo): $content}')
-            
-            # Debug: Check the updated JSON
-            echo "Updated SCHEMA_CONTENTS: $SCHEMA_CONTENTS"
-            
+            # Write schema content to a file in the workspace
+            echo "$SCHEMA_CONTENT" > ".github/schemas/$repo_name.sql"
             echo "Schema file fetched for $repo_name"
           else
             echo "No schema.sql found in $repo_name"
           fi
         done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
-        
-        # Store the schema contents as a single output
-        echo "schema_contents=$(echo "$SCHEMA_CONTENTS" | jq -c .)" >> $GITHUB_OUTPUT
 
     - name: Generate Documentation
       shell: bash
       run: |
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
-        SCHEMA_CONTENTS='${{ steps.fetch-schema.outputs.schema_contents }}'
         
         # Create a JSON object to store docs temp directories
         DOCS_TEMP_DIRS='{}'
@@ -97,10 +85,8 @@ runs:
         while IFS= read -r repo_name; do
           echo "Generating documentation for repo: $repo_name"
           
-          # Get the schema content for this repo
-          schema_content=$(echo "$SCHEMA_CONTENTS" | jq -r --arg repo "$repo_name" '.[$repo]')
-          
-          if [ -n "$schema_content" ] && [ "$schema_content" != "null" ]; then
+          # Check if schema file exists
+          if [ -f ".github/schemas/$repo_name.sql" ]; then
             echo "Found schema.sql in $repo_name, generating documentation..."
             
             # Create a temporary directory for documentation generation
@@ -116,8 +102,8 @@ runs:
             cd "$docs_temp_dir"
             npm install
             
-            # Write the schema content to a file
-            echo "$schema_content" > schema.sql
+            # Copy the schema file
+            cp ".github/schemas/$repo_name.sql" schema.sql
             
             # Copy the documentation generation script from domain-worker package
             cp src/generate-docs.js .
