@@ -22,6 +22,9 @@ outputs:
   domain_worker_names:
     description: 'The names of the domain workers for worker-to-worker bindings'
     value: ${{ steps.apply.outputs.domain_worker_names }}
+  domain_database_ids:
+    description: 'The IDs of the domain D1 databases'
+    value: ${{ steps.apply.outputs.domain_database_ids }}
 
 runs:
   using: "composite"
@@ -147,6 +150,8 @@ runs:
           echo "auth_db_id=$auth_db_id" >> $GITHUB_OUTPUT
           domain_worker_names=$(terraform output -json domain_worker_names)
           echo "domain_worker_names=$domain_worker_names" >> $GITHUB_OUTPUT
+          domain_database_ids=$(terraform output -json domain_database_ids)
+          echo "domain_database_ids=$domain_database_ids" >> $GITHUB_OUTPUT
         fi
         # Don't exit on error, just continue
       env:

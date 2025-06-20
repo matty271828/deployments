@@ -45,3 +45,16 @@ resource "cloudflare_d1_database" "domain_db" {
     mode = "disabled"
   }
 }
+
+# Output domain database IDs for schema application
+output "domain_database_ids" {
+  description = "The IDs of the domain D1 databases with repo information"
+  value = {
+    for key, db in cloudflare_d1_database.domain_db : local.frontend_repos[key].repo_name => {
+      domain = key
+      database_id = db.id
+      repo_name = local.frontend_repos[key].repo_name
+    }
+  }
+  sensitive   = true
+}
