@@ -181,25 +181,8 @@ runs:
             cd "$temp_dir"
             npm install
             
-            # Create a temporary script to generate GraphQL code
-            cat > generate-graphql.js << 'EOF'
-const fs = require('fs');
-const path = require('path');
-
-// Import the GraphQL generator
-const { generateGraphQLModule } = require('./src/graphql-generator');
-
-// Read the schema.sql file
-const schemaSql = fs.readFileSync('../schema.sql', 'utf8');
-
-// Generate the GraphQL code
-const generatedCode = generateGraphQLModule(schemaSql);
-
-// Write the generated code to generated-graphql.ts
-fs.writeFileSync('./src/generated-graphql.ts', generatedCode);
-
-console.log('GraphQL code generated successfully');
-EOF
+            # Copy the GraphQL generation script
+            cp ../../.github/actions/deploy_domain_workers/generate-graphql.js .
             
             # Run the GraphQL generation script
             node generate-graphql.js
