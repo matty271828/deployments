@@ -84,7 +84,7 @@ runs:
         done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
         
         # Store the schema temp directories as a single output
-        echo "schema_temp_dirs=$SCHEMA_TEMP_DIRS" >> $GITHUB_OUTPUT
+        echo "schema_temp_dirs=$(echo "$SCHEMA_TEMP_DIRS" | jq -c .)" >> $GITHUB_OUTPUT
 
     - name: Generate Documentation
       shell: bash
@@ -135,7 +135,7 @@ runs:
         done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
         
         # Store the docs temp directories as a single output
-        echo "docs_temp_dirs=$DOCS_TEMP_DIRS" >> $GITHUB_OUTPUT
+        echo "docs_temp_dirs=$(echo "$DOCS_TEMP_DIRS" | jq -c .)" >> $GITHUB_OUTPUT
 
     - name: Push Documentation to Repositories
       shell: bash
