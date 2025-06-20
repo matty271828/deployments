@@ -50,7 +50,6 @@ runs:
     - name: Fetch Schema Files
       shell: bash
       run: |
-        # Parse the domain database IDs JSON which contains repo names
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         
         # Create a JSON object to store schema temp directories
@@ -90,7 +89,6 @@ runs:
     - name: Generate Documentation
       shell: bash
       run: |
-        # Parse the domain database IDs JSON which contains repo names
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         
@@ -142,7 +140,6 @@ runs:
     - name: Push Documentation to Repositories
       shell: bash
       run: |
-        # Parse the domain database IDs JSON which contains repo names
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         DOCS_TEMP_DIRS='${{ steps.generate-docs.outputs.docs_temp_dirs }}'
