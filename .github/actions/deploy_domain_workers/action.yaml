@@ -72,6 +72,10 @@ runs:
             echo "::warning::No database ID found for repo $repo_name, skipping database binding"
           fi
           
+          # Add auth service binding
+          echo "Adding auth service binding"
+          sed -i "s/service = \"\"/service = \"auth-service\"/" "$temp_dir/wrangler.toml"
+          
           # Deploy the worker
           cd "$temp_dir"
           npx wrangler deploy

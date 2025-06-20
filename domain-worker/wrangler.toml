@@ -9,3 +9,8 @@ compatibility_date = "2025-06-14"
 binding = "DOMAIN_DB"
 database_name = ""
 database_id = ""
+
+[[services]]
+# Worker-to-worker binding to the auth service
+binding = "AUTH_SERVICE"
+service = ""

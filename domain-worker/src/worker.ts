@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: any): Promise<Response> {
     const url = new URL(request.url);
     
     // Handle health check endpoint
@@ -10,6 +10,10 @@ export default {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         domain: request.headers.get('host'),
+        worker: 'domain-worker',
+        // Example of how to access the bindings:
+        // database_available: !!env?.DOMAIN_DB,
+        // auth_service_available: !!env?.AUTH_SERVICE
       }), {
         status: 200,
         headers: {
@@ -37,6 +41,16 @@ export default {
     // if (env?.DOMAIN_DB) {
     //   const result = await env.DOMAIN_DB.prepare('SELECT * FROM your_table').all();
     //   // Process the result...
+    // }
+    
+    // Example of how to use the auth service binding:
+    // if (env?.AUTH_SERVICE) {
+    //   const authResponse = await env.AUTH_SERVICE.fetch('https://auth-service.your-domain.com/auth/validate', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ token: 'user-token' })
+    //   });
+    //   // Process the auth response...
     // }
     
     // Default behavior: redirect to base URL
