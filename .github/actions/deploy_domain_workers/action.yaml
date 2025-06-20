@@ -11,6 +11,9 @@ inputs:
   domain_worker_names:
     description: 'JSON string of domain worker names for deployment'
     required: true
+  domain_database_ids:
+    description: 'JSON string of domain database IDs for database bindings'
+    required: true
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
@@ -35,8 +38,9 @@ runs:
     - name: Deploy Domain Workers
       shell: bash
       run: |
-        # Parse the domain worker names JSON
+        # Parse the domain worker names and database IDs JSON
         DOMAIN_WORKERS='${{ inputs.domain_worker_names }}'
+        DOMAIN_DATABASES='${{ inputs.domain_database_ids }}'
         
         # Loop through each domain worker and deploy it
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
@@ -50,6 +54,23 @@ runs:
           
           # Update the wrangler.toml with the worker name
           sed -i "s/name = \"\"/name = \"$worker_name\"/" "$temp_dir/wrangler.toml"
+          
+          # Find the corresponding database ID for this worker
+          # The worker name format is "{repo_name}-worker", so we extract the repo name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
+          # Get the database ID for this repo
+          database_id=$(echo "$DOMAIN_DATABASES" | jq -r --arg repo "$repo_name" '.[$repo].database_id')
+          
+          if [ "$database_id" != "null" ] && [ -n "$database_id" ]; then
+            echo "Adding database binding for $repo_name with ID: $database_id"
+            
+            # Update the existing database configuration in wrangler.toml
+            sed -i "s/database_name = \"\"/database_name = \"${repo_name}-db\"/" "$temp_dir/wrangler.toml"
+            sed -i "s/database_id = \"\"/database_id = \"$database_id\"/" "$temp_dir/wrangler.toml"
+          else
+            echo "::warning::No database ID found for repo $repo_name, skipping database binding"
+          fi
           
           # Deploy the worker
           cd "$temp_dir"

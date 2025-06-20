@@ -10,7 +10,6 @@ export default {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         domain: request.headers.get('host'),
-        worker: 'domain-worker'
       }), {
         status: 200,
         headers: {
@@ -33,6 +32,12 @@ export default {
         }
       });
     }
+    
+    // Example of how to use the database binding:
+    // if (env?.DOMAIN_DB) {
+    //   const result = await env.DOMAIN_DB.prepare('SELECT * FROM your_table').all();
+    //   // Process the result...
+    // }
     
     // Default behavior: redirect to base URL
     const base = "https://example.com";
