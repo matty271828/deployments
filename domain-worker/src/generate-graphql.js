@@ -1,11 +1,224 @@
 const fs = require('fs');
 const path = require('path');
 
-// Import the GraphQL generator
-const { generateGraphQLModule } = require('./graphql-generator');
+// Simple GraphQL generator logic (self-contained)
+function parseCreateTable(sql) {
+  // Simple regex-based parser for CREATE TABLE statements
+  const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\)/gi;
+  const tables = [];
+  let match;
 
-// Read the schema.sql file
-const schemaSql = fs.readFileSync('../schema.sql', 'utf8');
+  while ((match = createTableRegex.exec(sql)) !== null) {
+    const tableName = match[1];
+    const columnDefinitions = match[2];
+    
+    const columns = [];
+    const columnLines = columnDefinitions.split(',').map(line => line.trim());
+    
+    for (const line of columnLines) {
+      if (line.startsWith('PRIMARY KEY') || line.startsWith('FOREIGN KEY') || line.startsWith('UNIQUE') || line.startsWith('INDEX')) {
+        continue;
+      }
+      
+      const columnMatch = line.match(/^[`"]?(\w+)[`"]?\s+(\w+(?:\(\d+(?:,\d+)?\))?)\s*(NOT\s+NULL|NULL)?\s*(PRIMARY\s+KEY)?\s*(AUTOINCREMENT|AUTO_INCREMENT)?/i);
+      
+      if (columnMatch) {
+        const [, name, type, nullable, primaryKey] = columnMatch;
+        columns.push({
+          name,
+          type: type.toUpperCase(),
+          nullable: !nullable || nullable.toUpperCase() === 'NULL',
+          primaryKey: !!primaryKey
+        });
+      }
+    }
+    
+    tables.push({ name: tableName, columns });
+  }
+  
+  return tables;
+}
+
+function sqlTypeToGraphQLType(sqlType, nullable) {
+  let graphqlType = 'String';
+  
+  if (sqlType.includes('INT') || sqlType.includes('REAL') || sqlType.includes('FLOAT') || sqlType.includes('DOUBLE')) {
+    graphqlType = 'Int';
+  } else if (sqlType.includes('BOOL')) {
+    graphqlType = 'Boolean';
+  }
+  
+  return nullable ? graphqlType : `${graphqlType}!`;
+}
+
+function generateGraphQLType(table) {
+  const fields = table.columns.map(col => {
+    const graphqlType = sqlTypeToGraphQLType(col.type, col.nullable);
+    return `  ${col.name}: ${graphqlType}`;
+  }).join('\n');
+  
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  
+  return `type ${capitalizedName} {
+${fields}
+}`;
+}
+
+function generateInputTypes(table) {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  
+  // Create input type (excludes auto-generated fields)
+  const createFields = table.columns
+    .filter(col => !col.primaryKey && col.name !== 'created_at' && col.name !== 'updated_at')
+    .map(col => {
+      const graphqlType = sqlTypeToGraphQLType(col.type, col.nullable);
+      return `  ${col.name}: ${graphqlType}`;
+    }).join('\n');
+  
+  return `input Create${capitalizedName}Input {
+${createFields}
+}
+
+input Update${capitalizedName}Input {
+${createFields}
+}`;
+}
+
+function generateTableResolvers(table) {
+  const tableName = table.name;
+  const capitalizedName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
+  const primaryKeyColumn = table.columns.find(col => col.primaryKey)?.name || 'id';
+  
+  return `
+// ${tableName} resolvers
+const ${tableName}Resolvers = {
+  Query: {
+    ${tableName}s: async (_, __, { user_id, db }) => {
+      if (!user_id) throw new Error('User ID required');
+      const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE user_id = ?\`).bind(user_id).all();
+      return result.results;
+    },
+    ${tableName}: async (_, { id }, { user_id, db }) => {
+      if (!user_id) throw new Error('User ID required');
+      const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).first();
+      if (!result) throw new Error('Not found');
+      return result;
+    }
+  },
+  Mutation: {
+    create${capitalizedName}: async (_, { input }, { user_id, db }) => {
+      if (!user_id) throw new Error('User ID required');
+      const dataWithUserId = { ...input, user_id };
+      const columns = Object.keys(dataWithUserId).join(', ');
+      const placeholders = Object.keys(dataWithUserId).map(() => '?').join(', ');
+      const values = Object.values(dataWithUserId);
+      
+      const result = await db.prepare(\`INSERT INTO ${tableName} (\${columns}) VALUES (\${placeholders})\`).bind(...values).run();
+      return { id: result.meta.last_row_id, ...input };
+    },
+    update${capitalizedName}: async (_, { id, input }, { user_id, db }) => {
+      if (!user_id) throw new Error('User ID required');
+      const setClause = Object.keys(input).map(key => \`\${key} = ?\`).join(', ');
+      const values = [...Object.values(input), id, user_id];
+      
+      const result = await db.prepare(\`UPDATE ${tableName} SET \${setClause} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(...values).run();
+      if (result.meta.changes === 0) throw new Error('Not found');
+      return { id, ...input };
+    },
+    delete${capitalizedName}: async (_, { id }, { user_id, db }) => {
+      if (!user_id) throw new Error('User ID required');
+      const result = await db.prepare(\`DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).run();
+      if (result.meta.changes === 0) throw new Error('Not found');
+      return true;
+    }
+  }
+};`;
+}
+
+function generateGraphQLSchema(tables) {
+  const types = tables.map(table => generateGraphQLType(table)).join('\n\n');
+  const inputs = tables.map(table => generateInputTypes(table)).join('\n\n');
+  
+  return `const typeDefs = \`#graphql
+${types}
+
+${inputs}
+
+type Query {
+${tables.map(table => `  ${table.name}s: [${table.name.charAt(0).toUpperCase() + table.name.slice(1)}]!
+  ${table.name}(id: ID!): ${table.name.charAt(0).toUpperCase() + table.name.slice(1)}`).join('\n')}
+}
+
+type Mutation {
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return `  create${capitalizedName}(input: Create${capitalizedName}Input!): ${capitalizedName}!
+  update${capitalizedName}(id: ID!, input: Update${capitalizedName}Input!): ${capitalizedName}!
+  delete${capitalizedName}(id: ID!): Boolean!`;
+}).join('\n')}
+}\`;`;
+}
+
+function generateResolverMapping(tables) {
+  const resolvers = tables.map(table => generateTableResolvers(table)).join('\n');
+  
+  return `${resolvers}
+
+const resolvers = {
+  Query: {
+${tables.map(table => `    ${table.name}s: ${table.name}Resolvers.Query.${table.name}s,
+    ${table.name}: ${table.name}Resolvers.Query.${table.name}`).join(',\n')}
+  },
+  Mutation: {
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return `    create${capitalizedName}: ${table.name}Resolvers.Mutation.create${capitalizedName},
+    update${capitalizedName}: ${table.name}Resolvers.Mutation.update${capitalizedName},
+    delete${capitalizedName}: ${table.name}Resolvers.Mutation.delete${capitalizedName}`;
+}).join(',\n')}
+  }
+};`;
+}
+
+function generateGraphQLModule(schemaSql) {
+  const tables = parseCreateTable(schemaSql);
+  
+  if (tables.length === 0) {
+    console.log('No tables found in schema, using placeholder GraphQL code');
+    return `// Placeholder GraphQL code - no tables found in schema
+const typeDefs = \`#graphql
+type Query {
+  hello: String!
+}
+
+type Mutation {
+  hello: String!
+}\`;
+
+const resolvers = {
+  Query: {
+    hello: () => 'Hello from GraphQL!'
+  },
+  Mutation: {
+    hello: () => 'Hello from GraphQL mutation!'
+  }
+};
+
+export { typeDefs, resolvers };`;
+  }
+  
+  const schema = generateGraphQLSchema(tables);
+  const resolvers = generateResolverMapping(tables);
+  
+  return `${schema}
+
+${resolvers}
+
+export { typeDefs, resolvers };`;
+}
+
+// Read the schema.sql file (it should be in the current directory when copied)
+const schemaSql = fs.readFileSync('./schema.sql', 'utf8');
 
 // Generate the GraphQL code
 const generatedCode = generateGraphQLModule(schemaSql);
