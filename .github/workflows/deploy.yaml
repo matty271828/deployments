@@ -80,6 +80,22 @@ jobs:
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
+  deploy-domain-workers:
+    name: 'Deploy Domain Workers'
+    needs: [run-terraform]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Domain Workers
+        uses: ./.github/actions/deploy_domain_workers
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
   deploy-pages:
     name: 'Deploy Pages'
     needs: [run-terraform]

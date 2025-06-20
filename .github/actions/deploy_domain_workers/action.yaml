@@ -1,0 +1,66 @@
+name: 'Deploy Domain Workers'
+description: 'Deploys multiple domain workers for different domains'
+
+inputs:
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  cloudflare_api_token:
+    description: 'Cloudflare API token'
+    required: true
+  domain_worker_names:
+    description: 'JSON string of domain worker names for deployment'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies for domain-worker template
+      working-directory: './domain-worker'
+      shell: bash
+      run: 'npm install'
+
+    # Deploy each domain worker by cloning the template and updating the name
+    - name: Deploy Domain Workers
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ inputs.domain_worker_names }}'
+        
+        # Loop through each domain worker and deploy it
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Deploying domain worker: $worker_name"
+          
+          # Create a temporary directory for this worker
+          temp_dir=$(mktemp -d)
+          
+          # Copy the domain-worker template to the temp directory
+          cp -r domain-worker/* "$temp_dir/"
+          
+          # Update the wrangler.toml with the worker name
+          sed -i "s/name = \"\"/name = \"$worker_name\"/" "$temp_dir/wrangler.toml"
+          
+          # Deploy the worker
+          cd "$temp_dir"
+          npx wrangler deploy
+          
+          # Clean up
+          cd - > /dev/null
+          rm -rf "$temp_dir"
+          
+          echo "Successfully deployed: $worker_name"
+        done
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

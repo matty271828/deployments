@@ -42,7 +42,8 @@ runs:
       run: |
         sed -i "s/database_id = \"\"/database_id = \"${{ inputs.auth_db_id }}\"/" wrangler.toml
 
-    # Add worker-to-worker bindings for each domain worker
+    # Add worker-to-worker binding for each domain worker.
+    # These are the 1 to many bindings from the auth-service to the domain workers.
     - name: Add worker-to-worker bindings
       working-directory: './auth-service'
       shell: bash
