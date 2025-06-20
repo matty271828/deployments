@@ -46,28 +46,39 @@ runs:
         echo "Database mappings:"
         echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | "\(.key): \(.value.database_id)"'
 
-    - name: Clone Frontend Repositories
+    - name: Fetch Schema Files
       shell: bash
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
         
-        # Loop through each domain worker and clone the frontend repo
+        # Loop through each domain worker and fetch the schema file
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
-          echo "Cloning frontend repo for: $worker_name"
+          echo "Fetching schema for: $worker_name"
           
           # Extract repo name from worker name
           repo_name=$(echo "$worker_name" | sed 's/-worker$//')
           
-          # Create temp directory for frontend repo
-          frontend_temp_dir=$(mktemp -d)
-          echo "frontend_temp_dir_${worker_name}=$frontend_temp_dir" >> $GITHUB_OUTPUT
+          # Create temp directory for schema file
+          schema_temp_dir=$(mktemp -d)
+          echo "schema_temp_dir_${worker_name}=$schema_temp_dir" >> $GITHUB_OUTPUT
           
-          # Clone the frontend repo
-          cd "$frontend_temp_dir"
-          git clone "https://x-access-token:${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/matty271828/$repo_name.git" .
+          # Fetch just the schema.sql file using GitHub API
+          cd "$schema_temp_dir"
           
-          echo "Frontend repo cloned for $worker_name in $frontend_temp_dir"
+          # Get the schema file content from the repo
+          SCHEMA_CONTENT=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+            "https://api.github.com/repos/matty271828/$repo_name/contents/schema.sql" | \
+            jq -r '.content // empty' | base64 -d)
+          
+          if [ -n "$SCHEMA_CONTENT" ]; then
+            echo "$SCHEMA_CONTENT" > schema.sql
+            echo "Schema file fetched for $repo_name"
+          else
+            echo "No schema.sql found in $repo_name"
+            # Create empty file to avoid errors
+            touch schema.sql
+          fi
         done
 
     - name: Generate Documentation
@@ -80,14 +91,14 @@ runs:
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Generating documentation for: $worker_name"
           
-          # Get the frontend temp directory
-          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          # Get the schema temp directory
+          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
           
           # Extract repo name from worker name
           repo_name=$(echo "$worker_name" | sed 's/-worker$//')
           
           # Check if schema.sql exists
-          if [ -f "$frontend_temp_dir/schema.sql" ]; then
+          if [ -f "$schema_temp_dir/schema.sql" ]; then
             echo "Found schema.sql in $repo_name, generating documentation..."
             
             # Create a temporary directory for documentation generation
@@ -107,7 +118,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Read the schema.sql file
-const schemaSql = fs.readFileSync('../schema.sql', 'utf8');
+const schemaSql = fs.readFileSync('./schema.sql', 'utf8');
 
 // Parse the schema to extract table information
 const tables = [];
@@ -325,7 +336,7 @@ mutation DeleteUser {
 `;
 
 // Write the documentation
-fs.writeFileSync('../API_DOCUMENTATION.md', graphqlDocs);
+fs.writeFileSync('./API_DOCUMENTATION.md', graphqlDocs);
 
 console.log('Documentation generated successfully');
 EOF
@@ -353,60 +364,64 @@ EOF
           echo "Pushing documentation for: $worker_name"
           
           # Get the temp directories
-          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
           docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
           
           # Extract repo name from worker name
           repo_name=$(echo "$worker_name" | sed 's/-worker$//')
           
           # Check if documentation was generated
-          if [ -n "$docs_temp_dir" ] && [ -f "$docs_temp_dir/../API_DOCUMENTATION.md" ]; then
+          if [ -n "$docs_temp_dir" ] && [ -f "$docs_temp_dir/API_DOCUMENTATION.md" ]; then
             echo "Pushing documentation to $repo_name repo..."
-            cd "$frontend_temp_dir"
             
-            # Configure git
-            git config user.email "deployment@example.com"
-            git config user.name "Deployment Bot"
+            # Read the generated documentation
+            DOCS_CONTENT=$(cat "$docs_temp_dir/API_DOCUMENTATION.md")
             
-            # Check if documentation already exists and if it has changes
-            if [ -f "API_DOCUMENTATION.md" ]; then
+            # Check if documentation already exists in the repo
+            EXISTING_DOCS=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+              "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md" | \
+              jq -r '.sha // empty')
+            
+            if [ -n "$EXISTING_DOCS" ]; then
               echo "Existing API_DOCUMENTATION.md found, checking for changes..."
               
-              # Create a temporary file to compare
-              cp API_DOCUMENTATION.md API_DOCUMENTATION.md.backup
+              # Get existing content to compare
+              EXISTING_CONTENT=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+                "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md" | \
+                jq -r '.content // empty' | base64 -d)
               
-              # Replace with new documentation
-              cp ../API_DOCUMENTATION.md API_DOCUMENTATION.md
-              
-              # Check if there are any differences
-              if git diff --quiet API_DOCUMENTATION.md.backup API_DOCUMENTATION.md; then
-                echo "No changes detected in documentation, skipping commit"
-                # Restore original file
-                mv API_DOCUMENTATION.md.backup API_DOCUMENTATION.md
+              if [ "$DOCS_CONTENT" = "$EXISTING_CONTENT" ]; then
+                echo "No changes detected in documentation, skipping update"
               else
-                echo "Changes detected in documentation, committing..."
-                # Remove backup
-                rm API_DOCUMENTATION.md.backup
+                echo "Changes detected in documentation, updating..."
                 
-                # Add and commit the documentation
-                git add API_DOCUMENTATION.md
-                git commit -m "Auto-generated GraphQL API documentation"
+                # Update the file using GitHub API
+                curl -X PUT \
+                  -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"message\": \"Auto-generated GraphQL API documentation\",
+                    \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\",
+                    \"sha\": \"$EXISTING_DOCS\"
+                  }" \
+                  "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md"
                 
-                # Push to the repo
-                git push origin main
+                echo "Documentation updated for $repo_name"
               fi
             else
               echo "No existing API_DOCUMENTATION.md found, creating new documentation..."
               
-              # Copy the new documentation
-              cp ../API_DOCUMENTATION.md API_DOCUMENTATION.md
+              # Create the file using GitHub API
+              curl -X PUT \
+                -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"message\": \"Auto-generated GraphQL API documentation\",
+                  \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\"
+                }" \
+                "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md"
               
-              # Add and commit the documentation
-              git add API_DOCUMENTATION.md
-              git commit -m "Auto-generated GraphQL API documentation"
-              
-              # Push to the repo
-              git push origin main
+              echo "Documentation created for $repo_name"
             fi
             
             echo "Documentation process completed for $repo_name"
@@ -426,12 +441,12 @@ EOF
           echo "Cleaning up temporary files for: $worker_name"
           
           # Get the temp directories
-          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          schema_temp_dir="${{ steps.fetch-schema.outputs.schema_temp_dir_${worker_name} }}"
           docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
           
           # Clean up temp directories
-          if [ -n "$frontend_temp_dir" ] && [ -d "$frontend_temp_dir" ]; then
-            rm -rf "$frontend_temp_dir"
+          if [ -n "$schema_temp_dir" ] && [ -d "$schema_temp_dir" ]; then
+            rm -rf "$schema_temp_dir"
           fi
           
           if [ -n "$docs_temp_dir" ] && [ -d "$docs_temp_dir" ]; then
