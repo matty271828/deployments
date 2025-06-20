@@ -108,6 +108,15 @@ output "auth_db_id" {
   sensitive   = true
 }
 
+# Output domain worker names for worker-to-worker bindings
+output "domain_worker_names" {
+  description = "The names of the domain workers for worker-to-worker bindings"
+  value = {
+    for key, worker in cloudflare_workers_script.domain_worker : key => worker.name
+  }
+  sensitive = true
+}
+
 # Create the shared auth service worker (intial no-op to ensure worker exists)
 resource "cloudflare_workers_script" "auth_service" {
   account_id       = var.cloudflare_account_id
