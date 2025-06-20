@@ -5,7 +5,7 @@ export default {
     const url = new URL(request.url);
     
     // Handle health check endpoint
-    if (url.pathname === '/health') {
+    if (url.pathname === '/backend/health') {
       return new Response(JSON.stringify({
         status: 'healthy',
         timestamp: new Date().toISOString(),
