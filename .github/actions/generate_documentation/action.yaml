@@ -29,6 +29,7 @@ runs:
       run: 'npm install'
 
     - name: Parse Domain Configuration
+      id: parse-config
       shell: bash
       run: |
         # Parse the domain worker names and database IDs JSON
