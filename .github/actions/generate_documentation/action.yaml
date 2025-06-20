@@ -47,15 +47,12 @@ runs:
         echo "Database mappings:"
         echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | "\(.key): \(.value.database_id)"'
 
-    - name: Fetch Schemas and Generate Documentation
+    - name: Fetch Schemas, Generate and Push Documentation
       shell: bash
       run: |
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         
-        # Create a JSON object to store docs temp directories
-        DOCS_TEMP_DIRS='{}'
-        
-        # Loop through each domain database and fetch schema + generate documentation
+        # Loop through each domain database and fetch schema + generate + push documentation
         while IFS= read -r repo_name; do
           echo "Processing repo: $repo_name"
           
@@ -69,9 +66,6 @@ runs:
             
             # Create a temporary directory for documentation generation
             docs_temp_dir=$(mktemp -d)
-            
-            # Add to our JSON object
-            DOCS_TEMP_DIRS=$(echo "$DOCS_TEMP_DIRS" | jq --arg repo "$repo_name" --arg dir "$docs_temp_dir" '. + {($repo): $dir}')
             
             # Copy the domain-worker template to get the generator
             cp -r domain-worker/* "$docs_temp_dir/"
@@ -93,83 +87,70 @@ runs:
             rm generate-docs.js
             
             echo "Documentation generated for $repo_name"
-          else
-            echo "No schema.sql found in $repo_name, skipping documentation generation"
-          fi
-        done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
-        
-        # Store the docs temp directories as a single output
-        echo "docs_temp_dirs=$(echo "$DOCS_TEMP_DIRS" | jq -c .)" >> $GITHUB_OUTPUT
-
-    - name: Push Documentation to Repositories
-      shell: bash
-      run: |
-        DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
-        DOCS_TEMP_DIRS='${{ steps.generate-docs.outputs.docs_temp_dirs }}'
-        
-        # Loop through each domain database and push documentation
-        while IFS= read -r repo_name; do
-          echo "Pushing documentation for repo: $repo_name"
-          
-          # Get the docs temp directory
-          docs_temp_dir=$(echo "$DOCS_TEMP_DIRS" | jq -r --arg repo "$repo_name" '.[$repo]')
-          
-          # Check if documentation was generated
-          if [ -n "$docs_temp_dir" ] && [ "$docs_temp_dir" != "null" ] && [ -f "$docs_temp_dir/API_DOCUMENTATION.md" ]; then
-            echo "Pushing documentation to $repo_name repo..."
             
-            # Read the generated documentation
-            DOCS_CONTENT=$(cat "$docs_temp_dir/API_DOCUMENTATION.md")
-            
-            # Check if documentation already exists in the repo
-            EXISTING_DOCS=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
-              "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md" | \
-              jq -r '.sha // empty')
-            
-            if [ -n "$EXISTING_DOCS" ]; then
-              echo "Existing API_DOCUMENTATION.md found, checking for changes..."
+            # Now push the documentation
+            if [ -f "API_DOCUMENTATION.md" ]; then
+              echo "Pushing documentation to $repo_name repo..."
               
-              # Get existing content to compare
-              EXISTING_CONTENT=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+              # Read the generated documentation
+              DOCS_CONTENT=$(cat "API_DOCUMENTATION.md")
+              
+              # Check if documentation already exists in the repo
+              EXISTING_DOCS=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
                 "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md" | \
-                jq -r '.content // empty' | base64 -d)
+                jq -r '.sha // empty')
               
-              if [ "$DOCS_CONTENT" = "$EXISTING_CONTENT" ]; then
-                echo "No changes detected in documentation, skipping update"
-              else
-                echo "Changes detected in documentation, updating..."
+              if [ -n "$EXISTING_DOCS" ]; then
+                echo "Existing API_DOCUMENTATION.md found, checking for changes..."
                 
-                # Update the file using GitHub API
+                # Get existing content to compare
+                EXISTING_CONTENT=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+                  "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md" | \
+                  jq -r '.content // empty' | base64 -d)
+                
+                if [ "$DOCS_CONTENT" = "$EXISTING_CONTENT" ]; then
+                  echo "No changes detected in documentation, skipping update"
+                else
+                  echo "Changes detected in documentation, updating..."
+                  
+                  # Update the file using GitHub API
+                  curl -X PUT \
+                    -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+                    -H "Content-Type: application/json" \
+                    -d "{
+                      \"message\": \"Auto-generated GraphQL API documentation\",
+                      \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\",
+                      \"sha\": \"$EXISTING_DOCS\"
+                    }" \
+                    "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md"
+                  
+                  echo "Documentation updated for $repo_name"
+                fi
+              else
+                echo "No existing API_DOCUMENTATION.md found, creating new documentation..."
+                
+                # Create the file using GitHub API
                 curl -X PUT \
                   -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
                   -H "Content-Type: application/json" \
                   -d "{
                     \"message\": \"Auto-generated GraphQL API documentation\",
-                    \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\",
-                    \"sha\": \"$EXISTING_DOCS\"
+                    \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\"
                   }" \
                   "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md"
                 
-                echo "Documentation updated for $repo_name"
+                echo "Documentation created for $repo_name"
               fi
+              
+              echo "Documentation process completed for $repo_name"
             else
-              echo "No existing API_DOCUMENTATION.md found, creating new documentation..."
-              
-              # Create the file using GitHub API
-              curl -X PUT \
-                -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
-                -H "Content-Type: application/json" \
-                -d "{
-                  \"message\": \"Auto-generated GraphQL API documentation\",
-                  \"content\": \"$(echo "$DOCS_CONTENT" | base64 -w 0)\"
-                }" \
-                "https://api.github.com/repos/matty271828/$repo_name/contents/API_DOCUMENTATION.md"
-              
-              echo "Documentation created for $repo_name"
+              echo "No documentation file generated for $repo_name, skipping push"
             fi
             
-            echo "Documentation process completed for $repo_name"
+            # Clean up temp directory
+            cd - > /dev/null
+            rm -rf "$docs_temp_dir"
           else
-            echo "No documentation generated for $repo_name, skipping push"
+            echo "No schema.sql found in $repo_name, skipping documentation generation"
           fi
         done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
