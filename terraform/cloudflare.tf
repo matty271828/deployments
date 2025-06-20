@@ -92,6 +92,14 @@ resource "cloudflare_workers_script" "domain_worker" {
   content          = "addEventListener('fetch', event => { event.respondWith(new Response('OK')) })"
 }
 
+# Output domain worker names for worker-to-worker bindings
+output "domain_worker_names" {
+  description = "The names of the domain workers for worker-to-worker bindings"
+  value = {
+    for key, worker in cloudflare_workers_script.domain_worker : key => worker.script_name
+  }
+}
+
 # Create the shared auth service database
 resource "cloudflare_d1_database" "AUTH_DB" {
   account_id = var.cloudflare_account_id
@@ -106,14 +114,6 @@ output "auth_db_id" {
   description = "The ID of the AUTH_DB D1 database"
   value       = cloudflare_d1_database.AUTH_DB.id
   sensitive   = true
-}
-
-# Output domain worker names for worker-to-worker bindings
-output "domain_worker_names" {
-  description = "The names of the domain workers for worker-to-worker bindings"
-  value = {
-    for key, worker in cloudflare_workers_script.domain_worker : key => worker.script_name
-  }
 }
 
 # Create the shared auth service worker (intial no-op to ensure worker exists)
