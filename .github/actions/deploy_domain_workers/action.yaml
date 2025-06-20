@@ -181,8 +181,8 @@ runs:
             cd "$temp_dir"
             npm install
             
-            # Copy the GraphQL generation script
-            cp ../../.github/actions/deploy_domain_workers/generate-graphql.js .
+            # Copy the GraphQL generation script from domain-worker package
+            cp src/generate-graphql.js .
             
             # Run the GraphQL generation script
             node generate-graphql.js
