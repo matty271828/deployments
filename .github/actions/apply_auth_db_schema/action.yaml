@@ -1,5 +1,5 @@
 name: 'Apply Auth DB Schema'
-description: 'Applies the auth db schema for all domains'
+description: 'Applies the auth service database schema'
 
 inputs:
   cloudflare_account_id:
@@ -12,7 +12,6 @@ inputs:
     description: 'The ID of the AUTH_DB D1 database'
     required: true
   
-
 runs:
   using: 'composite'
   steps:
