@@ -63,14 +63,14 @@ ${tables.map(table => {
     else if (col.type.includes('REAL') || col.type.includes('FLOAT')) graphqlType = 'Float';
     else if (col.type.includes('BOOL')) graphqlType = 'Boolean';
     
-    return \`  \${col.name}: \${graphqlType}\${col.nullable ? '' : '!'}\`;
-  }).join('\\n');
+    return `  ${col.name}: ${graphqlType}${col.nullable ? '' : '!'}`;
+  }).join('\n');
   
-  return \`### \${capitalizedName}
+  return `### ${capitalizedName}
 
 \`\`\`graphql
-type \${capitalizedName} {
-\${fields}
+type ${capitalizedName} {
+${fields}
 }
 \`\`\`
 
@@ -81,38 +81,38 @@ ${table.columns.map(col => {
   else if (col.type.includes('REAL') || col.type.includes('FLOAT')) graphqlType = 'Float';
   else if (col.type.includes('BOOL')) graphqlType = 'Boolean';
   
-  return \`- \${col.name} (\${graphqlType})\${col.primaryKey ? ' - Primary Key' : ''}\${col.nullable ? ' - Optional' : ' - Required'}\`;
-}).join('\\n')}
-\`;
-}).join('\\n\\n')}
+  return `- ${col.name} (${graphqlType})${col.primaryKey ? ' - Primary Key' : ''}${col.nullable ? ' - Optional' : ' - Required'}`;
+}).join('\n')}
+`;
+}).join('\n\n')}
 
 ## Queries
 
 ${tables.map(table => {
   const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
-  return \`### Get All \${capitalizedName}s
+  return `### Get All ${capitalizedName}s
 
 \`\`\`graphql
 query {
-  \${table.name}s {
+  ${table.name}s {
     id
     # Add other fields as needed
   }
 }
 \`\`\`
 
-### Get Single \${capitalizedName}
+### Get Single ${capitalizedName}
 
 \`\`\`graphql
 query {
-  \${table.name}(id: "123") {
+  ${table.name}(id: "123") {
     id
     # Add other fields as needed
   }
 }
 \`\`\`
-\`;
-}).join('\\n\\n')}
+`;
+}).join('\n\n')}
 
 ## Mutations
 
@@ -123,12 +123,12 @@ ${tables.map(table => {
     .map(col => col.name)
     .join(', ');
   
-  return \`### Create \${capitalizedName}
+  return `### Create ${capitalizedName}
 
 \`\`\`graphql
 mutation {
-  create\${capitalizedName}(input: {
-    \${createFields}
+  create${capitalizedName}(input: {
+    ${createFields}
   }) {
     id
     # Add other fields as needed
@@ -136,11 +136,11 @@ mutation {
 }
 \`\`\`
 
-### Update \${capitalizedName}
+### Update ${capitalizedName}
 
 \`\`\`graphql
 mutation {
-  update\${capitalizedName}(id: "123", input: {
+  update${capitalizedName}(id: "123", input: {
     # Add fields to update
   }) {
     id
@@ -149,15 +149,15 @@ mutation {
 }
 \`\`\`
 
-### Delete \${capitalizedName}
+### Delete ${capitalizedName}
 
 \`\`\`graphql
 mutation {
-  delete\${capitalizedName}(id: "123")
+  delete${capitalizedName}(id: "123")
 }
 \`\`\`
-\`;
-}).join('\\n\\n')}
+`;
+}).join('\n\n')}
 
 ## Examples
 
