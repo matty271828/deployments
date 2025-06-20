@@ -92,6 +92,9 @@ runs:
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
         SCHEMA_TEMP_DIRS='${{ steps.fetch-schema.outputs.schema_temp_dirs }}'
         
+        # Debug: Print the schema temp dirs
+        echo "SCHEMA_TEMP_DIRS: $SCHEMA_TEMP_DIRS"
+        
         # Create a JSON object to store docs temp directories
         DOCS_TEMP_DIRS='{}'
         
@@ -101,6 +104,9 @@ runs:
           
           # Get the schema temp directory
           schema_temp_dir=$(echo "$SCHEMA_TEMP_DIRS" | jq -r --arg repo "$repo_name" '.[$repo]')
+          
+          # Debug: Print the schema temp dir for this repo
+          echo "Schema temp dir for $repo_name: $schema_temp_dir"
           
           # Check if schema.sql exists
           if [ -f "$schema_temp_dir/schema.sql" ]; then
@@ -131,6 +137,9 @@ runs:
             echo "Documentation generated for $repo_name"
           else
             echo "No schema.sql found in $repo_name, skipping documentation generation"
+            echo "Looking for schema.sql in: $schema_temp_dir"
+            echo "Directory contents:"
+            ls -la "$schema_temp_dir" || echo "Directory does not exist"
           fi
         done < <(echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | .key')
         
