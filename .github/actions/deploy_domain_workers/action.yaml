@@ -67,6 +67,9 @@ runs:
         echo "Domain worker template exists: $([ -d "domain-worker" ] && echo "YES" || echo "NO")"
         echo "========================================"
         
+        # Create schemas directory in workspace
+        mkdir -p .github/schemas
+        
         # Loop through each domain worker and process completely
         while IFS= read -r worker_name; do
           echo "=== DEBUG: Processing worker: $worker_name ==="
@@ -116,26 +119,22 @@ runs:
           
           echo "DEBUG: Template prepared and bindings configured for $worker_name in $temp_dir"
           
-          # Clone frontend repo and generate GraphQL code
-          echo "DEBUG: Processing frontend repo and generating GraphQL code for: $worker_name"
+          # Fetch schema and generate GraphQL code
+          echo "DEBUG: Fetching schema and generating GraphQL code for: $worker_name"
           
-          # Create temp directory for frontend repo
-          frontend_temp_dir=$(mktemp -d)
-          echo "DEBUG: Created frontend temp directory: $frontend_temp_dir"
+          # Get the schema file content from the repo
+          SCHEMA_CONTENT=$(curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
+            "https://api.github.com/repos/matty271828/$repo_name/contents/schema.sql" | \
+            jq -r '.content // empty' | base64 -d)
           
-          # Clone the frontend repo
-          echo "DEBUG: Cloning frontend repo: https://x-access-token:***@github.com/matty271828/$repo_name.git"
-          cd "$frontend_temp_dir"
-          git clone "https://x-access-token:${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/matty271828/$repo_name.git" .
-          
-          echo "DEBUG: Frontend repo cloned. Contents:"
-          ls -la
-          
-          # Check if schema.sql exists and generate GraphQL code
-          if [ -f "schema.sql" ]; then
+          if [ -n "$SCHEMA_CONTENT" ]; then
             echo "DEBUG: Found schema.sql in $repo_name, generating GraphQL code..."
             echo "DEBUG: Schema.sql contents:"
-            cat schema.sql
+            echo "$SCHEMA_CONTENT"
+            
+            # Write the schema content to workspace file
+            echo "$SCHEMA_CONTENT" > ".github/schemas/${repo_name}.sql"
+            echo "DEBUG: Schema written to .github/schemas/${repo_name}.sql"
             
             # Install dependencies in the temp worker directory
             echo "DEBUG: Installing dependencies in worker temp directory"
@@ -148,6 +147,10 @@ runs:
             # Copy the GraphQL generation script from domain-worker package
             echo "DEBUG: Copying GraphQL generation script"
             cp src/generate-graphql.js .
+            
+            # Copy the schema file to the worker directory
+            echo "DEBUG: Copying schema file to worker directory"
+            cp "../../.github/schemas/${repo_name}.sql" ./schema.sql
             
             # Run the GraphQL generation script
             echo "DEBUG: Running GraphQL generation script"
@@ -162,8 +165,6 @@ runs:
             echo "GraphQL code generated for $repo_name"
           else
             echo "DEBUG: No schema.sql found in $repo_name, using placeholder GraphQL code"
-            echo "DEBUG: Available files in frontend repo:"
-            ls -la
           fi
           
           # Deploy the worker
@@ -181,11 +182,6 @@ runs:
           
           echo "DEBUG: Deployment completed for: $worker_name"
           echo "Successfully deployed: $worker_name"
-          
-          # Clean up frontend temp directory
-          echo "DEBUG: Cleaning up frontend temp directory: $frontend_temp_dir"
-          cd - > /dev/null
-          rm -rf "$frontend_temp_dir"
           
           echo "=== DEBUG: Completed processing worker: $worker_name ==="
           echo ""
