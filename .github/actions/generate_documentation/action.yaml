@@ -1,0 +1,442 @@
+name: 'Generate Documentation'
+description: 'Generates GraphQL API documentation from database schemas and pushes to frontend repositories'
+
+inputs:
+  domain_worker_names:
+    description: 'JSON string of domain worker names for documentation generation'
+    required: true
+  domain_database_ids:
+    description: 'JSON string of domain database IDs for reference'
+    required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies for domain-worker template
+      working-directory: './domain-worker'
+      shell: bash
+      run: 'npm install'
+
+    - name: Parse Domain Configuration
+      shell: bash
+      run: |
+        # Parse the domain worker names and database IDs JSON
+        DOMAIN_WORKERS='${{ inputs.domain_worker_names }}'
+        DOMAIN_DATABASES='${{ inputs.domain_database_ids }}'
+        
+        # Store the parsed data for use in subsequent steps
+        echo "domain_workers=$DOMAIN_WORKERS" >> $GITHUB_OUTPUT
+        echo "domain_databases=$DOMAIN_DATABASES" >> $GITHUB_OUTPUT
+        
+        # Display what we're working with
+        echo "Domain workers for documentation generation:"
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value'
+        echo ""
+        echo "Database mappings:"
+        echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | "\(.key): \(.value.database_id)"'
+
+    - name: Clone Frontend Repositories
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and clone the frontend repo
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Cloning frontend repo for: $worker_name"
+          
+          # Extract repo name from worker name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
+          # Create temp directory for frontend repo
+          frontend_temp_dir=$(mktemp -d)
+          echo "frontend_temp_dir_${worker_name}=$frontend_temp_dir" >> $GITHUB_OUTPUT
+          
+          # Clone the frontend repo
+          cd "$frontend_temp_dir"
+          git clone "https://x-access-token:${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/matty271828/$repo_name.git" .
+          
+          echo "Frontend repo cloned for $worker_name in $frontend_temp_dir"
+        done
+
+    - name: Generate Documentation
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and generate documentation
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Generating documentation for: $worker_name"
+          
+          # Get the frontend temp directory
+          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          
+          # Extract repo name from worker name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
+          # Check if schema.sql exists
+          if [ -f "$frontend_temp_dir/schema.sql" ]; then
+            echo "Found schema.sql in $repo_name, generating documentation..."
+            
+            # Create a temporary directory for documentation generation
+            docs_temp_dir=$(mktemp -d)
+            echo "docs_temp_dir_${worker_name}=$docs_temp_dir" >> $GITHUB_OUTPUT
+            
+            # Copy the domain-worker template to get the generator
+            cp -r domain-worker/* "$docs_temp_dir/"
+            
+            # Install dependencies
+            cd "$docs_temp_dir"
+            npm install
+            
+            # Create documentation generation script
+            cat > generate-docs.js << 'EOF'
+const fs = require('fs');
+const path = require('path');
+
+// Read the schema.sql file
+const schemaSql = fs.readFileSync('../schema.sql', 'utf8');
+
+// Parse the schema to extract table information
+const tables = [];
+const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\)/gi;
+let match;
+
+while ((match = createTableRegex.exec(schemaSql)) !== null) {
+  const tableName = match[1];
+  const columnDefinitions = match[2];
+  
+  const columns = [];
+  const columnLines = columnDefinitions.split(',').map(line => line.trim());
+  
+  for (const line of columnLines) {
+    if (line.startsWith('PRIMARY KEY') || line.startsWith('FOREIGN KEY') || line.startsWith('UNIQUE') || line.startsWith('INDEX')) {
+      continue;
+    }
+    
+    const columnMatch = line.match(/^[`"]?(\w+)[`"]?\s+(\w+(?:\(\d+(?:,\d+)?\))?)\s*(NOT\s+NULL|NULL)?\s*(PRIMARY\s+KEY)?\s*(AUTOINCREMENT|AUTO_INCREMENT)?/i);
+    
+    if (columnMatch) {
+      const [, name, type, nullable, primaryKey] = columnMatch;
+      columns.push({
+        name,
+        type: type.toUpperCase(),
+        nullable: !nullable || nullable.toUpperCase() === 'NULL',
+        primaryKey: !!primaryKey
+      });
+    }
+  }
+  
+  tables.push({ name: tableName, columns });
+}
+
+// Generate GraphQL documentation
+const graphqlDocs = `# GraphQL API Documentation
+
+This documentation is auto-generated from your database schema.
+
+## Authentication
+
+All GraphQL requests must be authenticated via the auth service:
+
+\`\`\`bash
+curl -X POST https://your-domain.com/auth/graphql \\
+  -H "Authorization: Bearer YOUR_SESSION_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"query": "query { users { id name } }"}'
+\`\`\`
+
+## Available Types
+
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  const fields = table.columns.map(col => {
+    let graphqlType = 'String';
+    if (col.type.includes('INT')) graphqlType = 'Int';
+    else if (col.type.includes('REAL') || col.type.includes('FLOAT')) graphqlType = 'Float';
+    else if (col.type.includes('BOOL')) graphqlType = 'Boolean';
+    
+    return \`  \${col.name}: \${graphqlType}\${col.nullable ? '' : '!'}\`;
+  }).join('\\n');
+  
+  return \`### \${capitalizedName}
+
+\`\`\`graphql
+type \${capitalizedName} {
+\${fields}
+}
+\`\`\`
+
+**Fields:**
+${table.columns.map(col => {
+  let graphqlType = 'String';
+  if (col.type.includes('INT')) graphqlType = 'Int';
+  else if (col.type.includes('REAL') || col.type.includes('FLOAT')) graphqlType = 'Float';
+  else if (col.type.includes('BOOL')) graphqlType = 'Boolean';
+  
+  return \`- \${col.name} (\${graphqlType})\${col.primaryKey ? ' - Primary Key' : ''}\${col.nullable ? ' - Optional' : ' - Required'}\`;
+}).join('\\n')}
+\`;
+}).join('\\n\\n')}
+
+## Queries
+
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return \`### Get All \${capitalizedName}s
+
+\`\`\`graphql
+query {
+  \${table.name}s {
+    id
+    # Add other fields as needed
+  }
+}
+\`\`\`
+
+### Get Single \${capitalizedName}
+
+\`\`\`graphql
+query {
+  \${table.name}(id: "123") {
+    id
+    # Add other fields as needed
+  }
+}
+\`\`\`
+\`;
+}).join('\\n\\n')}
+
+## Mutations
+
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  const createFields = table.columns
+    .filter(col => !col.primaryKey && col.name !== 'created_at' && col.name !== 'updated_at')
+    .map(col => col.name)
+    .join(', ');
+  
+  return \`### Create \${capitalizedName}
+
+\`\`\`graphql
+mutation {
+  create\${capitalizedName}(input: {
+    \${createFields}
+  }) {
+    id
+    # Add other fields as needed
+  }
+}
+\`\`\`
+
+### Update \${capitalizedName}
+
+\`\`\`graphql
+mutation {
+  update\${capitalizedName}(id: "123", input: {
+    # Add fields to update
+  }) {
+    id
+    # Add other fields as needed
+  }
+}
+\`\`\`
+
+### Delete \${capitalizedName}
+
+\`\`\`graphql
+mutation {
+  delete\${capitalizedName}(id: "123")
+}
+\`\`\`
+\`;
+}).join('\\n\\n')}
+
+## Examples
+
+### Complete User Management Example
+
+\`\`\`graphql
+# Create a user
+mutation CreateUser {
+  createUser(input: {
+    name: "John Doe"
+    email: "john@example.com"
+  }) {
+    id
+    name
+    email
+  }
+}
+
+# Get all users
+query GetUsers {
+  users {
+    id
+    name
+    email
+  }
+}
+
+# Get specific user
+query GetUser {
+  user(id: "123") {
+    id
+    name
+    email
+  }
+}
+
+# Update user
+mutation UpdateUser {
+  updateUser(id: "123", input: {
+    name: "Jane Doe"
+  }) {
+    id
+    name
+    email
+  }
+}
+
+# Delete user
+mutation DeleteUser {
+  deleteUser(id: "123")
+}
+\`\`\`
+
+## Notes
+
+- All operations are automatically scoped to the authenticated user
+- The \`user_id\` field is automatically injected for all operations
+- All timestamps are returned as ISO strings
+- Primary keys are returned as \`ID\` type in GraphQL
+`;
+
+// Write the documentation
+fs.writeFileSync('../API_DOCUMENTATION.md', graphqlDocs);
+
+console.log('Documentation generated successfully');
+EOF
+            
+            # Run the documentation generation script
+            node generate-docs.js
+            
+            # Clean up the documentation script
+            rm generate-docs.js
+            
+            echo "Documentation generated for $repo_name"
+          else
+            echo "No schema.sql found in $repo_name, skipping documentation generation"
+          fi
+        done
+
+    - name: Push Documentation to Repositories
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and push documentation
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Pushing documentation for: $worker_name"
+          
+          # Get the temp directories
+          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
+          
+          # Extract repo name from worker name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
+          # Check if documentation was generated
+          if [ -n "$docs_temp_dir" ] && [ -f "$docs_temp_dir/../API_DOCUMENTATION.md" ]; then
+            echo "Pushing documentation to $repo_name repo..."
+            cd "$frontend_temp_dir"
+            
+            # Configure git
+            git config user.email "deployment@example.com"
+            git config user.name "Deployment Bot"
+            
+            # Check if documentation already exists and if it has changes
+            if [ -f "API_DOCUMENTATION.md" ]; then
+              echo "Existing API_DOCUMENTATION.md found, checking for changes..."
+              
+              # Create a temporary file to compare
+              cp API_DOCUMENTATION.md API_DOCUMENTATION.md.backup
+              
+              # Replace with new documentation
+              cp ../API_DOCUMENTATION.md API_DOCUMENTATION.md
+              
+              # Check if there are any differences
+              if git diff --quiet API_DOCUMENTATION.md.backup API_DOCUMENTATION.md; then
+                echo "No changes detected in documentation, skipping commit"
+                # Restore original file
+                mv API_DOCUMENTATION.md.backup API_DOCUMENTATION.md
+              else
+                echo "Changes detected in documentation, committing..."
+                # Remove backup
+                rm API_DOCUMENTATION.md.backup
+                
+                # Add and commit the documentation
+                git add API_DOCUMENTATION.md
+                git commit -m "Auto-generated GraphQL API documentation"
+                
+                # Push to the repo
+                git push origin main
+              fi
+            else
+              echo "No existing API_DOCUMENTATION.md found, creating new documentation..."
+              
+              # Copy the new documentation
+              cp ../API_DOCUMENTATION.md API_DOCUMENTATION.md
+              
+              # Add and commit the documentation
+              git add API_DOCUMENTATION.md
+              git commit -m "Auto-generated GraphQL API documentation"
+              
+              # Push to the repo
+              git push origin main
+            fi
+            
+            echo "Documentation process completed for $repo_name"
+          else
+            echo "No documentation generated for $repo_name, skipping push"
+          fi
+        done
+
+    - name: Cleanup Temporary Files
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and cleanup
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Cleaning up temporary files for: $worker_name"
+          
+          # Get the temp directories
+          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          docs_temp_dir="${{ steps.generate-docs.outputs.docs_temp_dir_${worker_name} }}"
+          
+          # Clean up temp directories
+          if [ -n "$frontend_temp_dir" ] && [ -d "$frontend_temp_dir" ]; then
+            rm -rf "$frontend_temp_dir"
+          fi
+          
+          if [ -n "$docs_temp_dir" ] && [ -d "$docs_temp_dir" ]; then
+            rm -rf "$docs_temp_dir"
+          fi
+          
+          echo "Cleanup completed for $worker_name"
+        done 

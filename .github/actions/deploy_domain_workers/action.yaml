@@ -35,25 +35,60 @@ runs:
       run: 'npm install'
 
     # Deploy each domain worker by cloning the template and updating the name
-    - name: Deploy Domain Workers
+    - name: Parse Domain Configuration
       shell: bash
       run: |
         # Parse the domain worker names and database IDs JSON
         DOMAIN_WORKERS='${{ inputs.domain_worker_names }}'
         DOMAIN_DATABASES='${{ inputs.domain_database_ids }}'
         
-        # Loop through each domain worker and deploy it
+        # Store the parsed data for use in subsequent steps
+        echo "domain_workers=$DOMAIN_WORKERS" >> $GITHUB_OUTPUT
+        echo "domain_databases=$DOMAIN_DATABASES" >> $GITHUB_OUTPUT
+        
+        # Display what we're working with
+        echo "Domain workers to deploy:"
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value'
+        echo ""
+        echo "Database mappings:"
+        echo "$DOMAIN_DATABASES" | jq -r 'to_entries[] | "\(.key): \(.value.database_id)"'
+
+    - name: Setup Worker Template
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and prepare the template
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
-          echo "Deploying domain worker: $worker_name"
+          echo "Setting up template for: $worker_name"
           
           # Create a temporary directory for this worker
           temp_dir=$(mktemp -d)
+          echo "temp_dir_${worker_name}=$temp_dir" >> $GITHUB_OUTPUT
           
           # Copy the domain-worker template to the temp directory
           cp -r domain-worker/* "$temp_dir/"
           
           # Update the wrangler.toml with the worker name
           sed -i "s/name = \"\"/name = \"$worker_name\"/" "$temp_dir/wrangler.toml"
+          
+          echo "Template prepared for $worker_name in $temp_dir"
+        done
+
+    - name: Configure Database Bindings
+      shell: bash
+      run: |
+        # Parse the domain worker names and database IDs JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
+        
+        # Loop through each domain worker and configure database bindings
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Configuring database bindings for: $worker_name"
+          
+          # Get the temp directory for this worker
+          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
           
           # Find the corresponding database ID for this worker
           # The worker name format is "{repo_name}-worker", so we extract the repo name
@@ -76,16 +111,52 @@ runs:
           echo "Adding auth service binding"
           sed -i "s/service = \"\"/service = \"auth-service\"/" "$temp_dir/wrangler.toml"
           
-          # Clone the frontend repo to get the schema.sql
-          echo "Cloning frontend repo for $repo_name..."
+          echo "Database bindings configured for $worker_name"
+        done
+
+    - name: Clone Frontend Repositories
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and clone the frontend repo
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Cloning frontend repo for: $worker_name"
+          
+          # Extract repo name from worker name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
+          # Create temp directory for frontend repo
           frontend_temp_dir=$(mktemp -d)
-          cd "$frontend_temp_dir"
+          echo "frontend_temp_dir_${worker_name}=$frontend_temp_dir" >> $GITHUB_OUTPUT
           
           # Clone the frontend repo
+          cd "$frontend_temp_dir"
           git clone "https://x-access-token:${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/matty271828/$repo_name.git" .
           
+          echo "Frontend repo cloned for $worker_name in $frontend_temp_dir"
+        done
+
+    - name: Generate GraphQL Code
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and generate GraphQL code
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Generating GraphQL code for: $worker_name"
+          
+          # Get the temp directories
+          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
+          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          
+          # Extract repo name from worker name
+          repo_name=$(echo "$worker_name" | sed 's/-worker$//')
+          
           # Check if schema.sql exists
-          if [ -f "schema.sql" ]; then
+          if [ -f "$frontend_temp_dir/schema.sql" ]; then
             echo "Found schema.sql in $repo_name, generating GraphQL code..."
             
             # Install dependencies in the temp worker directory
@@ -122,18 +193,24 @@ EOF
           else
             echo "No schema.sql found in $repo_name, using placeholder GraphQL code"
           fi
+        done
+
+    - name: Deploy Domain Workers
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        
+        # Loop through each domain worker and deploy it
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Deploying domain worker: $worker_name"
           
-          # Clean up frontend temp directory
-          cd - > /dev/null
-          rm -rf "$frontend_temp_dir"
+          # Get the temp directory for this worker
+          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
           
           # Deploy the worker
           cd "$temp_dir"
           npx wrangler deploy
-          
-          # Clean up
-          cd - > /dev/null
-          rm -rf "$temp_dir"
           
           echo "Successfully deployed: $worker_name"
         done
