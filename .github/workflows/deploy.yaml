@@ -50,6 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       auth_db_id: ${{ steps.run-terraform.outputs.auth_db_id }}
+      domain_worker_names: ${{ steps.run-terraform.outputs.domain_worker_names }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,6 +77,8 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
+          domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
   deploy-pages:
     name: 'Deploy Pages'
