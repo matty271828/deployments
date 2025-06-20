@@ -57,7 +57,7 @@ runs:
         SCHEMA_TEMP_DIRS='{}'
         
         # Loop through each domain worker and fetch the schema file
-        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+        while IFS= read -r worker_name; do
           echo "Fetching schema for: $worker_name"
           
           # Extract repo name from worker name
@@ -85,7 +85,7 @@ runs:
             # Create empty file to avoid errors
             touch schema.sql
           fi
-        done
+        done < <(echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value')
         
         # Store the schema temp directories as a single output
         echo "schema_temp_dirs=$SCHEMA_TEMP_DIRS" >> $GITHUB_OUTPUT
@@ -101,7 +101,7 @@ runs:
         DOCS_TEMP_DIRS='{}'
         
         # Loop through each domain worker and generate documentation
-        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+        while IFS= read -r worker_name; do
           echo "Generating documentation for: $worker_name"
           
           # Get the schema temp directory
@@ -140,7 +140,7 @@ runs:
           else
             echo "No schema.sql found in $repo_name, skipping documentation generation"
           fi
-        done
+        done < <(echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value')
         
         # Store the docs temp directories as a single output
         echo "docs_temp_dirs=$DOCS_TEMP_DIRS" >> $GITHUB_OUTPUT
@@ -154,7 +154,7 @@ runs:
         DOCS_TEMP_DIRS='${{ steps.generate-docs.outputs.docs_temp_dirs }}'
         
         # Loop through each domain worker and push documentation
-        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+        while IFS= read -r worker_name; do
           echo "Pushing documentation for: $worker_name"
           
           # Get the temp directories
@@ -222,4 +222,4 @@ runs:
           else
             echo "No documentation generated for $repo_name, skipping push"
           fi
-        done
+        done < <(echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value')
