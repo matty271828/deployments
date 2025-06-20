@@ -13,7 +13,9 @@ resource "cloudflare_workers_script" "domain_worker" {
 
 # Create worker routes for each domain to direct /health traffic to the domain worker
 #
-# This allows public access to the health endpoint for monitoring purposes
+# This allows public access to the health endpoint for monitoring purposes. This is only 
+# intended to be used for the health endpont. All other endpoints are to route via the
+# centralised auth-service. 
 resource "cloudflare_workers_route" "domain_health_route" {
   for_each = local.frontend_repos
 
