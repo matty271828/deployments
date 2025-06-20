@@ -119,8 +119,9 @@ resource "cloudflare_workers_script" "auth_service" {
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
-# Note this is needed so that traffic coming via multiple DNS records can find 
-# its way to the same worker.
+#
+# NOTE: this is needed so that traffic coming via multiple DNS records can find 
+# its way to the same worker and is not needed for all workers.
 resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
 
