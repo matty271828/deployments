@@ -34,7 +34,6 @@ runs:
       shell: bash
       run: 'npm install'
 
-    # Deploy each domain worker by cloning the template and updating the name
     - name: Parse Domain Configuration
       shell: bash
       run: |
