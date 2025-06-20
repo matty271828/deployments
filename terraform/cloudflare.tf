@@ -114,7 +114,6 @@ output "domain_worker_names" {
   value = {
     for key, worker in cloudflare_workers_script.domain_worker : key => worker.script_name
   }
-  sensitive = true
 }
 
 # Create the shared auth service worker (intial no-op to ensure worker exists)
