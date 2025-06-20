@@ -1,5 +1,5 @@
 name: 'Deploy Domain Workers'
-description: 'Deploys multiple domain workers for different domains'
+description: 'Deploys multiple domain workers for different domains with auto-generated GraphQL APIs'
 
 inputs:
   cloudflare_account_id:
@@ -75,6 +75,57 @@ runs:
           # Add auth service binding
           echo "Adding auth service binding"
           sed -i "s/service = \"\"/service = \"auth-service\"/" "$temp_dir/wrangler.toml"
+          
+          # Clone the frontend repo to get the schema.sql
+          echo "Cloning frontend repo for $repo_name..."
+          frontend_temp_dir=$(mktemp -d)
+          cd "$frontend_temp_dir"
+          
+          # Clone the frontend repo
+          git clone "https://x-access-token:${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}@github.com/matty271828/$repo_name.git" .
+          
+          # Check if schema.sql exists
+          if [ -f "schema.sql" ]; then
+            echo "Found schema.sql in $repo_name, generating GraphQL code..."
+            
+            # Install dependencies in the temp worker directory
+            cd "$temp_dir"
+            npm install
+            
+            # Create a temporary script to generate GraphQL code
+            cat > generate-graphql.js << 'EOF'
+const fs = require('fs');
+const path = require('path');
+
+// Import the GraphQL generator
+const { generateGraphQLModule } = require('./src/graphql-generator');
+
+// Read the schema.sql file
+const schemaSql = fs.readFileSync('../schema.sql', 'utf8');
+
+// Generate the GraphQL code
+const generatedCode = generateGraphQLModule(schemaSql);
+
+// Write the generated code to generated-graphql.ts
+fs.writeFileSync('./src/generated-graphql.ts', generatedCode);
+
+console.log('GraphQL code generated successfully');
+EOF
+            
+            # Run the GraphQL generation script
+            node generate-graphql.js
+            
+            # Clean up the temporary script
+            rm generate-graphql.js
+            
+            echo "GraphQL code generated for $repo_name"
+          else
+            echo "No schema.sql found in $repo_name, using placeholder GraphQL code"
+          fi
+          
+          # Clean up frontend temp directory
+          cd - > /dev/null
+          rm -rf "$frontend_temp_dir"
           
           # Deploy the worker
           cd "$temp_dir"
