@@ -150,7 +150,7 @@ runs:
             
             # Copy the schema file to the worker directory
             echo "DEBUG: Copying schema file to worker directory"
-            cp "../../.github/schemas/${repo_name}.sql" ./schema.sql
+            cp "$GITHUB_WORKSPACE/.github/schemas/${repo_name}.sql" ./schema.sql
             
             # Run the GraphQL generation script
             echo "DEBUG: Running GraphQL generation script"
