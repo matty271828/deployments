@@ -18,7 +18,7 @@ resource "cloudflare_workers_route" "domain_health_route" {
   for_each = local.frontend_repos
 
   zone_id     = cloudflare_zone.domain[each.key].id
-  pattern     = "${each.key}/health"
+  pattern     = "${each.key}/backend/health"
   script      = cloudflare_workers_script.domain_worker[each.key].script_name
 
   depends_on = [cloudflare_workers_script.domain_worker]
