@@ -59,13 +59,18 @@ runs:
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
         
+        # Create a JSON object to store temp directories
+        TEMP_DIRS='{}'
+        
         # Loop through each domain worker and prepare the template
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Setting up template for: $worker_name"
           
           # Create a temporary directory for this worker
           temp_dir=$(mktemp -d)
-          echo "temp_dir_${worker_name}=$temp_dir" >> $GITHUB_OUTPUT
+          
+          # Add to our JSON object
+          TEMP_DIRS=$(echo "$TEMP_DIRS" | jq --arg worker "$worker_name" --arg dir "$temp_dir" '. + {($worker): $dir}')
           
           # Copy the domain-worker template to the temp directory
           cp -r domain-worker/* "$temp_dir/"
@@ -75,6 +80,9 @@ runs:
           
           echo "Template prepared for $worker_name in $temp_dir"
         done
+        
+        # Store the temp directories as a single output
+        echo "temp_dirs=$TEMP_DIRS" >> $GITHUB_OUTPUT
 
     - name: Configure Database Bindings
       shell: bash
@@ -82,13 +90,14 @@ runs:
         # Parse the domain worker names and database IDs JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
         DOMAIN_DATABASES='${{ steps.parse-config.outputs.domain_databases }}'
+        TEMP_DIRS='${{ steps.setup-template.outputs.temp_dirs }}'
         
         # Loop through each domain worker and configure database bindings
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Configuring database bindings for: $worker_name"
           
           # Get the temp directory for this worker
-          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
+          temp_dir=$(echo "$TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           
           # Find the corresponding database ID for this worker
           # The worker name format is "{repo_name}-worker", so we extract the repo name
@@ -120,6 +129,9 @@ runs:
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
         
+        # Create a JSON object to store frontend temp directories
+        FRONTEND_TEMP_DIRS='{}'
+        
         # Loop through each domain worker and clone the frontend repo
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Cloning frontend repo for: $worker_name"
@@ -129,7 +141,9 @@ runs:
           
           # Create temp directory for frontend repo
           frontend_temp_dir=$(mktemp -d)
-          echo "frontend_temp_dir_${worker_name}=$frontend_temp_dir" >> $GITHUB_OUTPUT
+          
+          # Add to our JSON object
+          FRONTEND_TEMP_DIRS=$(echo "$FRONTEND_TEMP_DIRS" | jq --arg worker "$worker_name" --arg dir "$frontend_temp_dir" '. + {($worker): $dir}')
           
           # Clone the frontend repo
           cd "$frontend_temp_dir"
@@ -137,20 +151,25 @@ runs:
           
           echo "Frontend repo cloned for $worker_name in $frontend_temp_dir"
         done
+        
+        # Store the frontend temp directories as a single output
+        echo "frontend_temp_dirs=$FRONTEND_TEMP_DIRS" >> $GITHUB_OUTPUT
 
     - name: Generate GraphQL Code
       shell: bash
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        TEMP_DIRS='${{ steps.setup-template.outputs.temp_dirs }}'
+        FRONTEND_TEMP_DIRS='${{ steps.clone-repos.outputs.frontend_temp_dirs }}'
         
         # Loop through each domain worker and generate GraphQL code
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Generating GraphQL code for: $worker_name"
           
           # Get the temp directories
-          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
-          frontend_temp_dir="${{ steps.clone-repos.outputs.frontend_temp_dir_${worker_name} }}"
+          temp_dir=$(echo "$TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
+          frontend_temp_dir=$(echo "$FRONTEND_TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           
           # Extract repo name from worker name
           repo_name=$(echo "$worker_name" | sed 's/-worker$//')
@@ -200,13 +219,14 @@ EOF
       run: |
         # Parse the domain worker names JSON
         DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        TEMP_DIRS='${{ steps.setup-template.outputs.temp_dirs }}'
         
         # Loop through each domain worker and deploy it
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
           echo "Deploying domain worker: $worker_name"
           
           # Get the temp directory for this worker
-          temp_dir="${{ steps.setup-template.outputs.temp_dir_${worker_name} }}"
+          temp_dir=$(echo "$TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
           
           # Deploy the worker
           cd "$temp_dir"
@@ -217,3 +237,31 @@ EOF
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+
+    - name: Cleanup Temporary Files
+      shell: bash
+      run: |
+        # Parse the domain worker names JSON
+        DOMAIN_WORKERS='${{ steps.parse-config.outputs.domain_workers }}'
+        TEMP_DIRS='${{ steps.setup-template.outputs.temp_dirs }}'
+        FRONTEND_TEMP_DIRS='${{ steps.clone-repos.outputs.frontend_temp_dirs }}'
+        
+        # Loop through each domain worker and cleanup
+        echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | .value' | while read -r worker_name; do
+          echo "Cleaning up temporary files for: $worker_name"
+          
+          # Get the temp directories
+          temp_dir=$(echo "$TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
+          frontend_temp_dir=$(echo "$FRONTEND_TEMP_DIRS" | jq -r --arg worker "$worker_name" '.[$worker]')
+          
+          # Clean up temp directories
+          if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
+            rm -rf "$temp_dir"
+          fi
+          
+          if [ -n "$frontend_temp_dir" ] && [ -d "$frontend_temp_dir" ]; then
+            rm -rf "$frontend_temp_dir"
+          fi
+          
+          echo "Cleanup completed for $worker_name"
+        done
