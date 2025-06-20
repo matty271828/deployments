@@ -112,7 +112,7 @@ output "auth_db_id" {
 output "domain_worker_names" {
   description = "The names of the domain workers for worker-to-worker bindings"
   value = {
-    for key, worker in cloudflare_workers_script.domain_worker : key => worker.name
+    for key, worker in cloudflare_workers_script.domain_worker : key => worker.script_name
   }
   sensitive = true
 }
