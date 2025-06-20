@@ -79,6 +79,19 @@ resource "cloudflare_d1_database" "domain_db" {
   }
 }
 
+# Create backend worker for each domain
+resource "cloudflare_workers_script" "domain_worker" {
+  for_each = local.frontend_repos
+
+  account_id       = var.cloudflare_account_id
+  script_name      = "${each.value.repo_name}-worker"
+
+  # Use addEventListener pattern for a no-op deployment. This is because there is a 
+  # bug in the cloudflare terraform provider. We will have to reupload an ES module worker 
+  # using the API after our terraform run has completed.
+  content          = "addEventListener('fetch', event => { event.respondWith(new Response('OK')) })"
+}
+
 # Create the shared auth service database
 resource "cloudflare_d1_database" "AUTH_DB" {
   account_id = var.cloudflare_account_id
@@ -106,6 +119,8 @@ resource "cloudflare_workers_script" "auth_service" {
 }
 
 # Create worker routes for each domain to direct /auth/* traffic to the worker
+# Note this is needed so that traffic coming via multiple DNS records can find 
+# its way to the same worker.
 resource "cloudflare_workers_route" "auth_route" {
   for_each = local.frontend_repos
 
