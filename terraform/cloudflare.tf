@@ -140,3 +140,16 @@ resource "cloudflare_workers_route" "auth_route" {
 
   depends_on = [cloudflare_workers_script.auth_service]
 }
+
+# Create worker routes for each domain to direct /health traffic to the domain worker
+#
+# This allows public access to the health endpoint for monitoring purposes
+resource "cloudflare_workers_route" "domain_health_route" {
+  for_each = local.frontend_repos
+
+  zone_id     = cloudflare_zone.domain[each.key].id
+  pattern     = "${each.key}/health"
+  script      = cloudflare_workers_script.domain_worker[each.key].script_name
+
+  depends_on = [cloudflare_workers_script.domain_worker]
+}
