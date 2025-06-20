@@ -25,14 +25,40 @@ export default {
       });
     }
     
+    // Handle GraphQL endpoint
+    if (url.pathname === '/graphql') {
+      try {
+        // Dynamic imports to handle missing dependencies gracefully
+        const { createYoga } = await import('graphql-yoga');
+        const { schema, createContext } = await import('./generated-graphql');
+        
+        const yoga = createYoga({ 
+          schema,
+          context: () => createContext(request, env),
+          graphiql: true, // Enable GraphQL Playground for development
+          landingPage: false
+        });
+        
+        return yoga(request);
+      } catch (error: any) {
+        return new Response(JSON.stringify({ 
+          error: 'GraphQL not available', 
+          details: error.message 
+        }), { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json' } 
+        });
+      }
+    }
+    
     // Handle OPTIONS for CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID'
         }
       });
     }

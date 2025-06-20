@@ -12,5 +12,10 @@
     "@cloudflare/workers-types": "^4.20240208.0",
     "typescript": "^5.3.3",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "sqlite-parser": "^1.0.1",
+    "graphql": "^16.8.1",
+    "graphql-yoga": "^5.1.1"
   }
 }
