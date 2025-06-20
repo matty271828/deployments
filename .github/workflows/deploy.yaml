@@ -98,21 +98,6 @@ jobs:
           domain_database_ids: ${{ needs.run-terraform.outputs.domain_database_ids }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  generate-api-docs:
-    name: 'Generate API Docs'
-    needs: [run-terraform, deploy-domain-workers]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Generate API Docs
-        uses: ./.github/actions/generate_documentation
-        with:
-          domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
-          domain_database_ids: ${{ needs.run-terraform.outputs.domain_database_ids }}
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-
   apply-domain-schemas:
     name: 'Apply Domain Database Schemas'
     needs: [run-terraform, deploy-domain-workers]
@@ -157,3 +142,18 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
+
+  generate-api-docs:
+    name: 'Generate API Docs'
+    needs: [run-terraform, apply-domain-schemas, apply-auth-schema]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate API Docs
+        uses: ./.github/actions/generate_documentation
+        with:
+          domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
+          domain_database_ids: ${{ needs.run-terraform.outputs.domain_database_ids }}
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
