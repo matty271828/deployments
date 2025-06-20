@@ -114,20 +114,6 @@ jobs:
           domain_database_ids: ${{ needs.run-terraform.outputs.domain_database_ids }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  deploy-pages:
-    name: 'Deploy Pages'
-    needs: [run-terraform]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Deploy Pages
-        uses: ./.github/actions/deploy_pages
-        with:
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
   apply-auth-schema:
     name: 'Apply Auth Database Schema'
     needs: [run-terraform, deploy-auth-service]
@@ -157,3 +143,17 @@ jobs:
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           domain_database_ids: ${{ needs.run-terraform.outputs.domain_database_ids }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+  deploy-pages:
+    name: 'Deploy Pages'
+    needs: [apply-domain-schemas, apply-auth-schema]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Pages
+        uses: ./.github/actions/deploy_pages
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
