@@ -24,6 +24,15 @@ export class TokenBucketRateLimit {
   /**
    * Consume tokens from the bucket
    * 
+   * ⚠️  DEVELOPMENT MODE: RATE LIMITING TEMPORARILY DISABLED ⚠️
+   * 
+   * This method currently always returns `true` (allows all requests) for development purposes.
+   * The rate limiting logic still runs and logs what it would have done, but no requests are blocked.
+   * 
+   * To re-enable rate limiting for production:
+   * 1. Change `return true; // DEVELOPMENT: Always allow` back to `return true;` (for allowed requests)
+   * 2. Change `return true; // DEVELOPMENT: Always allow` back to `return false;` (for blocked requests)
+   * 
    * @param db - D1Database instance
    * @param domain - Domain prefix for table names
    * @param key - Rate limit key (e.g., IP address, user ID)
@@ -55,7 +64,8 @@ export class TokenBucketRateLimit {
           VALUES (?, ?, ?, ?)
         `).bind(bucketKey, count, refilledAtMs, Math.floor(now / 1000)).run();
         
-        return true;
+        console.log(`Rate limit: Created new bucket for ${this.storageKey}, key: ${key}, tokens: ${count}`);
+        return true; // DEVELOPMENT: Always allow
       }
 
       // Get existing bucket values
@@ -76,7 +86,8 @@ export class TokenBucketRateLimit {
           WHERE key = ?
         `).bind(count, refilledAtMs, bucketKey).run();
         
-        return false;
+        console.log(`Rate limit: Would block ${this.storageKey}, key: ${key}, tokens: ${count}, cost: ${cost}`);
+        return true; // DEVELOPMENT: Always allow
       }
 
       // Consume tokens
@@ -88,7 +99,8 @@ export class TokenBucketRateLimit {
         WHERE key = ?
       `).bind(count, refilledAtMs, bucketKey).run();
 
-      return true;
+      console.log(`Rate limit: Allowed ${this.storageKey}, key: ${key}, tokens remaining: ${count}`);
+      return true; // DEVELOPMENT: Always allow
 
     } catch (error) {
       console.error('Rate limit error:', error);
