@@ -182,6 +182,8 @@ export async function validateSessionToken(db: D1Database, domain: string, token
 export async function getSession(db: D1Database, domain: string, sessionId: string): Promise<Session | null> {
   const now = new Date();
 
+  console.log(`Looking up session: ${sessionId} for domain: ${domain}`);
+
   const result = await db.prepare(`
     SELECT id, user_id, secret_hash, created_at 
     FROM ${domain}_sessions 
@@ -189,8 +191,11 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   `).bind(sessionId).first();
 
   if (!result) {
+    console.log(`Session not found in database: ${sessionId}`);
     return null;
   }
+
+  console.log(`Session found in database: ${sessionId}, created at: ${result.created_at}`);
 
   const session: Session = {
     id: result.id as string,
@@ -200,11 +205,16 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   };
 
   // Check expiration
-  if (now.getTime() - session.createdAt.getTime() >= SESSION_EXPIRES_IN_SECONDS * 1000) {
+  const ageInSeconds = (now.getTime() - session.createdAt.getTime()) / 1000;
+  console.log(`Session age: ${ageInSeconds} seconds, expires after: ${SESSION_EXPIRES_IN_SECONDS} seconds`);
+
+  if (ageInSeconds >= SESSION_EXPIRES_IN_SECONDS) {
+    console.log(`Session expired, deleting: ${sessionId}`);
     await deleteSession(db, domain, sessionId);
     return null;
   }
 
+  console.log(`Session is valid: ${sessionId}`);
   return session;
 }
 

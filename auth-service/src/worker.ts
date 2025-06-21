@@ -21,7 +21,6 @@ import { createUser } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
 import { SignupRequest, LoginRequest, SessionValidationResult } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
-import { performCleanup, shouldRunCleanup } from './cleanup';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
 
@@ -757,22 +756,6 @@ export default {
     // Handle CORS preflight requests
     if (method === 'OPTIONS') {
       return await handlePreflight(request, env);
-    }
-
-    // Run automated cleanup in the background (non-blocking)
-    if (env?.AUTH_DB_BINDING) {
-      ctx.waitUntil(
-        (async () => {
-          try {
-            const shouldRun = await shouldRunCleanup(env.AUTH_DB_BINDING);
-            if (shouldRun) {
-              await performCleanup(env.AUTH_DB_BINDING);
-            }
-          } catch (error) {
-            console.error('Background cleanup error:', error);
-          }
-        })()
-      );
     }
 
     try {

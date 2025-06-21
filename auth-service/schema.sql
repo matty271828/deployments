@@ -46,10 +46,3 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_rate_limits (
 
 -- Index for rate limiting cleanup
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_rate_limits_created_at ON {PREFIX}_rate_limits(created_at);
-
--- Cleanup tracker table - tracks when automated cleanup last ran
--- This table is shared across all domains (no prefix)
-CREATE TABLE IF NOT EXISTS cleanup_tracker (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-) STRICT; 
