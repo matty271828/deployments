@@ -19,6 +19,18 @@ export interface SessionWithToken extends Session {
 }
 
 /**
+ * Session validation result with specific error information
+ */
+export interface SessionValidationResult {
+  success: boolean;
+  session?: Session;
+  error?: {
+    type: 'invalid_format' | 'session_not_found' | 'invalid_secret' | 'expired';
+    message: string;
+  };
+}
+
+/**
  * User interface
  */
 export interface User {

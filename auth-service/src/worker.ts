@@ -18,7 +18,7 @@
 
 import { createUser } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
-import { SignupRequest, LoginRequest } from './types';
+import { SignupRequest, LoginRequest, SessionValidationResult } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { performCleanup, shouldRunCleanup } from './cleanup';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
@@ -348,10 +348,12 @@ const handlers = {
       }
 
       // Validate the session token
-      const session = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
-      if (!session) {
-        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!validationResult.success) {
+        return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
+
+      const session = validationResult.session!;
 
       // Import getUserById function
       const { getUserById } = await import('./users');
@@ -416,7 +418,7 @@ const handlers = {
       // Parse token to get session ID
       const tokenParts = token.split('.');
       if (tokenParts.length !== 2) {
-        return createErrorResponse('Invalid session token format', 400, corsHeaders);
+        return createErrorResponse('Invalid session token format. Expected format: <session_id>.<session_secret>', 400, corsHeaders);
       }
 
       const sessionId = tokenParts[0];
@@ -464,10 +466,12 @@ const handlers = {
       }
 
       // Validate the current session token
-      const currentSession = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
-      if (!currentSession) {
-        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!validationResult.success) {
+        return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
+
+      const currentSession = validationResult.session!;
 
       // Delete the old session
       await deleteSession(env.AUTH_DB_BINDING, subdomain, currentSession.id);
@@ -590,10 +594,12 @@ const handlers = {
       }
 
       // Validate the session token
-      const session = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
-      if (!session) {
-        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!validationResult.success) {
+        return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
+
+      const session = validationResult.session!;
 
       // Get user information
       const { getUserById } = await import('./users');

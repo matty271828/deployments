@@ -1,4 +1,4 @@
-import { Session, SessionWithToken } from './types';
+import { Session, SessionWithToken, SessionValidationResult } from './types';
 import { 
   generateSecureRandomString, 
   hashSecret, 
@@ -100,37 +100,59 @@ export async function validateCSRFToken(db: D1Database, domain: string, csrfToke
 }
 
 /**
- * Validate a session token
+ * Validate a session token with detailed error information
  * 
  * @param db - D1Database instance
  * @param domain - Domain prefix for table names
  * @param token - Session token in format <SESSION_ID>.<SESSION_SECRET>
- * @returns Promise<Session | null>
+ * @returns Promise<SessionValidationResult>
  */
-export async function validateSessionToken(db: D1Database, domain: string, token: string): Promise<Session | null> {
+export async function validateSessionToken(db: D1Database, domain: string, token: string): Promise<SessionValidationResult> {
   const tokenParts = token.split(".");
   if (tokenParts.length != 2) {
-    return null;
+    return {
+      success: false,
+      error: {
+        type: 'invalid_format',
+        message: 'Session token format is invalid. Expected format: <session_id>.<session_secret>'
+      }
+    };
   }
+  
   const sessionId = tokenParts[0];
   const sessionSecret = tokenParts[1];
 
   const session = await getSession(db, domain, sessionId);
   if (!session) {
-    return null;
+    return {
+      success: false,
+      error: {
+        type: 'session_not_found',
+        message: 'Session not found. The session may have been deleted or never existed.'
+      }
+    };
   }
 
   const tokenSecretHash = await hashSecret(sessionSecret);
   const validSecret = constantTimeEqual(tokenSecretHash, session.secretHash);
   if (!validSecret) {
-    return null;
+    return {
+      success: false,
+      error: {
+        type: 'invalid_secret',
+        message: 'Session secret is invalid. The session token may be corrupted or tampered with.'
+      }
+    };
   }
 
-  return session;
+  return {
+    success: true,
+    session: session
+  };
 }
 
 /**
- * Get a session by ID
+ * Get a session by ID with expiration check
  * 
  * @param db - D1Database instance
  * @param domain - Domain prefix for table names
