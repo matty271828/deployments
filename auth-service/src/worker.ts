@@ -14,6 +14,7 @@
  * - POST /auth/cleanup - Rate limit cleanup
  * - GET /auth/csrf-token - CSRF token generation
  * - POST/GET /auth/graphql - GraphQL proxy to domain workers
+ * - GET /auth/debug - Debug database state and session creation
  */
 
 import { createUser } from './users';
@@ -53,6 +54,9 @@ const ENDPOINTS = {
   '/auth/graphql': {
     POST: 'proxyGraphQL',
     GET: 'proxyGraphQL'
+  },
+  '/auth/debug': {
+    GET: 'debugDatabase'
   }
 } as const;
 
@@ -645,6 +649,63 @@ const handlers = {
 
     } catch (error: any) {
       return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Debug endpoint - checks database state and session creation
+   */
+  async debugDatabase(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Check database state
+      const databaseState = await env.AUTH_DB_BINDING.prepare('SELECT name FROM sqlite_master WHERE type="table";').all();
+      const tableNames = databaseState.results?.map((row: any) => row.name) || [];
+
+      // Check if domain-specific tables exist
+      const usersTable = `${subdomain}_users`;
+      const sessionsTable = `${subdomain}_sessions`;
+      
+      let userCount = 0;
+      let sessionCount = 0;
+      
+      try {
+        // Check users table
+        const usersResult = await env.AUTH_DB_BINDING.prepare(`SELECT COUNT(*) as count FROM ${usersTable};`).first();
+        userCount = usersResult ? (usersResult as any).count : 0;
+      } catch (error) {
+        // Table doesn't exist
+      }
+      
+      try {
+        // Check sessions table
+        const sessionsResult = await env.AUTH_DB_BINDING.prepare(`SELECT COUNT(*) as count FROM ${sessionsTable};`).first();
+        sessionCount = sessionsResult ? (sessionsResult as any).count : 0;
+      } catch (error) {
+        // Table doesn't exist
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Database debug information',
+        subdomain: subdomain,
+        allTables: tableNames,
+        expectedUsersTable: usersTable,
+        expectedSessionsTable: sessionsTable,
+        userCount: userCount,
+        sessionCount: sessionCount,
+        databaseBinding: env.AUTH_DB_BINDING ? 'Available' : 'Not Available'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return createErrorResponse(`Debug error: ${error.message}`, 500, corsHeaders);
     }
   }
 };
