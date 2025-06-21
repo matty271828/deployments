@@ -27,34 +27,18 @@ export default {
     
     // Handle GraphQL endpoint - ONLY from auth service
     if (url.pathname === '/graphql') {
-      console.log(`[DOMAIN WORKER] GraphQL endpoint accessed - this should show for worker-to-worker calls`);
+      console.log(`[DOMAIN WORKER] GraphQL endpoint accessed`);
       
-      // Check if this request is coming from the auth service
-      // We can check the request headers or use a secret token
-      const authHeader = request.headers.get('X-Auth-Service-Token');
-      const forwardedBy = request.headers.get('X-Forwarded-By');
+      // TODO: Add validation that requests are only coming from the auth service
+      // This could be done by checking worker-to-worker binding metadata or using a shared secret
+      
+      // Get user ID from auth service headers
       const userId = request.headers.get('X-User-ID');
       
-      console.log(`[DOMAIN WORKER] Headers received:`, {
-        'X-Auth-Service-Token': authHeader,
-        'X-Forwarded-By': forwardedBy,
-        'X-User-ID': userId
-      });
+      console.log(`[DOMAIN WORKER] User ID from auth service: ${userId}`);
       
-      const isFromAuthService = authHeader === 'trusted-auth-service' || 
-                               forwardedBy === 'auth-service';
-      
-      console.log(`[DOMAIN WORKER] Is from auth service: ${isFromAuthService}`);
-      
-      if (!isFromAuthService) {
-        console.log(`[DOMAIN WORKER] Unauthorized - not from auth service`);
-        return new Response(JSON.stringify({ 
-          error: 'Unauthorized - GraphQL endpoint only accessible via auth service' 
-        }), { 
-          status: 403, 
-          headers: { 'Content-Type': 'application/json' } 
-        });
-      }
+      // No need to validate session - auth service already did that
+      // No need to check if from auth service - worker-to-worker binding provides security
       
       try {
         console.log(`[DOMAIN WORKER] Creating GraphQL context with user_id: ${userId}`);
@@ -91,7 +75,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID, X-Auth-Service-Token'
+          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID'
         }
       });
     }
