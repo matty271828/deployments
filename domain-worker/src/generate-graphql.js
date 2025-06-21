@@ -88,6 +88,7 @@ function generateTableResolvers(table) {
   const tableName = table.name;
   const capitalizedName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
   const primaryKeyColumn = table.columns.find(col => col.primaryKey)?.name || 'id';
+  const hasUserId = table.columns.some(col => col.name === 'user_id');
   
   return `
 // ${tableName} resolvers
@@ -95,12 +96,18 @@ const ${tableName}Resolvers = {
   Query: {
     ${tableName}s: async (_, __, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
-      const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE user_id = ?\`).bind(user_id).all();
+      ${hasUserId ? 
+        `const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE user_id = ?\`).bind(user_id).all();` :
+        `const result = await db.prepare(\`SELECT * FROM ${tableName}\`).all();`
+      }
       return result.results;
     },
     ${tableName}: async (_, { id }, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
-      const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).first();
+      ${hasUserId ?
+        `const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).first();` :
+        `const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE ${primaryKeyColumn} = ?\`).bind(id).first();`
+      }
       if (!result) throw new Error('Not found');
       return result;
     }
@@ -108,10 +115,15 @@ const ${tableName}Resolvers = {
   Mutation: {
     create${capitalizedName}: async (_, { input }, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
-      const dataWithUserId = { ...input, user_id };
+      ${hasUserId ?
+        `const dataWithUserId = { ...input, user_id };
       const columns = Object.keys(dataWithUserId).join(', ');
       const placeholders = Object.keys(dataWithUserId).map(() => '?').join(', ');
-      const values = Object.values(dataWithUserId);
+      const values = Object.values(dataWithUserId);` :
+        `const columns = Object.keys(input).join(', ');
+      const placeholders = Object.keys(input).map(() => '?').join(', ');
+      const values = Object.values(input);`
+      }
       
       const result = await db.prepare(\`INSERT INTO ${tableName} (\${columns}) VALUES (\${placeholders})\`).bind(...values).run();
       return { id: result.meta.last_row_id, ...input };
@@ -119,15 +131,23 @@ const ${tableName}Resolvers = {
     update${capitalizedName}: async (_, { id, input }, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
       const setClause = Object.keys(input).map(key => \`\${key} = ?\`).join(', ');
-      const values = [...Object.values(input), id, user_id];
+      ${hasUserId ?
+        `const values = [...Object.values(input), id, user_id];
       
-      const result = await db.prepare(\`UPDATE ${tableName} SET \${setClause} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(...values).run();
+      const result = await db.prepare(\`UPDATE ${tableName} SET \${setClause} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(...values).run();` :
+        `const values = [...Object.values(input), id];
+      
+      const result = await db.prepare(\`UPDATE ${tableName} SET \${setClause} WHERE ${primaryKeyColumn} = ?\`).bind(...values).run();`
+      }
       if (result.meta.changes === 0) throw new Error('Not found');
       return { id, ...input };
     },
     delete${capitalizedName}: async (_, { id }, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
-      const result = await db.prepare(\`DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).run();
+      ${hasUserId ?
+        `const result = await db.prepare(\`DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ? AND user_id = ?\`).bind(id, user_id).run();` :
+        `const result = await db.prepare(\`DELETE FROM ${tableName} WHERE ${primaryKeyColumn} = ?\`).bind(id).run();`
+      }
       if (result.meta.changes === 0) throw new Error('Not found');
       return true;
     }
@@ -186,6 +206,8 @@ function generateGraphQLModule(schemaSql) {
   if (tables.length === 0) {
     console.log('No tables found in schema, using placeholder GraphQL code');
     return `// Placeholder GraphQL code - no tables found in schema
+import { createSchema } from 'graphql-yoga';
+
 const typeDefs = \`#graphql
 type Query {
   hello: String!
@@ -204,17 +226,48 @@ const resolvers = {
   }
 };
 
-export { typeDefs, resolvers };`;
+// Create the schema using createSchema
+export const schema = createSchema({
+  typeDefs,
+  resolvers
+});
+
+export function createContext(request: Request, env: any) {
+  const user_id = request.headers.get('X-User-ID');
+  return {
+    user_id,
+    db: env.DOMAIN_DB
+  };
+}`;
   }
   
   const schema = generateGraphQLSchema(tables);
   const resolvers = generateResolverMapping(tables);
   
-  return `${schema}
+  return `// Auto-generated GraphQL module
+// Generated from SQL schema
+// All operations are automatically scoped to the authenticated user
+
+import { createSchema } from 'graphql-yoga';
+
+${schema}
 
 ${resolvers}
 
-export { typeDefs, resolvers };`;
+// Create the schema using createSchema
+export const schema = createSchema({
+  typeDefs,
+  resolvers
+});
+
+// Context function to extract user_id from headers
+export function createContext(request: Request, env: any) {
+  const user_id = request.headers.get('X-User-ID');
+  return {
+    user_id,
+    db: env.DOMAIN_DB
+  };
+}`;
 }
 
 // Read the schema.sql file (it should be in the current directory when copied)
