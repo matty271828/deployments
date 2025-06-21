@@ -27,13 +27,27 @@ export default {
     
     // Handle GraphQL endpoint - ONLY from auth service
     if (url.pathname === '/graphql') {
+      console.log(`[DOMAIN WORKER DEBUG] GraphQL request received`);
+      
       // Check if this request is coming from the auth service
       // We can check the request headers or use a secret token
       const authHeader = request.headers.get('X-Auth-Service-Token');
+      const forwardedBy = request.headers.get('X-Forwarded-By');
+      const userId = request.headers.get('X-User-ID');
+      
+      console.log(`[DOMAIN WORKER DEBUG] Headers received:`, {
+        'X-Auth-Service-Token': authHeader,
+        'X-Forwarded-By': forwardedBy,
+        'X-User-ID': userId
+      });
+      
       const isFromAuthService = authHeader === 'trusted-auth-service' || 
-                               request.headers.get('X-Forwarded-By') === 'auth-service';
+                               forwardedBy === 'auth-service';
+      
+      console.log(`[DOMAIN WORKER DEBUG] Is from auth service: ${isFromAuthService}`);
       
       if (!isFromAuthService) {
+        console.log(`[DOMAIN WORKER DEBUG] Unauthorized - not from auth service`);
         return new Response(JSON.stringify({ 
           error: 'Unauthorized - GraphQL endpoint only accessible via auth service' 
         }), { 
@@ -43,6 +57,8 @@ export default {
       }
       
       try {
+        console.log(`[DOMAIN WORKER DEBUG] Creating GraphQL context with user_id: ${userId}`);
+        
         // Dynamic imports to handle missing dependencies gracefully
         const { createYoga } = await import('graphql-yoga');
         const { schema, createContext } = await import('./generated-graphql');
@@ -54,8 +70,10 @@ export default {
           landingPage: false
         });
         
+        console.log(`[DOMAIN WORKER DEBUG] GraphQL yoga created, processing request`);
         return yoga(request);
       } catch (error: any) {
+        console.error(`[DOMAIN WORKER DEBUG] GraphQL error:`, error);
         return new Response(JSON.stringify({ 
           error: 'GraphQL not available', 
           details: error.message 
