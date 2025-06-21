@@ -702,6 +702,17 @@ const handlers = {
       }
       
       console.log(`[AUTH SERVICE] Using domain worker binding: ${domainWorkerName}`);
+      
+      // Debug the binding object
+      const binding = env[domainWorkerName];
+      console.log(`[AUTH SERVICE] Binding type:`, typeof binding);
+      console.log(`[AUTH SERVICE] Binding is function:`, typeof binding === 'function');
+      console.log(`[AUTH SERVICE] Binding has fetch:`, binding && typeof binding.fetch === 'function');
+      
+      if (!binding || typeof binding.fetch !== 'function') {
+        console.error(`[AUTH SERVICE] Binding is not a valid worker binding!`);
+        return createErrorResponse('Invalid domain worker binding', 503, corsHeaders);
+      }
 
       // Prepare the request to the domain worker
       const graphqlRequest = new Request('https://domain-worker.local/graphql', {
@@ -723,19 +734,48 @@ const handlers = {
 
       // Proxy the request to the domain worker
       console.log(`[AUTH SERVICE] Making worker-to-worker call to ${domainWorkerName}...`);
-      const domainWorkerResponse = await env[domainWorkerName].fetch(graphqlRequest);
       
-      console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
-
-      // Return the domain worker's response
-      return new Response(domainWorkerResponse.body, {
-        status: domainWorkerResponse.status,
-        statusText: domainWorkerResponse.statusText,
-        headers: {
-          ...Object.fromEntries(domainWorkerResponse.headers.entries()),
-          ...corsHeaders
+      try {
+        const domainWorkerResponse = await env[domainWorkerName].fetch(graphqlRequest);
+        console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
+        console.log(`[AUTH SERVICE] Domain worker response headers:`, Object.fromEntries(domainWorkerResponse.headers.entries()));
+        
+        // Check if the response indicates an error
+        if (domainWorkerResponse.status >= 400) {
+          console.error(`[AUTH SERVICE] Domain worker returned error status: ${domainWorkerResponse.status}`);
+          const errorBody = await domainWorkerResponse.text();
+          console.error(`[AUTH SERVICE] Domain worker error body: ${errorBody}`);
+          
+          // Return the error response from the domain worker
+          return new Response(errorBody, {
+            status: domainWorkerResponse.status,
+            statusText: domainWorkerResponse.statusText,
+            headers: {
+              ...Object.fromEntries(domainWorkerResponse.headers.entries()),
+              ...corsHeaders
+            }
+          });
         }
-      });
+        
+        // Get the response body for debugging
+        const responseBody = await domainWorkerResponse.text();
+        console.log(`[AUTH SERVICE] Domain worker response body: ${responseBody.substring(0, 200)}...`);
+
+        // Return the domain worker's response
+        return new Response(responseBody, {
+          status: domainWorkerResponse.status,
+          statusText: domainWorkerResponse.statusText,
+          headers: {
+            ...Object.fromEntries(domainWorkerResponse.headers.entries()),
+            ...corsHeaders
+          }
+        });
+      } catch (fetchError: any) {
+        console.error(`[AUTH SERVICE] Worker-to-worker fetch failed:`, fetchError);
+        console.error(`[AUTH SERVICE] Fetch error message:`, fetchError.message);
+        console.error(`[AUTH SERVICE] Fetch error stack:`, fetchError.stack);
+        throw fetchError;
+      }
 
     } catch (error: any) {
       console.error(`[AUTH SERVICE] Error in proxyGraphQL:`, error);
