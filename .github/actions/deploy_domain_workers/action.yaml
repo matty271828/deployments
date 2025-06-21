@@ -162,6 +162,16 @@ runs:
             echo "DEBUG: GraphQL code generated. Generated files:"
             ls -la src/
             
+            # Print the generated GraphQL code for debugging
+            echo "=== DEBUG: Generated GraphQL Code for $repo_name ==="
+            if [ -f "src/generated-graphql.ts" ]; then
+              echo "DEBUG: Contents of generated-graphql.ts:"
+              cat src/generated-graphql.ts
+            else
+              echo "DEBUG: generated-graphql.ts file not found!"
+            fi
+            echo "=== END Generated GraphQL Code ==="
+            
             echo "GraphQL code generated for $repo_name"
           else
             echo "DEBUG: No schema.sql found in $repo_name, using placeholder GraphQL code"
