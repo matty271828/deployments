@@ -599,6 +599,8 @@ const handlers = {
    */
   async proxyGraphQL(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      console.log(`[AUTH SERVICE] Starting GraphQL proxy for subdomain: ${subdomain}`);
+      
       // Rate limiting
       const clientIP = getClientIP(request);
       const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
@@ -613,6 +615,7 @@ const handlers = {
       }
 
       const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      console.log(`[AUTH SERVICE] Session token received: ${token.substring(0, 10)}...`);
 
       // Ensure we have database access
       if (!env?.AUTH_DB_BINDING) {
@@ -620,12 +623,15 @@ const handlers = {
       }
 
       // Validate the session token
+      console.log(`[AUTH SERVICE] Validating session token...`);
       const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
       if (!validationResult.success) {
+        console.log(`[AUTH SERVICE] Session validation failed: ${validationResult.error!.message}`);
         return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
 
       const session = validationResult.session!;
+      console.log(`[AUTH SERVICE] Session validation successful for user: ${session.userId}`);
 
       // Get user information
       const { getUserById } = await import('./users');
@@ -636,13 +642,66 @@ const handlers = {
 
       // Find the domain worker for this subdomain
       // The domain worker name format is "{repo_name}-worker"
-      // We need to determine which domain worker to call based on the subdomain
+      // Based on the Terraform configuration, the binding name matches the worker name
+      
+      console.log(`[AUTH SERVICE] Looking for domain worker binding for subdomain: ${subdomain}`);
+      console.log(`[AUTH SERVICE] All available bindings: ${Object.keys(env).join(', ')}`);
+      
+      // Get all worker bindings
+      const workerBindings = Object.keys(env).filter(key => key.includes('worker'));
+      console.log(`[AUTH SERVICE] Worker bindings found: ${workerBindings.join(', ')}`);
+      
+      // The binding name should be "{subdomain}-worker" based on the Terraform configuration
       const domainWorkerName = `${subdomain}-worker`;
       
-      // Check if we have a binding to this domain worker
       if (!env[domainWorkerName]) {
+        console.log(`[AUTH SERVICE] Domain worker binding not found: ${domainWorkerName}`);
+        console.log(`[AUTH SERVICE] Available worker bindings: ${workerBindings.join(', ')}`);
+        
+        // If the exact match doesn't work, let's try to find any worker binding
+        if (workerBindings.length > 0) {
+          console.log(`[AUTH SERVICE] Trying first available worker binding: ${workerBindings[0]}`);
+          // For debugging, use the first available worker binding
+          const fallbackBinding = workerBindings[0];
+          console.log(`[AUTH SERVICE] Using fallback binding: ${fallbackBinding}`);
+          
+          // Continue with the fallback binding for testing
+          const graphqlRequest = new Request('https://domain-worker.local/graphql', {
+            method: request.method,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-ID': user.id.toString(),
+              'X-Auth-Service-Token': 'trusted-auth-service',
+              'X-Forwarded-By': 'auth-service'
+            },
+            body: request.method === 'POST' ? await request.text() : undefined
+          });
+
+          console.log(`[AUTH SERVICE] Forwarding request to domain worker with headers:`, {
+            'X-User-ID': user.id.toString(),
+            'X-Auth-Service-Token': 'trusted-auth-service',
+            'X-Forwarded-By': 'auth-service'
+          });
+
+          console.log(`[AUTH SERVICE] Making worker-to-worker call to ${fallbackBinding}...`);
+          const domainWorkerResponse = await env[fallbackBinding].fetch(graphqlRequest);
+          
+          console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
+
+          return new Response(domainWorkerResponse.body, {
+            status: domainWorkerResponse.status,
+            statusText: domainWorkerResponse.statusText,
+            headers: {
+              ...Object.fromEntries(domainWorkerResponse.headers.entries()),
+              ...corsHeaders
+            }
+          });
+        }
+        
         return createErrorResponse('Domain worker not available', 503, corsHeaders);
       }
+      
+      console.log(`[AUTH SERVICE] Using domain worker binding: ${domainWorkerName}`);
 
       // Prepare the request to the domain worker
       const graphqlRequest = new Request('https://domain-worker.local/graphql', {
@@ -656,8 +715,17 @@ const handlers = {
         body: request.method === 'POST' ? await request.text() : undefined
       });
 
+      console.log(`[AUTH SERVICE] Forwarding request to domain worker with headers:`, {
+        'X-User-ID': user.id.toString(),
+        'X-Auth-Service-Token': 'trusted-auth-service',
+        'X-Forwarded-By': 'auth-service'
+      });
+
       // Proxy the request to the domain worker
+      console.log(`[AUTH SERVICE] Making worker-to-worker call to ${domainWorkerName}...`);
       const domainWorkerResponse = await env[domainWorkerName].fetch(graphqlRequest);
+      
+      console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
 
       // Return the domain worker's response
       return new Response(domainWorkerResponse.body, {
@@ -670,6 +738,7 @@ const handlers = {
       });
 
     } catch (error: any) {
+      console.error(`[AUTH SERVICE] Error in proxyGraphQL:`, error);
       return handleApiError(error, corsHeaders);
     }
   },

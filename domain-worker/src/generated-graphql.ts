@@ -3,6 +3,12 @@
 
 import { createSchema } from 'graphql-yoga';
 
+// Define the context type
+export interface GraphQLContext {
+  user_id: string | null;
+  db: any;
+}
+
 export const typeDefs = `
   type Query {
     _placeholder: String
@@ -22,13 +28,13 @@ export const resolvers = {
   }
 };
 
-// Create the schema using createSchema
-export const schema = createSchema({
+// Create the schema using createSchema with proper typing
+export const schema = createSchema<GraphQLContext>({
   typeDefs,
   resolvers
 });
 
-export function createContext(request: Request, env: any) {
+export function createContext(request: Request, env: any): GraphQLContext {
   const user_id = request.headers.get('X-User-ID');
   return {
     user_id,

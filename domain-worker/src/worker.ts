@@ -27,7 +27,7 @@ export default {
     
     // Handle GraphQL endpoint - ONLY from auth service
     if (url.pathname === '/graphql') {
-      console.log(`[DOMAIN WORKER DEBUG] GraphQL request received`);
+      console.log(`[DOMAIN WORKER] GraphQL endpoint accessed - this should show for worker-to-worker calls`);
       
       // Check if this request is coming from the auth service
       // We can check the request headers or use a secret token
@@ -35,7 +35,7 @@ export default {
       const forwardedBy = request.headers.get('X-Forwarded-By');
       const userId = request.headers.get('X-User-ID');
       
-      console.log(`[DOMAIN WORKER DEBUG] Headers received:`, {
+      console.log(`[DOMAIN WORKER] Headers received:`, {
         'X-Auth-Service-Token': authHeader,
         'X-Forwarded-By': forwardedBy,
         'X-User-ID': userId
@@ -44,10 +44,10 @@ export default {
       const isFromAuthService = authHeader === 'trusted-auth-service' || 
                                forwardedBy === 'auth-service';
       
-      console.log(`[DOMAIN WORKER DEBUG] Is from auth service: ${isFromAuthService}`);
+      console.log(`[DOMAIN WORKER] Is from auth service: ${isFromAuthService}`);
       
       if (!isFromAuthService) {
-        console.log(`[DOMAIN WORKER DEBUG] Unauthorized - not from auth service`);
+        console.log(`[DOMAIN WORKER] Unauthorized - not from auth service`);
         return new Response(JSON.stringify({ 
           error: 'Unauthorized - GraphQL endpoint only accessible via auth service' 
         }), { 
@@ -57,7 +57,7 @@ export default {
       }
       
       try {
-        console.log(`[DOMAIN WORKER DEBUG] Creating GraphQL context with user_id: ${userId}`);
+        console.log(`[DOMAIN WORKER] Creating GraphQL context with user_id: ${userId}`);
         
         // Dynamic imports to handle missing dependencies gracefully
         const { createYoga } = await import('graphql-yoga');
@@ -70,10 +70,10 @@ export default {
           landingPage: false
         });
         
-        console.log(`[DOMAIN WORKER DEBUG] GraphQL yoga created, processing request`);
+        console.log(`[DOMAIN WORKER] GraphQL yoga created, processing request`);
         return yoga(request);
       } catch (error: any) {
-        console.error(`[DOMAIN WORKER DEBUG] GraphQL error:`, error);
+        console.error(`[DOMAIN WORKER] GraphQL error:`, error);
         return new Response(JSON.stringify({ 
           error: 'GraphQL not available', 
           details: error.message 
