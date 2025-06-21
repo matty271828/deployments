@@ -35,7 +35,10 @@ export async function createSession(db: D1Database, domain: string, userId: stri
       token
     };
 
-    console.log(`Creating session for domain: ${domain}, userId: ${userId}, sessionId: ${id}`);
+    console.log(`[CREATE SESSION] Creating session for domain: ${domain}, userId: ${userId}, sessionId: ${id}`);
+    console.log(`[CREATE SESSION] Secret length: ${secret.length}`);
+    console.log(`[CREATE SESSION] Secret hash length: ${secretHash.length}`);
+    console.log(`[CREATE SESSION] Secret hash (first 10 bytes):`, Array.from(secretHash.slice(0, 10)));
 
     // Insert session into domain-specific table
     const insertResult = await db.prepare(`
@@ -48,29 +51,31 @@ export async function createSession(db: D1Database, domain: string, userId: stri
       Math.floor(session.createdAt.getTime() / 1000)
     ).run();
 
-    console.log(`Session insert result:`, insertResult);
+    console.log(`[CREATE SESSION] Session insert result:`, insertResult);
 
     // Verify the session was actually inserted
     const verifyResult = await db.prepare(`
-      SELECT id FROM ${domain}_sessions WHERE id = ?
+      SELECT id, secret_hash FROM ${domain}_sessions WHERE id = ?
     `).bind(session.id).first();
 
     if (!verifyResult) {
       throw new Error(`Session was not inserted into database. Domain: ${domain}, SessionId: ${id}`);
     }
 
-    console.log(`Session verified in database: ${session.id}`);
+    console.log(`[CREATE SESSION] Session verified in database: ${session.id}`);
+    console.log(`[CREATE SESSION] Stored secret hash length: ${(verifyResult.secret_hash as Uint8Array).length}`);
+    console.log(`[CREATE SESSION] Stored secret hash (first 10 bytes):`, Array.from((verifyResult.secret_hash as Uint8Array).slice(0, 10)));
 
     // Double-check the session count
     const countResult = await db.prepare(`
       SELECT COUNT(*) as count FROM ${domain}_sessions
     `).first();
     
-    console.log(`Total sessions in ${domain}_sessions table: ${countResult ? (countResult as any).count : 'unknown'}`);
+    console.log(`[CREATE SESSION] Total sessions in ${domain}_sessions table: ${countResult ? (countResult as any).count : 'unknown'}`);
 
     return session;
   } catch (error) {
-    console.error(`Error creating session for domain ${domain}, userId ${userId}:`, error);
+    console.error(`[CREATE SESSION] Error creating session for domain ${domain}, userId ${userId}:`, error);
     throw error;
   }
 }

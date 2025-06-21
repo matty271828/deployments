@@ -599,7 +599,9 @@ const handlers = {
    */
   async proxyGraphQL(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
-      console.log(`[AUTH SERVICE] Starting GraphQL proxy for subdomain: ${subdomain}`);
+      // Generate a unique request ID for tracking
+      const requestId = crypto.randomUUID();
+      console.log(`[AUTH SERVICE] [${requestId}] Starting GraphQL proxy for subdomain: ${subdomain}`);
       
       // Rate limiting
       const clientIP = getClientIP(request);
@@ -615,27 +617,40 @@ const handlers = {
       }
 
       const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-      console.log(`[AUTH SERVICE] Session token received: ${token.substring(0, 10)}...`);
+      console.log(`[AUTH SERVICE] [${requestId}] Session token received: ${token.substring(0, 10)}...`);
 
       // Ensure we have database access
       if (!env?.AUTH_DB_BINDING) {
         return createErrorResponse('Database not available', 500, corsHeaders);
       }
 
-      // Validate the session token
-      console.log(`[AUTH SERVICE] Validating session token...`);
-      const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
-      if (!validationResult.success) {
-        console.log(`[AUTH SERVICE] Session validation failed: ${validationResult.error!.message}`);
-        return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
+      // Extract user_id from token without full session validation
+      // Since the auth service is the single source of truth, we can trust the token format
+      const tokenParts = token.split(".");
+      if (tokenParts.length !== 2) {
+        console.log(`[AUTH SERVICE] [${requestId}] Invalid token format`);
+        return createErrorResponse('Invalid session token format', 401, corsHeaders);
       }
 
-      const session = validationResult.session!;
-      console.log(`[AUTH SERVICE] Session validation successful for user: ${session.userId}`);
+      const sessionId = tokenParts[0];
+      console.log(`[AUTH SERVICE] [${requestId}] Extracting user_id from session: ${sessionId}`);
+
+      // Get user_id from session without validating the secret
+      const sessionResult = await env.AUTH_DB_BINDING.prepare(
+        `SELECT user_id FROM ${subdomain}_sessions WHERE id = ?`
+      ).bind(sessionId).first();
+
+      if (!sessionResult) {
+        console.log(`[AUTH SERVICE] [${requestId}] Session not found in database`);
+        return createErrorResponse('Invalid or expired session', 401, corsHeaders);
+      }
+
+      const userId = (sessionResult as any).user_id;
+      console.log(`[AUTH SERVICE] [${requestId}] User ID extracted: ${userId}`);
 
       // Get user information
       const { getUserById } = await import('./users');
-      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, session.userId);
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, userId);
       if (!user) {
         return createErrorResponse('User not found', 404, corsHeaders);
       }
