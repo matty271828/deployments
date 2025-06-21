@@ -61,6 +61,13 @@ export async function createSession(db: D1Database, domain: string, userId: stri
 
     console.log(`Session verified in database: ${session.id}`);
 
+    // Double-check the session count
+    const countResult = await db.prepare(`
+      SELECT COUNT(*) as count FROM ${domain}_sessions
+    `).first();
+    
+    console.log(`Total sessions in ${domain}_sessions table: ${countResult ? (countResult as any).count : 'unknown'}`);
+
     return session;
   } catch (error) {
     console.error(`Error creating session for domain ${domain}, userId ${userId}:`, error);
@@ -181,21 +188,22 @@ export async function validateSessionToken(db: D1Database, domain: string, token
  */
 export async function getSession(db: D1Database, domain: string, sessionId: string): Promise<Session | null> {
   const now = new Date();
+  const tableName = `${domain}_sessions`;
 
-  console.log(`Looking up session: ${sessionId} for domain: ${domain}`);
+  console.log(`Looking up session: ${sessionId} in table: ${tableName}`);
 
   const result = await db.prepare(`
     SELECT id, user_id, secret_hash, created_at 
-    FROM ${domain}_sessions 
+    FROM ${tableName} 
     WHERE id = ?
   `).bind(sessionId).first();
 
   if (!result) {
-    console.log(`Session not found in database: ${sessionId}`);
+    console.log(`Session not found in database table: ${tableName}`);
     return null;
   }
 
-  console.log(`Session found in database: ${sessionId}, created at: ${result.created_at}`);
+  console.log(`Session found in database table: ${tableName}, created at: ${result.created_at}, user_id: ${result.user_id}`);
 
   const session: Session = {
     id: result.id as string,
@@ -209,12 +217,12 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   console.log(`Session age: ${ageInSeconds} seconds, expires after: ${SESSION_EXPIRES_IN_SECONDS} seconds`);
 
   if (ageInSeconds >= SESSION_EXPIRES_IN_SECONDS) {
-    console.log(`Session expired, deleting: ${sessionId}`);
+    console.log(`Session expired, deleting: ${sessionId} from table: ${tableName}`);
     await deleteSession(db, domain, sessionId);
     return null;
   }
 
-  console.log(`Session is valid: ${sessionId}`);
+  console.log(`Session is valid: ${sessionId} in table: ${tableName}`);
   return session;
 }
 
@@ -226,10 +234,15 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
  * @param sessionId - Session ID to delete
  */
 export async function deleteSession(db: D1Database, domain: string, sessionId: string): Promise<void> {
-  await db.prepare(`
-    DELETE FROM ${domain}_sessions 
+  const tableName = `${domain}_sessions`;
+  console.log(`DELETING session: ${sessionId} from table: ${tableName}`);
+  
+  const result = await db.prepare(`
+    DELETE FROM ${tableName} 
     WHERE id = ?
   `).bind(sessionId).run();
+  
+  console.log(`DELETE result for session ${sessionId}:`, result);
 }
 
 /**
