@@ -172,7 +172,30 @@ const handlers = {
       const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password, firstName, lastName);
 
       // Create session for the new user
-      const session = await createSession(env.AUTH_DB_BINDING, subdomain, user.id);
+      let session;
+      try {
+        session = await createSession(env.AUTH_DB_BINDING, subdomain, user.id);
+        console.log(`Session created successfully for user ${user.id}: ${session.id}`);
+      } catch (sessionError: any) {
+        console.error(`Failed to create session for user ${user.id}:`, sessionError);
+        // Return user creation success but session creation failure
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'User created successfully, but session creation failed',
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            createdAt: user.createdAt
+          },
+          session: null,
+          sessionError: sessionError.message
+        }), {
+          status: 201,
+          headers: corsHeaders
+        });
+      }
 
       // Return success response with user and session
       return new Response(JSON.stringify({

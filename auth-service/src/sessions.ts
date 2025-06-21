@@ -18,34 +18,54 @@ const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24;
  * @returns Promise<SessionWithToken>
  */
 export async function createSession(db: D1Database, domain: string, userId: string): Promise<SessionWithToken> {
-  const now = new Date();
+  try {
+    const now = new Date();
 
-  const id = generateSecureRandomString();
-  const secret = generateSecureRandomString();
-  const secretHash = await hashSecret(secret);
+    const id = generateSecureRandomString();
+    const secret = generateSecureRandomString();
+    const secretHash = await hashSecret(secret);
 
-  const token = id + "." + secret;
+    const token = id + "." + secret;
 
-  const session: SessionWithToken = {
-    id,
-    userId,
-    secretHash,
-    createdAt: now,
-    token
-  };
+    const session: SessionWithToken = {
+      id,
+      userId,
+      secretHash,
+      createdAt: now,
+      token
+    };
 
-  // Insert session into domain-specific table
-  await db.prepare(`
-    INSERT INTO ${domain}_sessions (id, user_id, secret_hash, created_at) 
-    VALUES (?, ?, ?, ?)
-  `).bind(
-    session.id,
-    session.userId,
-    session.secretHash,
-    Math.floor(session.createdAt.getTime() / 1000)
-  ).run();
+    console.log(`Creating session for domain: ${domain}, userId: ${userId}, sessionId: ${id}`);
 
-  return session;
+    // Insert session into domain-specific table
+    const insertResult = await db.prepare(`
+      INSERT INTO ${domain}_sessions (id, user_id, secret_hash, created_at) 
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      session.id,
+      session.userId,
+      session.secretHash,
+      Math.floor(session.createdAt.getTime() / 1000)
+    ).run();
+
+    console.log(`Session insert result:`, insertResult);
+
+    // Verify the session was actually inserted
+    const verifyResult = await db.prepare(`
+      SELECT id FROM ${domain}_sessions WHERE id = ?
+    `).bind(session.id).first();
+
+    if (!verifyResult) {
+      throw new Error(`Session was not inserted into database. Domain: ${domain}, SessionId: ${id}`);
+    }
+
+    console.log(`Session verified in database: ${session.id}`);
+
+    return session;
+  } catch (error) {
+    console.error(`Error creating session for domain ${domain}, userId ${userId}:`, error);
+    throw error;
+  }
 }
 
 /**

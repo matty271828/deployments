@@ -13,3 +13,7 @@ database_id = ""
 [[r2_buckets]]
 binding = "DOMAIN_MAPPINGS_BUCKET"
 bucket_name = "domain-mappings"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
