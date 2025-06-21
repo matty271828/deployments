@@ -143,17 +143,18 @@ export function getClientIP(request: Request): string {
 
 /**
  * Create rate limiters for different endpoints
+ * DEVELOPMENT-FRIENDLY RATES: Much higher limits for easier development
  */
 export const rateLimiters = {
-  // Login attempts: 5 attempts per 15 minutes
-  login: new TokenBucketRateLimit('login', 5, 15 * 60),
+  // Login attempts: 50 attempts per 15 minutes (was 5)
+  login: new TokenBucketRateLimit('login', 50, 15 * 60),
   
-  // Signup attempts: 3 attempts per hour
-  signup: new TokenBucketRateLimit('signup', 3, 60 * 60),
+  // Signup attempts: 20 attempts per hour (was 3)
+  signup: new TokenBucketRateLimit('signup', 20, 60 * 60),
   
-  // Session operations: 30 requests per minute (more lenient for legitimate use)
-  session: new TokenBucketRateLimit('session', 30, 60),
+  // Session operations: 200 requests per minute (was 30)
+  session: new TokenBucketRateLimit('session', 200, 60),
   
-  // General API: 100 requests per minute
-  api: new TokenBucketRateLimit('api', 100, 60)
+  // General API: 500 requests per minute (was 100)
+  api: new TokenBucketRateLimit('api', 500, 60)
 }; 
