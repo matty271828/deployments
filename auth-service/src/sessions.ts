@@ -135,8 +135,12 @@ export async function validateCSRFToken(db: D1Database, domain: string, csrfToke
  * @returns Promise<SessionValidationResult>
  */
 export async function validateSessionToken(db: D1Database, domain: string, token: string): Promise<SessionValidationResult> {
+  console.log(`[VALIDATE SESSION] Starting validation for domain: ${domain}`);
+  console.log(`[VALIDATE SESSION] Token: ${token.substring(0, 10)}...`);
+  
   const tokenParts = token.split(".");
   if (tokenParts.length != 2) {
+    console.log(`[VALIDATE SESSION] Invalid token format - expected 2 parts, got ${tokenParts.length}`);
     return {
       success: false,
       error: {
@@ -148,9 +152,13 @@ export async function validateSessionToken(db: D1Database, domain: string, token
   
   const sessionId = tokenParts[0];
   const sessionSecret = tokenParts[1];
+  
+  console.log(`[VALIDATE SESSION] Session ID: ${sessionId}`);
+  console.log(`[VALIDATE SESSION] Session Secret length: ${sessionSecret.length}`);
 
   const session = await getSession(db, domain, sessionId);
   if (!session) {
+    console.log(`[VALIDATE SESSION] Session not found in database`);
     return {
       success: false,
       error: {
@@ -160,9 +168,19 @@ export async function validateSessionToken(db: D1Database, domain: string, token
     };
   }
 
+  console.log(`[VALIDATE SESSION] Session found, validating secret...`);
+  console.log(`[VALIDATE SESSION] Stored secret hash length: ${session.secretHash.length}`);
+  
   const tokenSecretHash = await hashSecret(sessionSecret);
+  console.log(`[VALIDATE SESSION] Token secret hash length: ${tokenSecretHash.length}`);
+  
   const validSecret = constantTimeEqual(tokenSecretHash, session.secretHash);
+  console.log(`[VALIDATE SESSION] Secret validation result: ${validSecret}`);
+  
   if (!validSecret) {
+    console.log(`[VALIDATE SESSION] Secret validation failed - hashes don't match`);
+    console.log(`[VALIDATE SESSION] Token secret hash (first 10 bytes):`, Array.from(tokenSecretHash.slice(0, 10)));
+    console.log(`[VALIDATE SESSION] Stored secret hash (first 10 bytes):`, Array.from(session.secretHash.slice(0, 10)));
     return {
       success: false,
       error: {
@@ -172,6 +190,7 @@ export async function validateSessionToken(db: D1Database, domain: string, token
     };
   }
 
+  console.log(`[VALIDATE SESSION] Session validation successful`);
   return {
     success: true,
     session: session
