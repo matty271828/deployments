@@ -6,32 +6,52 @@ function parseCreateTable(sql) {
   // Remove comments first
   const cleanSql = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   
-  // Improved regex-based parser for CREATE TABLE statements
-  const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\)/gi;
   const tables = [];
+  
+  // Find all CREATE TABLE statements
+  const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(/gi;
   let match;
-
+  
   while ((match = createTableRegex.exec(cleanSql)) !== null) {
     const tableName = match[1];
-    const columnDefinitions = match[2];
+    const startPos = match.index + match[0].length;
+    
+    // Find the matching closing parenthesis
+    let parenCount = 1;
+    let endPos = startPos;
+    
+    for (let i = startPos; i < cleanSql.length; i++) {
+      const char = cleanSql[i];
+      if (char === '(') {
+        parenCount++;
+      } else if (char === ')') {
+        parenCount--;
+        if (parenCount === 0) {
+          endPos = i;
+          break;
+        }
+      }
+    }
+    
+    const columnDefinitions = cleanSql.substring(startPos, endPos);
     
     const columns = [];
     
     // Split by commas, but handle nested parentheses
     const columnLines = [];
     let currentLine = '';
-    let parenCount = 0;
+    let lineParenCount = 0;
     
     for (let i = 0; i < columnDefinitions.length; i++) {
       const char = columnDefinitions[i];
       
       if (char === '(') {
-        parenCount++;
+        lineParenCount++;
       } else if (char === ')') {
-        parenCount--;
+        lineParenCount--;
       }
       
-      if (char === ',' && parenCount === 0) {
+      if (char === ',' && lineParenCount === 0) {
         columnLines.push(currentLine.trim());
         currentLine = '';
       } else {
@@ -137,6 +157,7 @@ ${updateFields}
 function generateTableResolvers(table) {
   const tableName = table.name;
   const capitalizedName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
+  const pluralName = tableName.endsWith('s') ? tableName : `${tableName}s`;
   const primaryKeyColumn = table.columns.find(col => col.primaryKey)?.name || 'id';
   const hasUserId = table.columns.some(col => col.name === 'user_id');
   
@@ -144,7 +165,7 @@ function generateTableResolvers(table) {
 // ${tableName} resolvers
 const ${tableName}Resolvers = {
   Query: {
-    ${tableName}s: async (_, __, { user_id, db }) => {
+    ${pluralName}: async (_, __, { user_id, db }) => {
       if (!user_id) throw new Error('User ID required');
       ${hasUserId ? 
         `const result = await db.prepare(\`SELECT * FROM ${tableName} WHERE user_id = ?\`).bind(user_id).all();` :
@@ -215,16 +236,17 @@ ${types}
 ${inputs}
 
 type Query {
-${tables.map(table => `  ${table.name}s: [${table.name.charAt(0).toUpperCase() + table.name.slice(1)}]!
-  ${table.name}(id: ID!): ${table.name.charAt(0).toUpperCase() + table.name.slice(1)}`).join('\n')}
+${tables.map(table => {
+  const pluralName = table.name.endsWith('s') ? table.name : `${table.name}s`;
+  const typeName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return `  ${pluralName}: [${typeName}]!\n  ${table.name}(id: ID!): ${typeName}`;
+}).join('\n')}
 }
 
 type Mutation {
 ${tables.map(table => {
   const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
-  return `  create${capitalizedName}(input: Create${capitalizedName}Input!): ${capitalizedName}!
-  update${capitalizedName}(id: ID!, input: Update${capitalizedName}Input!): ${capitalizedName}!
-  delete${capitalizedName}(id: ID!): Boolean!`;
+  return `  create${capitalizedName}(input: Create${capitalizedName}Input!): ${capitalizedName}!\n  update${capitalizedName}(id: ID!, input: Update${capitalizedName}Input!): ${capitalizedName}!\n  delete${capitalizedName}(id: ID!): Boolean!`;
 }).join('\n')}
 }\`;`;
 }
@@ -236,15 +258,15 @@ function generateResolverMapping(tables) {
 
 const resolvers = {
   Query: {
-${tables.map(table => `    ${table.name}s: ${table.name}Resolvers.Query.${table.name}s,
-    ${table.name}: ${table.name}Resolvers.Query.${table.name}`).join(',\n')}
+${tables.map(table => {
+  const pluralName = table.name.endsWith('s') ? table.name : `${table.name}s`;
+  return `    ${pluralName}: ${table.name}Resolvers.Query.${pluralName},\n    ${table.name}: ${table.name}Resolvers.Query.${table.name}`;
+}).join(',\n')}
   },
   Mutation: {
 ${tables.map(table => {
   const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
-  return `    create${capitalizedName}: ${table.name}Resolvers.Mutation.create${capitalizedName},
-    update${capitalizedName}: ${table.name}Resolvers.Mutation.update${capitalizedName},
-    delete${capitalizedName}: ${table.name}Resolvers.Mutation.delete${capitalizedName}`;
+  return `    create${capitalizedName}: ${table.name}Resolvers.Mutation.create${capitalizedName},\n    update${capitalizedName}: ${table.name}Resolvers.Mutation.update${capitalizedName},\n    delete${capitalizedName}: ${table.name}Resolvers.Mutation.delete${capitalizedName}`;
 }).join(',\n')}
   }
 };`;
