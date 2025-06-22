@@ -1,39 +1,77 @@
 const fs = require('fs');
 const path = require('path');
 
-// Simple GraphQL generator logic (self-contained)
+// Improved GraphQL generator logic with better SQL parsing
 function parseCreateTable(sql) {
-  // Simple regex-based parser for CREATE TABLE statements
+  // Remove comments first
+  const cleanSql = sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  
+  // Improved regex-based parser for CREATE TABLE statements
   const createTableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?\s*\(([\s\S]*?)\)/gi;
   const tables = [];
   let match;
 
-  while ((match = createTableRegex.exec(sql)) !== null) {
+  while ((match = createTableRegex.exec(cleanSql)) !== null) {
     const tableName = match[1];
     const columnDefinitions = match[2];
     
     const columns = [];
-    const columnLines = columnDefinitions.split(',').map(line => line.trim());
+    
+    // Split by commas, but handle nested parentheses
+    const columnLines = [];
+    let currentLine = '';
+    let parenCount = 0;
+    
+    for (let i = 0; i < columnDefinitions.length; i++) {
+      const char = columnDefinitions[i];
+      
+      if (char === '(') {
+        parenCount++;
+      } else if (char === ')') {
+        parenCount--;
+      }
+      
+      if (char === ',' && parenCount === 0) {
+        columnLines.push(currentLine.trim());
+        currentLine = '';
+      } else {
+        currentLine += char;
+      }
+    }
+    
+    // Add the last line
+    if (currentLine.trim()) {
+      columnLines.push(currentLine.trim());
+    }
     
     for (const line of columnLines) {
-      if (line.startsWith('PRIMARY KEY') || line.startsWith('FOREIGN KEY') || line.startsWith('UNIQUE') || line.startsWith('INDEX')) {
+      if (!line || line.startsWith('PRIMARY KEY') || line.startsWith('FOREIGN KEY') || 
+          line.startsWith('UNIQUE') || line.startsWith('INDEX') || 
+          line.startsWith('CHECK') || line.startsWith('CONSTRAINT')) {
         continue;
       }
       
-      const columnMatch = line.match(/^[`"]?(\w+)[`"]?\s+(\w+(?:\(\d+(?:,\d+)?\))?)\s*(NOT\s+NULL|NULL)?\s*(PRIMARY\s+KEY)?\s*(AUTOINCREMENT|AUTO_INCREMENT)?/i);
+      // Improved regex to handle more complex column definitions
+      const columnMatch = line.match(/^[`"]?(\w+)[`"]?\s+(\w+(?:\(\d+(?:,\d+)?\))?)\s*(NOT\s+NULL|NULL)?\s*(PRIMARY\s+KEY)?\s*(AUTOINCREMENT|AUTO_INCREMENT)?\s*(DEFAULT\s+[^,]+)?\s*(REFERENCES\s+[^,]+)?/i);
       
       if (columnMatch) {
-        const [, name, type, nullable, primaryKey] = columnMatch;
+        const [, name, type, nullable, primaryKey, autoIncrement] = columnMatch;
+        
+        // Determine if column is nullable (default to true unless NOT NULL is specified)
+        const isNullable = !nullable || nullable.toUpperCase() === 'NULL';
+        
         columns.push({
           name,
           type: type.toUpperCase(),
-          nullable: !nullable || nullable.toUpperCase() === 'NULL',
+          nullable: isNullable,
           primaryKey: !!primaryKey
         });
       }
     }
     
-    tables.push({ name: tableName, columns });
+    if (columns.length > 0) {
+      tables.push({ name: tableName, columns });
+    }
   }
   
   return tables;
@@ -42,10 +80,14 @@ function parseCreateTable(sql) {
 function sqlTypeToGraphQLType(sqlType, nullable) {
   let graphqlType = 'String';
   
-  if (sqlType.includes('INT') || sqlType.includes('REAL') || sqlType.includes('FLOAT') || sqlType.includes('DOUBLE')) {
+  if (sqlType.includes('INTEGER') || sqlType.includes('INT')) {
     graphqlType = 'Int';
+  } else if (sqlType.includes('REAL') || sqlType.includes('FLOAT') || sqlType.includes('DOUBLE')) {
+    graphqlType = 'Float';
   } else if (sqlType.includes('BOOL')) {
     graphqlType = 'Boolean';
+  } else if (sqlType.includes('DATETIME') || sqlType.includes('DATE') || sqlType.includes('TIME')) {
+    graphqlType = 'String'; // ISO date string
   }
   
   return nullable ? graphqlType : `${graphqlType}!`;
@@ -75,12 +117,20 @@ function generateInputTypes(table) {
       return `  ${col.name}: ${graphqlType}`;
     }).join('\n');
   
+  // Update input type (all fields optional except ID)
+  const updateFields = table.columns
+    .filter(col => !col.primaryKey && !col.autoIncrement && col.name !== 'created_at' && col.name !== 'updated_at')
+    .map(col => {
+      const graphqlType = sqlTypeToGraphQLType(col.type, true); // Always nullable for updates
+      return `  ${col.name}: ${graphqlType}`;
+    }).join('\n');
+  
   return `input Create${capitalizedName}Input {
 ${createFields}
 }
 
 input Update${capitalizedName}Input {
-${createFields}
+${updateFields}
 }`;
 }
 
