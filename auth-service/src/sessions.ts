@@ -109,26 +109,58 @@ export async function generateCSRFToken(db: D1Database, domain: string): Promise
  * @returns Promise<boolean> - True if token is valid
  */
 export async function validateCSRFToken(db: D1Database, domain: string, csrfToken: string): Promise<boolean> {
-  const now = getCurrentUnixTime();
-  const expirationTime = now - (60 * 60); // 1 hour expiration
-  
-  const result = await db.prepare(`
-    SELECT token 
-    FROM ${domain}_csrf_tokens 
-    WHERE token = ? AND created_at > ?
-  `).bind(csrfToken, expirationTime).first();
-  
-  if (!result) {
-    return false;
+  try {
+    console.log(`[CSRF VALIDATION] Starting validation for domain: ${domain}`);
+    console.log(`[CSRF VALIDATION] Token: ${csrfToken.substring(0, 10)}...`);
+    
+    const now = getCurrentUnixTime();
+    const expirationTime = now - (60 * 60); // 1 hour expiration
+    
+    console.log(`[CSRF VALIDATION] Current time: ${now}, Expiration cutoff: ${expirationTime}`);
+    
+    const result = await db.prepare(`
+      SELECT token, created_at
+      FROM ${domain}_csrf_tokens 
+      WHERE token = ? AND created_at > ?
+    `).bind(csrfToken, expirationTime).first();
+    
+    if (!result) {
+      console.error(`[CSRF VALIDATION] Token not found or expired - Domain: ${domain}, Token: ${csrfToken.substring(0, 10)}...`);
+      
+      // Check if token exists but is expired
+      const expiredResult = await db.prepare(`
+        SELECT token, created_at
+        FROM ${domain}_csrf_tokens 
+        WHERE token = ?
+      `).bind(csrfToken).first();
+      
+      if (expiredResult) {
+        const tokenAge = now - (expiredResult.created_at as number);
+        console.error(`[CSRF VALIDATION] Token exists but expired - Age: ${tokenAge} seconds, Domain: ${domain}`);
+      } else {
+        console.error(`[CSRF VALIDATION] Token not found in database - Domain: ${domain}`);
+      }
+      
+      return false;
+    }
+    
+    const tokenAge = now - (result.created_at as number);
+    console.log(`[CSRF VALIDATION] Token found and valid - Age: ${tokenAge} seconds, Domain: ${domain}`);
+    
+    // Delete the token after use (one-time use)
+    await db.prepare(`
+      DELETE FROM ${domain}_csrf_tokens 
+      WHERE token = ?
+    `).bind(csrfToken).run();
+    
+    console.log(`[CSRF VALIDATION] Token consumed and deleted - Domain: ${domain}`);
+    return true;
+    
+  } catch (error: any) {
+    console.error(`[CSRF VALIDATION] Database error during validation - Domain: ${domain}, Error: ${error.message}`);
+    console.error(`[CSRF VALIDATION] This may indicate a database schema issue or connection problem`);
+    throw error;
   }
-  
-  // Delete the token after use (one-time use)
-  await db.prepare(`
-    DELETE FROM ${domain}_csrf_tokens 
-    WHERE token = ?
-  `).bind(csrfToken).run();
-  
-  return true;
 }
 
 /**

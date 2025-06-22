@@ -155,11 +155,27 @@ const handlers = {
 
       // CSRF token validation (if provided)
       if (csrfToken) {
+        console.log(`[SIGNUP] CSRF token provided: ${csrfToken.substring(0, 10)}...`);
+        
         // For form submissions, validate CSRF token
-        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
-        if (!isValidCSRF) {
-          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        try {
+          const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+          console.log(`[SIGNUP] CSRF token validation result: ${isValidCSRF}`);
+          
+          if (!isValidCSRF) {
+            console.error(`[SIGNUP] CSRF TOKEN VALIDATION FAILED - Token: ${csrfToken.substring(0, 10)}..., Domain: ${subdomain}, IP: ${clientIP}`);
+            console.error(`[SIGNUP] This is a CSRF security issue - token may be expired, invalid, or already used`);
+            return createErrorResponse('Invalid CSRF token - security validation failed', 403, corsHeaders);
+          }
+          
+          console.log(`[SIGNUP] CSRF token validation successful`);
+        } catch (csrfError: any) {
+          console.error(`[SIGNUP] CSRF TOKEN VALIDATION ERROR - Token: ${csrfToken.substring(0, 10)}..., Domain: ${subdomain}, Error: ${csrfError.message}`);
+          console.error(`[SIGNUP] This is a CSRF validation error - database issue or token corruption`);
+          return createErrorResponse('CSRF token validation error', 403, corsHeaders);
         }
+      } else {
+        console.log(`[SIGNUP] No CSRF token provided - proceeding without CSRF validation`);
       }
 
       // Ensure we have database access
