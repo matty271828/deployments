@@ -154,10 +154,36 @@ ${updateFields}
 }`;
 }
 
+function generateGraphQLSchema(tables) {
+  const types = tables.map(table => generateGraphQLType(table)).join('\n\n');
+  const inputs = tables.map(table => generateInputTypes(table)).join('\n\n');
+  
+  return `const typeDefs = \`#graphql
+${types}
+
+${inputs}
+
+type Query {
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  const pluralName = `multi${capitalizedName}`;
+  const typeName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return `  ${pluralName}: [${typeName}]!\n  ${table.name}(id: ID!): ${typeName}`;
+}).join('\n')}
+}
+
+type Mutation {
+${tables.map(table => {
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  return `  create${capitalizedName}(input: Create${capitalizedName}Input!): ${capitalizedName}!\n  update${capitalizedName}(id: ID!, input: Update${capitalizedName}Input!): ${capitalizedName}!\n  delete${capitalizedName}(id: ID!): Boolean!`;
+}).join('\n')}
+}\`;`;
+}
+
 function generateTableResolvers(table) {
   const tableName = table.name;
   const capitalizedName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
-  const pluralName = tableName.endsWith('s') ? tableName : `${tableName}s`;
+  const pluralName = `multi${capitalizedName}`;
   const primaryKeyColumn = table.columns.find(col => col.primaryKey)?.name || 'id';
   const hasUserId = table.columns.some(col => col.name === 'user_id');
   
@@ -226,31 +252,6 @@ const ${tableName}Resolvers = {
 };`;
 }
 
-function generateGraphQLSchema(tables) {
-  const types = tables.map(table => generateGraphQLType(table)).join('\n\n');
-  const inputs = tables.map(table => generateInputTypes(table)).join('\n\n');
-  
-  return `const typeDefs = \`#graphql
-${types}
-
-${inputs}
-
-type Query {
-${tables.map(table => {
-  const pluralName = table.name.endsWith('s') ? table.name : `${table.name}s`;
-  const typeName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
-  return `  ${pluralName}: [${typeName}]!\n  ${table.name}(id: ID!): ${typeName}`;
-}).join('\n')}
-}
-
-type Mutation {
-${tables.map(table => {
-  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
-  return `  create${capitalizedName}(input: Create${capitalizedName}Input!): ${capitalizedName}!\n  update${capitalizedName}(id: ID!, input: Update${capitalizedName}Input!): ${capitalizedName}!\n  delete${capitalizedName}(id: ID!): Boolean!`;
-}).join('\n')}
-}\`;`;
-}
-
 function generateResolverMapping(tables) {
   const resolvers = tables.map(table => generateTableResolvers(table)).join('\n');
   
@@ -259,7 +260,8 @@ function generateResolverMapping(tables) {
 const resolvers = {
   Query: {
 ${tables.map(table => {
-  const pluralName = table.name.endsWith('s') ? table.name : `${table.name}s`;
+  const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  const pluralName = `multi${capitalizedName}`;
   return `    ${pluralName}: ${table.name}Resolvers.Query.${pluralName},\n    ${table.name}: ${table.name}Resolvers.Query.${table.name}`;
 }).join(',\n')}
   },
