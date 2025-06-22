@@ -50,7 +50,7 @@ All GraphQL requests must be authenticated via the auth service:
 curl -X POST https://your-domain.com/auth/graphql \\
   -H "Authorization: Bearer YOUR_SESSION_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"query": "query { users { id name } }"}'
+  -d '{"query": "query { multiUser { id name } }"}'
 \`\`\`
 
 ## Available Types
@@ -90,11 +90,12 @@ ${table.columns.map(col => {
 
 ${tables.map(table => {
   const capitalizedName = table.name.charAt(0).toUpperCase() + table.name.slice(1);
+  const multiName = `multi${capitalizedName}`;
   return `### Get All ${capitalizedName}s
 
 \`\`\`graphql
 query {
-  ${table.name}s {
+  ${multiName} {
     id
     # Add other fields as needed
   }
@@ -178,7 +179,7 @@ mutation CreateUser {
 
 # Get all users
 query GetUsers {
-  users {
+  multiUser {
     id
     name
     email
@@ -217,6 +218,7 @@ mutation DeleteUser {
 - The \`user_id\` field is automatically injected for all operations
 - All timestamps are returned as ISO strings
 - Primary keys are returned as \`ID\` type in GraphQL
+- List operations use the \`multi\` prefix (e.g., \`multiUser\`, \`multiProduct\`)
 `;
 
 // Write the documentation
