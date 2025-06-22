@@ -29,8 +29,25 @@ export default {
     if (url.pathname === '/graphql') {
       console.log(`[DOMAIN WORKER] GraphQL endpoint accessed`);
       
-      // TODO: Add validation that requests are only coming from the auth service
-      // This could be done by checking worker-to-worker binding metadata or using a shared secret
+      // Validate that requests are only coming from the auth service
+      const authServiceToken = request.headers.get('X-Auth-Service-Token');
+      const forwardedBy = request.headers.get('X-Forwarded-By');
+      
+      if (authServiceToken !== 'trusted-auth-service' || forwardedBy !== 'auth-service') {
+        console.log(`[DOMAIN WORKER] Unauthorized access attempt - missing or invalid auth service headers`);
+        console.log(`[DOMAIN WORKER] Auth service token: ${authServiceToken}`);
+        console.log(`[DOMAIN WORKER] Forwarded by: ${forwardedBy}`);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Unauthorized access. Only the auth service can access this endpoint.',
+          status: 401
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log(`[DOMAIN WORKER] Auth service validation passed`);
       
       // Get user ID from auth service headers
       const userId = request.headers.get('X-User-ID');
@@ -75,7 +92,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID'
+          'Access-Control-Allow-Headers': 'Content-Type, X-User-ID, X-Auth-Service-Token, X-Forwarded-By'
         }
       });
     }
