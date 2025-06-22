@@ -145,3 +145,51 @@ runs:
             fi
           fi
         done
+
+    - name: Configure Environment Variables
+      shell: bash
+      run: |
+        # Extract project names and domains from mappings
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        if [ "$MAPPINGS" = "[]" ]; then
+          echo "No domain mappings found, skipping environment variable configuration"
+          exit 0
+        fi
+        
+        PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
+        DOMAINS=$(echo "$MAPPINGS" | jq -r '.[].domain')
+        
+        # Convert to arrays
+        readarray -t project_array <<< "$PROJECTS"
+        readarray -t domain_array <<< "$DOMAINS"
+        
+        # Configure environment variables for each project
+        for i in "${!project_array[@]}"; do
+          project="${project_array[$i]}"
+          domain="${domain_array[$i]}"
+          
+          echo "Setting environment variables for project: $project"
+          echo "VITE_AUTH_SERVICE_URL=https://$domain/auth"
+          
+          # Set the VITE_AUTH_SERVICE_URL environment variable
+          response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environment_variables" \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -d "{
+              \"environment_variables\": {
+                \"VITE_AUTH_SERVICE_URL\": {
+                  \"value\": \"https://$domain/auth\",
+                  \"type\": \"plain_text\"
+                }
+              }
+            }")
+          
+          # Check if the request was successful
+          if ! echo "$response" | jq -e '.success == true' > /dev/null; then
+            error_message=$(echo "$response" | jq -r '.errors[0].message // "Unknown error"')
+            echo "::warning::Failed to set environment variables for project $project: $error_message"
+            echo "Response: $response"
+          else
+            echo "Successfully set environment variables for project $project"
+          fi
+        done
