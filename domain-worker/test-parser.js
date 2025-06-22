@@ -7,7 +7,7 @@ const schemaSql = `-- LeetRepeat Database Schema (SQLite)
 -- Users table to support multiple users (auth handled by external service)
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    external_user_id TEXT UNIQUE NOT NULL, -- ID from external auth service
+    id TEXT UNIQUE NOT NULL, -- ID from external auth service
     email TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
