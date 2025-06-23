@@ -677,8 +677,7 @@ const handlers = {
       // The domain worker name format is "{repo_name}-worker"
       // Based on the Terraform configuration, the binding name matches the worker name
       
-      console.log(`[AUTH SERVICE] Looking for domain worker binding for subdomain: ${subdomain}`);
-      console.log(`[AUTH SERVICE] All available bindings: ${Object.keys(env).join(', ')}`);
+      console.log(`[AUTH SERVICE] Looking for domain worker binding | Subdomain: ${subdomain} | All available bindings: ${Object.keys(env).join(', ')}`);
       
       // Get all worker bindings
       const workerBindings = Object.keys(env).filter(key => key.includes('worker'));
@@ -693,10 +692,9 @@ const handlers = {
         
         // If the exact match doesn't work, let's try to find any worker binding
         if (workerBindings.length > 0) {
-          console.log(`[AUTH SERVICE] Trying first available worker binding: ${workerBindings[0]}`);
+          console.log(`[AUTH SERVICE] Using fallback binding: ${workerBindings[0]}`);
           // For debugging, use the first available worker binding
           const fallbackBinding = workerBindings[0];
-          console.log(`[AUTH SERVICE] Using fallback binding: ${fallbackBinding}`);
           
           // Continue with the fallback binding for testing
           const graphqlRequest = new Request('https://domain-worker.local/graphql', {
@@ -710,13 +708,8 @@ const handlers = {
             body: request.method === 'POST' ? await request.text() : undefined
           });
 
-          console.log(`[AUTH SERVICE] Forwarding request to domain worker with headers:`, {
-            'X-User-ID': user.id.toString(),
-            'X-Auth-Service-Token': 'trusted-auth-service',
-            'X-Forwarded-By': 'auth-service'
-          });
-
-          console.log(`[AUTH SERVICE] Making worker-to-worker call to ${fallbackBinding}...`);
+          console.log(`[AUTH SERVICE] Forwarding request to domain worker | Binding: ${fallbackBinding} | Headers: X-User-ID=${user.id.toString()}, X-Auth-Service-Token=trusted-auth-service, X-Forwarded-By=auth-service`);
+          
           const domainWorkerResponse = await env[fallbackBinding].fetch(graphqlRequest);
           
           console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
@@ -738,9 +731,7 @@ const handlers = {
       
       // Debug the binding object
       const binding = env[domainWorkerName];
-      console.log(`[AUTH SERVICE] Binding type:`, typeof binding);
-      console.log(`[AUTH SERVICE] Binding is function:`, typeof binding === 'function');
-      console.log(`[AUTH SERVICE] Binding has fetch:`, binding && typeof binding.fetch === 'function');
+      console.log(`[AUTH SERVICE] Binding debug | Type: ${typeof binding} | Is function: ${typeof binding === 'function'} | Has fetch: ${binding && typeof binding.fetch === 'function'}`);
       
       if (!binding || typeof binding.fetch !== 'function') {
         console.error(`[AUTH SERVICE] Binding is not a valid worker binding!`);
@@ -759,19 +750,11 @@ const handlers = {
         body: request.method === 'POST' ? await request.text() : undefined
       });
 
-      console.log(`[AUTH SERVICE] Forwarding request to domain worker with headers:`, {
-        'X-User-ID': user.id.toString(),
-        'X-Auth-Service-Token': 'trusted-auth-service',
-        'X-Forwarded-By': 'auth-service'
-      });
-
-      // Proxy the request to the domain worker
-      console.log(`[AUTH SERVICE] Making worker-to-worker call to ${domainWorkerName}...`);
+      console.log(`[AUTH SERVICE] Forwarding request to domain worker | Binding: ${domainWorkerName} | Headers: X-User-ID=${user.id.toString()}, X-Auth-Service-Token=trusted-auth-service, X-Forwarded-By=auth-service`);
       
       try {
         const domainWorkerResponse = await env[domainWorkerName].fetch(graphqlRequest);
-        console.log(`[AUTH SERVICE] Domain worker response status: ${domainWorkerResponse.status}`);
-        console.log(`[AUTH SERVICE] Domain worker response headers:`, Object.fromEntries(domainWorkerResponse.headers.entries()));
+        console.log(`[AUTH SERVICE] Domain worker response | Status: ${domainWorkerResponse.status} | Headers: ${JSON.stringify(Object.fromEntries(domainWorkerResponse.headers.entries()))}`);
         
         // Check if the response indicates an error
         if (domainWorkerResponse.status >= 400) {

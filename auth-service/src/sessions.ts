@@ -35,10 +35,7 @@ export async function createSession(db: D1Database, domain: string, userId: stri
       token
     };
 
-    console.log(`[CREATE SESSION] Creating session for domain: ${domain}, userId: ${userId}, sessionId: ${id}`);
-    console.log(`[CREATE SESSION] Secret length: ${secret.length}`);
-    console.log(`[CREATE SESSION] Secret hash length: ${secretHash.length}`);
-    console.log(`[CREATE SESSION] Secret hash (first 10 bytes):`, Array.from(secretHash.slice(0, 10)));
+    console.log(`[CREATE SESSION] Creating session | Domain: ${domain} | User ID: ${userId} | Session ID: ${id} | Secret length: ${secret.length} | Secret hash length: ${secretHash.length} | Secret hash (first 10): [${Array.from(secretHash.slice(0, 10)).join(',')}]`);
 
     // Insert session into domain-specific table
     const insertResult = await db.prepare(`
@@ -62,9 +59,7 @@ export async function createSession(db: D1Database, domain: string, userId: stri
       throw new Error(`Session was not inserted into database. Domain: ${domain}, SessionId: ${id}`);
     }
 
-    console.log(`[CREATE SESSION] Session verified in database: ${session.id}`);
-    console.log(`[CREATE SESSION] Stored secret hash length: ${(verifyResult.secret_hash as Uint8Array).length}`);
-    console.log(`[CREATE SESSION] Stored secret hash (first 10 bytes):`, Array.from((verifyResult.secret_hash as Uint8Array).slice(0, 10)));
+    console.log(`[CREATE SESSION] Session verified | Session ID: ${session.id} | Stored hash length: ${(verifyResult.secret_hash as Uint8Array).length} | Stored hash (first 10): [${Array.from((verifyResult.secret_hash as Uint8Array).slice(0, 10)).join(',')}]`);
 
     // Double-check the session count
     const countResult = await db.prepare(`
@@ -110,13 +105,10 @@ export async function generateCSRFToken(db: D1Database, domain: string): Promise
  */
 export async function validateCSRFToken(db: D1Database, domain: string, csrfToken: string): Promise<boolean> {
   try {
-    console.log(`[CSRF VALIDATION] Starting validation for domain: ${domain}`);
-    console.log(`[CSRF VALIDATION] Token: ${csrfToken.substring(0, 10)}...`);
-    
     const now = getCurrentUnixTime();
     const expirationTime = now - (60 * 60); // 1 hour expiration
     
-    console.log(`[CSRF VALIDATION] Current time: ${now}, Expiration cutoff: ${expirationTime}`);
+    console.log(`[CSRF VALIDATION] Starting validation | Domain: ${domain} | Token: ${csrfToken.substring(0, 10)}... | Current time: ${now} | Expiration cutoff: ${expirationTime}`);
     
     const result = await db.prepare(`
       SELECT token, created_at
@@ -145,7 +137,7 @@ export async function validateCSRFToken(db: D1Database, domain: string, csrfToke
     }
     
     const tokenAge = now - (result.created_at as number);
-    console.log(`[CSRF VALIDATION] Token found and valid - Age: ${tokenAge} seconds, Domain: ${domain}`);
+    console.log(`[CSRF VALIDATION] Token found and valid | Age: ${tokenAge} seconds | Domain: ${domain} | Token consumed and deleted`);
     
     // Delete the token after use (one-time use)
     await db.prepare(`
@@ -153,7 +145,6 @@ export async function validateCSRFToken(db: D1Database, domain: string, csrfToke
       WHERE token = ?
     `).bind(csrfToken).run();
     
-    console.log(`[CSRF VALIDATION] Token consumed and deleted - Domain: ${domain}`);
     return true;
     
   } catch (error: any) {
@@ -172,8 +163,7 @@ export async function validateCSRFToken(db: D1Database, domain: string, csrfToke
  * @returns Promise<SessionValidationResult>
  */
 export async function validateSessionToken(db: D1Database, domain: string, token: string): Promise<SessionValidationResult> {
-  console.log(`[VALIDATE SESSION] Starting validation for domain: ${domain}`);
-  console.log(`[VALIDATE SESSION] Token: ${token.substring(0, 10)}...`);
+  console.log(`[VALIDATE SESSION] Starting validation | Domain: ${domain} | Token: ${token.substring(0, 10)}...`);
   
   const tokenParts = token.split(".");
   if (tokenParts.length != 2) {
@@ -190,8 +180,7 @@ export async function validateSessionToken(db: D1Database, domain: string, token
   const sessionId = tokenParts[0];
   const sessionSecret = tokenParts[1];
   
-  console.log(`[VALIDATE SESSION] Session ID: ${sessionId}`);
-  console.log(`[VALIDATE SESSION] Session Secret length: ${sessionSecret.length}`);
+  console.log(`[VALIDATE SESSION] Token parsed | Session ID: ${sessionId} | Session Secret length: ${sessionSecret.length}`);
 
   const session = await getSession(db, domain, sessionId);
   if (!session) {
@@ -205,14 +194,12 @@ export async function validateSessionToken(db: D1Database, domain: string, token
     };
   }
 
-  console.log(`[VALIDATE SESSION] Session found, validating secret...`);
-  console.log(`[VALIDATE SESSION] Stored secret hash length: ${session.secretHash.length}`);
+  console.log(`[VALIDATE SESSION] Session found, validating secret | Stored hash length: ${session.secretHash.length}`);
   
   const tokenSecretHash = await hashSecret(sessionSecret);
-  console.log(`[VALIDATE SESSION] Token secret hash length: ${tokenSecretHash.length}`);
+  console.log(`[VALIDATE SESSION] Token secret hash generated | Length: ${tokenSecretHash.length} | Validation result: ${constantTimeEqual(tokenSecretHash, session.secretHash)}`);
   
   const validSecret = constantTimeEqual(tokenSecretHash, session.secretHash);
-  console.log(`[VALIDATE SESSION] Secret validation result: ${validSecret}`);
   
   if (!validSecret) {
     // Byte-by-byte comparison for debugging

@@ -52,7 +52,7 @@ export default {
       // Get user ID from auth service headers
       const userId = request.headers.get('X-User-ID');
       
-      console.log(`[DOMAIN WORKER] User ID from auth service: ${userId}`);
+      console.log(`[DOMAIN WORKER] Processing GraphQL request | User ID: ${userId}`);
       
       // No need to validate session - auth service already did that
       // No need to check if from auth service - worker-to-worker binding provides security
