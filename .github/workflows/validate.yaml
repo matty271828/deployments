@@ -17,6 +17,10 @@ on:
         required: true
       GH_PERSONAL_ACCESS_TOKEN:
         required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
 
 jobs:
   check-nameservers:
@@ -55,6 +59,19 @@ jobs:
         uses: ./.github/actions/validate_github_access
         with:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+  check-aws-access:
+    name: 'AWS Access'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Validate AWS Access
+        uses: ./.github/actions/validate_aws_access
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   validate-frontend-repo:
     name: 'Frontend Repo'
