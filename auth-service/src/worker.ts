@@ -392,6 +392,7 @@ const handlers = {
       // Validate the session token
       const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
       if (!validationResult.success) {
+        console.error(`[VALIDATE SESSION API] Session validation failed | Subdomain: ${subdomain} | Error type: ${validationResult.error!.type} | Error message: ${validationResult.error!.message} | Token: ${token.substring(0, 20)}...`);
         return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
 
@@ -510,6 +511,7 @@ const handlers = {
       // Validate the current session token
       const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
       if (!validationResult.success) {
+        console.error(`[REFRESH SESSION API] Session validation failed | Subdomain: ${subdomain} | Error type: ${validationResult.error!.type} | Error message: ${validationResult.error!.message} | Token: ${token.substring(0, 20)}...`);
         return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
       }
 
@@ -644,7 +646,7 @@ const handlers = {
       // Since the auth service is the single source of truth, we can trust the token format
       const tokenParts = token.split(".");
       if (tokenParts.length !== 2) {
-        console.log(`[AUTH SERVICE] [${requestId}] Invalid token format`);
+        console.error(`[AUTH SERVICE] [${requestId}] Invalid token format`);
         return createErrorResponse('Invalid session token format', 401, corsHeaders);
       }
 
@@ -657,7 +659,7 @@ const handlers = {
       ).bind(sessionId).first();
 
       if (!sessionResult) {
-        console.log(`[AUTH SERVICE] [${requestId}] Session not found in database`);
+        console.error(`[AUTH SERVICE] [${requestId}] Session not found in database`);
         return createErrorResponse('Invalid or expired session', 401, corsHeaders);
       }
 
@@ -686,7 +688,7 @@ const handlers = {
       const domainWorkerName = `${subdomain}-worker`;
       
       if (!env[domainWorkerName]) {
-        console.log(`[AUTH SERVICE] Domain worker binding not found: ${domainWorkerName}`);
+        console.error(`[AUTH SERVICE] Domain worker binding not found: ${domainWorkerName}`);
         console.log(`[AUTH SERVICE] Available worker bindings: ${workerBindings.join(', ')}`);
         
         // If the exact match doesn't work, let's try to find any worker binding

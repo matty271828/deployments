@@ -177,7 +177,7 @@ export async function validateSessionToken(db: D1Database, domain: string, token
   
   const tokenParts = token.split(".");
   if (tokenParts.length != 2) {
-    console.log(`[VALIDATE SESSION] Invalid token format - expected 2 parts, got ${tokenParts.length}`);
+    console.error(`[VALIDATE SESSION] Invalid token format - expected 2 parts, got ${tokenParts.length}`);
     return {
       success: false,
       error: {
@@ -195,7 +195,7 @@ export async function validateSessionToken(db: D1Database, domain: string, token
 
   const session = await getSession(db, domain, sessionId);
   if (!session) {
-    console.log(`[VALIDATE SESSION] Session not found in database`);
+    console.error(`[VALIDATE SESSION] Session not found in database`);
     return {
       success: false,
       error: {
@@ -215,9 +215,7 @@ export async function validateSessionToken(db: D1Database, domain: string, token
   console.log(`[VALIDATE SESSION] Secret validation result: ${validSecret}`);
   
   if (!validSecret) {
-    console.log(`[VALIDATE SESSION] Secret validation failed - hashes don't match`);
-    console.log(`[VALIDATE SESSION] Token secret hash (first 10 bytes):`, Array.from(tokenSecretHash.slice(0, 10)));
-    console.log(`[VALIDATE SESSION] Stored secret hash (first 10 bytes):`, Array.from(session.secretHash.slice(0, 10)));
+    console.error(`[VALIDATE SESSION] Secret validation failed - hashes don't match | Session ID: ${sessionId} | Domain: ${domain} | Token hash (hex): ${Array.from(tokenSecretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Stored hash (hex): ${Array.from(session.secretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Token hash (first 20): [${Array.from(tokenSecretHash.slice(0, 20)).join(',')}] | Stored hash (first 20): [${Array.from(session.secretHash.slice(0, 20)).join(',')}]`);
     return {
       success: false,
       error: {
@@ -255,7 +253,7 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   `).bind(sessionId).first();
 
   if (!result) {
-    console.log(`Session not found in database table: ${tableName}`);
+    console.error(`Session not found in database table: ${tableName}`);
     return null;
   }
 
@@ -273,7 +271,7 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
   console.log(`Session age: ${ageInSeconds} seconds, expires after: ${SESSION_EXPIRES_IN_SECONDS} seconds`);
 
   if (ageInSeconds >= SESSION_EXPIRES_IN_SECONDS) {
-    console.log(`Session expired, deleting: ${sessionId} from table: ${tableName}`);
+    console.error(`Session expired, deleting: ${sessionId} from table: ${tableName}`);
     await deleteSession(db, domain, sessionId);
     return null;
   }

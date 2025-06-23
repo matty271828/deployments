@@ -34,7 +34,7 @@ export default {
       const forwardedBy = request.headers.get('X-Forwarded-By');
       
       if (authServiceToken !== 'trusted-auth-service' || forwardedBy !== 'auth-service') {
-        console.log(`[DOMAIN WORKER] Unauthorized access attempt - missing or invalid auth service headers`);
+        console.error(`[DOMAIN WORKER] Unauthorized access attempt - missing or invalid auth service headers`);
         console.log(`[DOMAIN WORKER] Auth service token: ${authServiceToken}`);
         console.log(`[DOMAIN WORKER] Forwarded by: ${forwardedBy}`);
         return new Response(JSON.stringify({

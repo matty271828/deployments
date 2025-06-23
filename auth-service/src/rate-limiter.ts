@@ -77,7 +77,7 @@ export class TokenBucketRateLimit {
           WHERE key = ?
         `).bind(count, refilledAtMs, bucketKey).run();
         
-        console.log(`Rate limit: Blocked ${this.storageKey}, key: ${key}, tokens: ${count}, cost: ${cost}`);
+        console.error(`Rate limit: Blocked ${this.storageKey}, key: ${key}, tokens: ${count}, cost: ${cost}`);
         return false;
       }
 
