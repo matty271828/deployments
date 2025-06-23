@@ -4,12 +4,21 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 5.5.0"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
 
 # Cloudflare Provider
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
+}
+
+# AWS Provider
+provider "aws" {
+  region = var.aws_region
 }
 
 variable "cloudflare_api_token" {
@@ -22,4 +31,10 @@ variable "cloudflare_account_id" {
   description = "Cloudflare Account ID"
   type        = string
   sensitive   = true
+}
+
+variable "aws_region" {
+  description = "AWS Region for SES resources"
+  type        = string
+  default     = "us-east-1"
 }
