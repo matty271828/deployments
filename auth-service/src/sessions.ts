@@ -215,7 +215,18 @@ export async function validateSessionToken(db: D1Database, domain: string, token
   console.log(`[VALIDATE SESSION] Secret validation result: ${validSecret}`);
   
   if (!validSecret) {
-    console.error(`[VALIDATE SESSION] Secret validation failed - hashes don't match | Session ID: ${sessionId} | Domain: ${domain} | Token hash (hex): ${Array.from(tokenSecretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Stored hash (hex): ${Array.from(session.secretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Token hash (first 20): [${Array.from(tokenSecretHash.slice(0, 20)).join(',')}] | Stored hash (first 20): [${Array.from(session.secretHash.slice(0, 20)).join(',')}]`);
+    // Byte-by-byte comparison for debugging
+    const minLength = Math.min(tokenSecretHash.length, session.secretHash.length);
+    let firstMismatch = -1;
+    for (let i = 0; i < minLength; i++) {
+      if (tokenSecretHash[i] !== session.secretHash[i]) {
+        firstMismatch = i;
+        break;
+      }
+    }
+    
+    console.error(`[VALIDATE SESSION] Secret validation failed - hashes don't match | Session ID: ${sessionId} | Domain: ${domain} | Token hash (hex): ${Array.from(tokenSecretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Stored hash (hex): ${Array.from(session.secretHash).map(b => b.toString(16).padStart(2, '0')).join('')} | Token hash (first 20): [${Array.from(tokenSecretHash.slice(0, 20)).join(',')}] | Stored hash (first 20): [${Array.from(session.secretHash.slice(0, 20)).join(',')}] | Debug: Token length=${tokenSecretHash.length}, Stored length=${session.secretHash.length}, Lengths match=${tokenSecretHash.length === session.secretHash.length}, Token type=${typeof tokenSecretHash}, Stored type=${typeof session.secretHash}, Token constructor=${tokenSecretHash.constructor.name}, Stored constructor=${session.secretHash.constructor.name}, First mismatch at byte=${firstMismatch >= 0 ? `${firstMismatch} (token=${tokenSecretHash[firstMismatch]}, stored=${session.secretHash[firstMismatch]})` : 'none found'}`);
+    
     return {
       success: false,
       error: {
@@ -259,12 +270,19 @@ export async function getSession(db: D1Database, domain: string, sessionId: stri
 
   console.log(`Session found in database table: ${tableName}, created at: ${result.created_at}, user_id: ${result.user_id}`);
 
+  // Debug the secret_hash from database
+  const rawSecretHash = result.secret_hash;
+  console.log(`[GET SESSION] Raw secret_hash debug | Type: ${typeof rawSecretHash} | Constructor: ${rawSecretHash?.constructor?.name} | Is Uint8Array: ${rawSecretHash instanceof Uint8Array} | Length: ${(rawSecretHash as any)?.length} | First 10 bytes: [${Array.from((rawSecretHash as any) || []).slice(0, 10).join(',')}]`);
+
   const session: Session = {
     id: result.id as string,
     userId: result.user_id as string,
-    secretHash: result.secret_hash as Uint8Array,
+    secretHash: rawSecretHash instanceof Uint8Array ? rawSecretHash : new Uint8Array(rawSecretHash as any),
     createdAt: new Date((result.created_at as number) * 1000)
   };
+
+  // Debug the session secretHash
+  console.log(`[GET SESSION] Session secretHash debug | Type: ${typeof session.secretHash} | Constructor: ${session.secretHash?.constructor?.name} | Is Uint8Array: ${session.secretHash instanceof Uint8Array} | Length: ${session.secretHash?.length} | First 10 bytes: [${Array.from(session.secretHash || []).slice(0, 10).join(',')}]`);
 
   // Check expiration
   const ageInSeconds = (now.getTime() - session.createdAt.getTime()) / 1000;
