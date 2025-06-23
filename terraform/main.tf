@@ -18,7 +18,9 @@ provider "cloudflare" {
 
 # AWS Provider
 provider "aws" {
-  region = var.aws_region
+  region     = var.aws_region
+  access_key = var.aws_access_key_id
+  secret_key = var.aws_secret_access_key
 }
 
 variable "cloudflare_api_token" {
@@ -37,4 +39,16 @@ variable "aws_region" {
   description = "AWS Region for SES resources"
   type        = string
   default     = "us-east-1"
+}
+
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key"
+  type        = string
+  sensitive   = true
 }

@@ -65,6 +65,8 @@ jobs:
           domains: ${{ needs.manage-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
