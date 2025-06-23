@@ -68,11 +68,12 @@ resource "cloudflare_dns_record" "ses_dkim_3" {
 resource "cloudflare_dns_record" "ses_mx" {
   for_each = local.frontend_repos
 
-  zone_id = cloudflare_zone.domain[each.key].id
-  name    = each.key
-  content = "10 inbound-smtp.${var.aws_region}.amazonaws.com"
-  type    = "MX"
-  ttl     = 1
+  zone_id  = cloudflare_zone.domain[each.key].id
+  name     = each.key
+  content  = "inbound-smtp.${var.aws_region}.amazonaws.com"
+  type     = "MX"
+  priority = 10
+  ttl      = 1
 }
 
 # Create SPF record for email authentication
