@@ -17,6 +17,9 @@ inputs:
   aws_secret_access_key:
     description: 'AWS Secret Access Key'
     required: true
+  gmail_address:
+    description: 'Gmail address to forward emails to'
+    required: true
 
 outputs:
   terraform_error:
@@ -135,6 +138,7 @@ runs:
         TF_VAR_domains_json: ${{ inputs.domains }}
         TF_VAR_aws_access_key_id: ${{ inputs.aws_access_key_id }}
         TF_VAR_aws_secret_access_key: ${{ inputs.aws_secret_access_key }}
+        TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
     - name: Terraform Apply
@@ -168,6 +172,7 @@ runs:
         TF_VAR_domains_json: ${{ inputs.domains }}
         TF_VAR_aws_access_key_id: ${{ inputs.aws_access_key_id }}
         TF_VAR_aws_secret_access_key: ${{ inputs.aws_secret_access_key }}
+        TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
     - name: Save State to R2

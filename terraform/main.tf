@@ -52,3 +52,8 @@ variable "aws_secret_access_key" {
   type        = string
   sensitive   = true
 }
+
+variable "gmail_address" {
+  description = "Gmail address to forward emails to"
+  type        = string
+}

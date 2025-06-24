@@ -93,7 +93,7 @@ resource "cloudflare_dns_record" "ses_dmarc" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "_dmarc.${each.key}"
-  content = "\"v=DMARC1; p=quarantine; rua=mailto:dmarc@${each.key}\""
+  content = "\"v=DMARC1; p=quarantine; rua=mailto:${var.gmail_address}\""
   type    = "TXT"
   ttl     = 1
 }
@@ -106,6 +106,96 @@ output "ses_domain_identities" {
       domain = identity.domain
       arn    = identity.arn
     }
+  }
+  sensitive = true
+}
+
+# Create SES receipt rules for each domain to handle incoming emails
+resource "aws_ses_receipt_rule_set" "main" {
+  rule_set_name = "main-receipt-rule-set"
+}
+
+resource "aws_ses_active_receipt_rule_set" "main" {
+  rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
+}
+
+resource "aws_ses_receipt_rule" "store" {
+  for_each = local.frontend_repos
+
+  name          = "forward-support-${each.key}"
+  rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
+  recipients    = ["support@${each.key}"]
+  enabled       = true
+  scan_enabled  = true
+
+  add_header_action {
+    header_name  = "X-Forwarded-For"
+    header_value = "support@${each.key}"
+  }
+
+  sns_action {
+    topic_arn = aws_sns_topic.email_forwarding[each.key].arn
+  }
+
+  depends_on = [aws_ses_active_receipt_rule_set.main]
+}
+
+# Create SNS topics for email forwarding
+resource "aws_sns_topic" "email_forwarding" {
+  for_each = local.frontend_repos
+
+  name = "email-forwarding-${each.key}"
+}
+
+# Create SNS topic subscriptions to forward to Gmail
+resource "aws_sns_topic_subscription" "email_forwarding" {
+  for_each = local.frontend_repos
+
+  topic_arn = aws_sns_topic.email_forwarding[each.key].arn
+  protocol  = "email"
+  endpoint  = var.gmail_address # You'll need to add this variable
+}
+
+# Configure SES for sending emails
+resource "aws_ses_configuration_set" "main" {
+  name = "main-configuration-set"
+}
+
+# Create IAM user for SES API access
+resource "aws_iam_user" "ses_user" {
+  name = "ses-email-user"
+}
+
+resource "aws_iam_access_key" "ses_user" {
+  user = aws_iam_user.ses_user.name
+}
+
+# Attach SES sending policy to the user
+resource "aws_iam_user_policy" "ses_sending_policy" {
+  name = "ses-sending-policy"
+  user = aws_iam_user.ses_user.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Output the SES user credentials for use in the auth service
+output "ses_user_credentials" {
+  description = "SES user credentials for sending emails"
+  value = {
+    access_key_id = aws_iam_access_key.ses_user.id
+    secret_access_key = aws_iam_access_key.ses_user.secret
   }
   sensitive = true
 } 

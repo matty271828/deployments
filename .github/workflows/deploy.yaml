@@ -12,6 +12,10 @@ on:
         description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
         required: true
         type: string
+      gmail_address:
+        description: 'Gmail address to forward emails to'
+        required: true
+        type: string
 
 jobs:
   validate:
@@ -20,6 +24,7 @@ jobs:
     with:
       domain: ${{ inputs.domain }}
       frontend_repo: ${{ inputs.frontend_repo }}
+      gmail_address: ${{ inputs.gmail_address }}
     secrets:
       cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -67,6 +72,7 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          gmail_address: ${{ inputs.gmail_address }}
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
