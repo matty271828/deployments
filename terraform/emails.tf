@@ -87,6 +87,17 @@ resource "cloudflare_dns_record" "ses_spf" {
   ttl     = 1
 }
 
+# Create SPF record for mail from domain
+resource "cloudflare_dns_record" "ses_mail_from_spf" {
+  for_each = local.frontend_repos
+
+  zone_id = cloudflare_zone.domain[each.key].id
+  name    = "mail.${each.key}"
+  content = "\"v=spf1 include:amazonses.com ~all\""
+  type    = "TXT"
+  ttl     = 1
+}
+
 # Create DMARC record for email authentication
 resource "cloudflare_dns_record" "ses_dmarc" {
   for_each = local.frontend_repos
