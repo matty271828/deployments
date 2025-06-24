@@ -29,7 +29,7 @@ resource "cloudflare_dns_record" "ses_verification" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "_amazonses.${each.key}"
-  content = aws_ses_domain_identity.domain[each.key].verification_token
+  content = "\"${aws_ses_domain_identity.domain[each.key].verification_token}\""
   type    = "TXT"
   ttl     = 1
 }
@@ -82,7 +82,7 @@ resource "cloudflare_dns_record" "ses_spf" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = each.key
-  content = "v=spf1 include:amazonses.com ~all"
+  content = "\"v=spf1 include:amazonses.com ~all\""
   type    = "TXT"
   ttl     = 1
 }
@@ -93,7 +93,7 @@ resource "cloudflare_dns_record" "ses_dmarc" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "_dmarc.${each.key}"
-  content = "v=DMARC1; p=quarantine; rua=mailto:dmarc@${each.key}"
+  content = "\"v=DMARC1; p=quarantine; rua=mailto:dmarc@${each.key}\""
   type    = "TXT"
   ttl     = 1
 }
