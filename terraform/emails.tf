@@ -1,5 +1,10 @@
 # AWS SES Configuration for Email Service
-# This file configures SES for sending and receiving emails for each custom domainhea
+# This file configures SES for sending and receiving emails for each custom domain
+
+# Request production access for SES (removes sandbox limitations)
+resource "aws_ses_account_sending_enabled" "main" {
+  enabled = true
+}
 
 # Create SES domain identities for each domain
 resource "aws_ses_domain_identity" "domain" {
@@ -64,24 +69,24 @@ resource "cloudflare_dns_record" "ses_dkim_3" {
   ttl     = 1
 }
 
-# Create MX record for receiving emails
+# Create MX record for receiving emails (FIXED: use @ for root domain)
 resource "cloudflare_dns_record" "ses_mx" {
   for_each = local.frontend_repos
 
   zone_id  = cloudflare_zone.domain[each.key].id
-  name     = each.key
+  name     = "@"  # Root domain
   content  = "inbound-smtp.${var.aws_region}.amazonaws.com"
   type     = "MX"
   priority = 10
   ttl      = 1
 }
 
-# Create SPF record for email authentication
+# Create SPF record for email authentication (FIXED: use @ for root domain)
 resource "cloudflare_dns_record" "ses_spf" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
-  name    = each.key
+  name    = "@"  # Root domain
   content = "\"v=spf1 include:amazonses.com ~all\""
   type    = "TXT"
   ttl     = 1
