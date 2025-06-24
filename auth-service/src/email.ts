@@ -339,8 +339,10 @@ export function createEmailService(env: any): EmailService {
   console.log(`[EMAIL SERVICE] Creating EmailService instance...`);
   
   const awsRegion = 'us-east-1'; // Hardcoded region
-  const awsAccessKeyId = env.AWS_ACCESS_KEY_ID;
-  const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY;
+  
+  // Try different ways to access secrets in Cloudflare Workers
+  const awsAccessKeyId = env.AWS_ACCESS_KEY_ID || env.AWS_ACCESS_KEY_ID_SECRET || env.AWS_ACCESS_KEY_ID_SECRET_TEXT;
+  const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY || env.AWS_SECRET_ACCESS_KEY_SECRET || env.AWS_SECRET_ACCESS_KEY_SECRET_TEXT;
 
   console.log(`[EMAIL SERVICE] AWS Region: ${awsRegion}`);
   console.log(`[EMAIL SERVICE] AWS Access Key ID available: ${!!awsAccessKeyId}`);
@@ -350,6 +352,8 @@ export function createEmailService(env: any): EmailService {
     console.error(`[EMAIL SERVICE] ❌ AWS credentials not configured!`);
     console.error(`[EMAIL SERVICE] Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'}`);
     console.error(`[EMAIL SERVICE] Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
+    console.error(`[EMAIL SERVICE] Available env keys: ${Object.keys(env).filter(key => key.includes('AWS')).join(', ')}`);
+    console.error(`[EMAIL SERVICE] All env keys: ${Object.keys(env).join(', ')}`);
     throw new Error('AWS credentials not configured');
   }
 
