@@ -62,23 +62,11 @@ runs:
         echo "# Worker-to-worker bindings" >> wrangler.toml
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | "[[services]]\nbinding = \"" + .value + "\"\nservice = \"" + .value + "\""' >> wrangler.toml
 
-    # Deploy the worker with updated configuration first
+    # Deploy the worker with all configuration including secret bindings
     - name: Deploy Worker
       working-directory: './auth-service'
       shell: bash
       run: 'npx wrangler deploy'
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-
-    # Set AWS credentials as wrangler secrets for SES email functionality
-    # This will create a new deployment with the secrets included
-    - name: Set AWS credentials as secrets
-      working-directory: './auth-service'
-      shell: bash
-      run: |
-        echo '${{ inputs.aws_access_key_id }}' | npx wrangler secret put AWS_ACCESS_KEY_ID
-        echo '${{ inputs.aws_secret_access_key }}' | npx wrangler secret put AWS_SECRET_ACCESS_KEY
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

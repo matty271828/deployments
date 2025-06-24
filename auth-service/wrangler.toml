@@ -14,6 +14,13 @@ database_id = ""
 binding = "DOMAIN_MAPPINGS_BUCKET"
 bucket_name = "domain-mappings"
 
+# AWS SES Secret Bindings
+[[secret_bindings]]
+name = "AWS_ACCESS_KEY_ID"
+
+[[secret_bindings]]
+name = "AWS_SECRET_ACCESS_KEY"
+
 [observability]
 enabled = true
 head_sampling_rate = 1
