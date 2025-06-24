@@ -124,6 +124,12 @@ resource "aws_sns_topic" "email_forwarding" {
   for_each = local.frontend_repos
 
   name = "email-forwarding-${split(".", each.key)[0]}"
+  
+  # Add tags for better organization
+  tags = {
+    Domain = each.key
+    Purpose = "email-forwarding"
+  }
 }
 
 # Create SNS topic subscriptions to forward to Gmail
@@ -177,41 +183,12 @@ resource "aws_ses_configuration_set" "main" {
   name = "main-configuration-set"
 }
 
-# Create IAM user for SES API access
-resource "aws_iam_user" "ses_user" {
-  name = "ses-email-user"
-}
-
-resource "aws_iam_access_key" "ses_user" {
-  user = aws_iam_user.ses_user.name
-}
-
-# Attach SES sending policy to the user
-resource "aws_iam_user_policy" "ses_sending_policy" {
-  name = "ses-sending-policy"
-  user = aws_iam_user.ses_user.name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ses:SendEmail",
-          "ses:SendRawEmail"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Output the SES user credentials for use in the auth service
+# Output the SES credentials (using existing AWS credentials)
 output "ses_user_credentials" {
-  description = "SES user credentials for sending emails"
+  description = "SES credentials for sending emails (using existing AWS credentials)"
   value = {
-    access_key_id = aws_iam_access_key.ses_user.id
-    secret_access_key = aws_iam_access_key.ses_user.secret
+    access_key_id = var.aws_access_key_id
+    secret_access_key = var.aws_secret_access_key
   }
   sensitive = true
 }
