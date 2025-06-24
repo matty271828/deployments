@@ -1,11 +1,6 @@
 # AWS SES Configuration for Email Service
 # This file configures SES for sending and receiving emails for each custom domain
 
-# Request production access for SES (removes sandbox limitations)
-resource "aws_ses_account_sending_enabled" "main" {
-  enabled = true
-}
-
 # Create SES domain identities for each domain
 resource "aws_ses_domain_identity" "domain" {
   for_each = local.frontend_repos
