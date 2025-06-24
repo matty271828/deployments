@@ -34,11 +34,10 @@ export class EmailService {
     lastName: string, 
     domain: string
   ): Promise<boolean> {
-    console.log(`[EMAIL] Starting signup confirmation email | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
+    console.log(`[EMAIL] Starting signup confirmation | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
     
     try {
       const subject = `Welcome to ${domain}!`;
-      console.log(`[EMAIL] Email subject: ${subject}`);
       
       const htmlBody = `
         <!DOCTYPE html>
@@ -121,19 +120,15 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
-      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
-      console.log(`[EMAIL] Sending email via SES...`);
+      console.log(`[EMAIL] Sending signup confirmation | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] ✅ Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] ❌ Failed to send signup confirmation | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
-      if (error.name) {
-        console.error(`[EMAIL] Error type: ${error.name}`);
-      }
+      console.error(`[EMAIL] Failed to send signup confirmation | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
       throw error;
     }
   }
@@ -148,13 +143,11 @@ This email was sent from ${domain}. Please do not reply to this email.
     domain: string,
     resetToken: string
   ): Promise<boolean> {
-    console.log(`[EMAIL] Starting password reset email | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
+    console.log(`[EMAIL] Starting password reset | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
     
     try {
       const resetUrl = `https://${domain}/reset-password?token=${resetToken}`;
       const subject = `Password Reset Request - ${domain}`;
-      console.log(`[EMAIL] Password reset URL: ${resetUrl}`);
-      console.log(`[EMAIL] Email subject: ${subject}`);
       
       const htmlBody = `
         <!DOCTYPE html>
@@ -236,19 +229,15 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
-      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
-      console.log(`[EMAIL] Sending password reset email via SES...`);
+      console.log(`[EMAIL] Sending password reset | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject} | Reset URL: ${resetUrl}`);
 
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] ✅ Password reset email sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Password reset sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] ❌ Failed to send password reset email | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
-      if (error.name) {
-        console.error(`[EMAIL] Error type: ${error.name}`);
-      }
+      console.error(`[EMAIL] Failed to send password reset | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
       throw error;
     }
   }
@@ -262,7 +251,7 @@ This email was sent from ${domain}. Please do not reply to this email.
     message: string,
     domain: string
   ): Promise<boolean> {
-    console.log(`[EMAIL] Starting notification email | To: ${toEmail} | Domain: ${domain} | Subject: ${subject}`);
+    console.log(`[EMAIL] Starting notification | To: ${toEmail} | Domain: ${domain} | Subject: ${subject}`);
     
     try {
       const htmlBody = `
@@ -314,19 +303,15 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
-      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
-      console.log(`[EMAIL] Sending notification email via SES...`);
+      console.log(`[EMAIL] Sending notification | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] ✅ Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] ❌ Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
-      if (error.name) {
-        console.error(`[EMAIL] Error type: ${error.name}`);
-      }
+      console.error(`[EMAIL] Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
       throw error;
     }
   }
@@ -336,27 +321,21 @@ This email was sent from ${domain}. Please do not reply to this email.
  * Create an email service instance from environment variables
  */
 export function createEmailService(env: any): EmailService {
-  console.log(`[EMAIL SERVICE] Creating EmailService instance...`);
+  console.log(`[EMAIL SERVICE] Creating EmailService instance`);
   
   const awsRegion = 'us-east-1'; // Hardcoded region
   
-  // Try different ways to access secrets in Cloudflare Workers
-  const awsAccessKeyId = env.AWS_ACCESS_KEY_ID || env.AWS_ACCESS_KEY_ID_SECRET || env.AWS_ACCESS_KEY_ID_SECRET_TEXT;
-  const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY || env.AWS_SECRET_ACCESS_KEY_SECRET || env.AWS_SECRET_ACCESS_KEY_SECRET_TEXT;
+  // Check for AWS credentials in environment variables
+  const awsAccessKeyId = env.AWS_ACCESS_KEY_ID;
+  const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY;
 
-  console.log(`[EMAIL SERVICE] AWS Region: ${awsRegion}`);
-  console.log(`[EMAIL SERVICE] AWS Access Key ID available: ${!!awsAccessKeyId}`);
-  console.log(`[EMAIL SERVICE] AWS Secret Access Key available: ${!!awsSecretAccessKey}`);
+  console.log(`[EMAIL SERVICE] AWS configuration | Region: ${awsRegion} | Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'} | Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
 
   if (!awsAccessKeyId || !awsSecretAccessKey) {
-    console.error(`[EMAIL SERVICE] ❌ AWS credentials not configured!`);
-    console.error(`[EMAIL SERVICE] Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'}`);
-    console.error(`[EMAIL SERVICE] Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
-    console.error(`[EMAIL SERVICE] Available env keys: ${Object.keys(env).filter(key => key.includes('AWS')).join(', ')}`);
-    console.error(`[EMAIL SERVICE] All env keys: ${Object.keys(env).join(', ')}`);
+    console.error(`[EMAIL SERVICE] AWS credentials not configured | Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'} | Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
     throw new Error('AWS credentials not configured');
   }
 
-  console.log(`[EMAIL SERVICE] ✅ AWS credentials found, creating EmailService...`);
+  console.log(`[EMAIL SERVICE] EmailService created successfully`);
   return new EmailService(awsRegion, awsAccessKeyId, awsSecretAccessKey);
 } 
