@@ -68,6 +68,38 @@ jobs:
         with:
           terraform_version: "1.7.0"
 
+      - name: Get State from R2
+        id: get-state
+        shell: bash
+        run: |
+          # Try to get the state file
+          STATE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+          
+          # Check if we got a valid response and if the file exists
+          if echo "$STATE_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
+            echo "No existing state file found - this is expected on first run"
+            echo "state_exists=false" >> $GITHUB_OUTPUT
+          elif echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
+            # State file exists, save it directly
+            echo "$STATE_RESPONSE" > terraform/terraform.tfstate
+            
+            # Verify the state file has the required version field
+            if ! jq -e '.version' terraform/terraform.tfstate > /dev/null; then
+              echo "::error::Invalid state file format - missing version field"
+              echo "state_exists=false" >> $GITHUB_OUTPUT
+              rm terraform/terraform.tfstate
+              exit 1
+            else
+              echo "state_exists=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "::error::Unexpected error from R2"
+            echo "$STATE_RESPONSE"
+            exit 1
+          fi
+
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init -upgrade
@@ -115,6 +147,25 @@ jobs:
           echo "auth_db_id=$(terraform output -raw auth_db_id)" >> $GITHUB_OUTPUT
           echo "domain_worker_names=$(terraform output -json domain_worker_names)" >> $GITHUB_OUTPUT
           echo "domain_database_ids=$(terraform output -json domain_database_ids)" >> $GITHUB_OUTPUT
+
+      - name: Save State to R2
+        id: save-state
+        shell: bash
+        working-directory: ./terraform
+        run: |
+          # Save the state file
+          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary @terraform.tfstate
+          
+          # Save the state lock file if it exists
+          if [ -f "terraform.tfstate.lock.info" ]; then
+            curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate.lock.info" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data-binary @terraform.tfstate.lock.info
+          fi
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
