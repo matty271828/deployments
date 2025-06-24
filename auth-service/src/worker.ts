@@ -195,13 +195,16 @@ const handlers = {
       let emailSent = false;
       let emailError = null;
       try {
+        console.log(`[SIGNUP] Attempting to send confirmation email to ${email}...`);
         const emailService = createEmailService(env);
         const fullDomain = new URL(request.url).hostname;
+        console.log(`[SIGNUP] Using domain: ${fullDomain} for email`);
         await emailService.sendSignupConfirmation(email, firstName, lastName, fullDomain);
         emailSent = true;
-        console.log(`[SIGNUP] Confirmation email sent successfully to ${email} for domain ${fullDomain}`);
+        console.log(`[SIGNUP] ✅ Confirmation email sent successfully to ${email} for domain ${fullDomain}`);
       } catch (emailError: any) {
-        console.error(`[SIGNUP] Failed to send confirmation email to ${email}:`, emailError.message);
+        console.error(`[SIGNUP] ❌ Failed to send confirmation email to ${email}:`, emailError.message);
+        console.error(`[SIGNUP] Email error details:`, emailError);
         emailError = emailError.message;
         // Don't fail the signup if email fails - just log the error
       }
@@ -914,9 +917,12 @@ const handlers = {
       // Create email service
       const emailService = createEmailService(env);
       const fullDomain = new URL(request.url).hostname;
+      console.log(`[EMAIL ENDPOINT] Using domain: ${fullDomain} for email`);
 
       // Send email
+      console.log(`[EMAIL ENDPOINT] Sending email to ${email} with subject: ${subject}`);
       await emailService.sendNotification(email, subject, message, fullDomain);
+      console.log(`[EMAIL ENDPOINT] ✅ Email sent successfully to ${email}`);
 
       // Return success response
       return new Response(JSON.stringify({

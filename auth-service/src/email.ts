@@ -8,6 +8,8 @@ export class EmailService {
   private awsSecretAccessKey: string;
 
   constructor(awsRegion: string, awsAccessKeyId: string, awsSecretAccessKey: string) {
+    console.log(`[EMAIL SERVICE] Initializing EmailService | Region: ${awsRegion} | AccessKey: ${awsAccessKeyId.substring(0, 8)}...`);
+    
     this.awsRegion = awsRegion;
     this.awsAccessKeyId = awsAccessKeyId;
     this.awsSecretAccessKey = awsSecretAccessKey;
@@ -19,6 +21,8 @@ export class EmailService {
         secretAccessKey: this.awsSecretAccessKey,
       },
     });
+    
+    console.log(`[EMAIL SERVICE] EmailService initialized successfully | Region: ${awsRegion}`);
   }
 
   /**
@@ -30,8 +34,12 @@ export class EmailService {
     lastName: string, 
     domain: string
   ): Promise<boolean> {
+    console.log(`[EMAIL] Starting signup confirmation email | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
+    
     try {
       const subject = `Welcome to ${domain}!`;
+      console.log(`[EMAIL] Email subject: ${subject}`);
+      
       const htmlBody = `
         <!DOCTYPE html>
         <html>
@@ -113,13 +121,19 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
+      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
+      console.log(`[EMAIL] Sending email via SES...`);
+
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] ✅ Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] Failed to send signup confirmation | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      console.error(`[EMAIL] ❌ Failed to send signup confirmation | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      if (error.name) {
+        console.error(`[EMAIL] Error type: ${error.name}`);
+      }
       throw error;
     }
   }
@@ -134,9 +148,13 @@ This email was sent from ${domain}. Please do not reply to this email.
     domain: string,
     resetToken: string
   ): Promise<boolean> {
+    console.log(`[EMAIL] Starting password reset email | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
+    
     try {
       const resetUrl = `https://${domain}/reset-password?token=${resetToken}`;
       const subject = `Password Reset Request - ${domain}`;
+      console.log(`[EMAIL] Password reset URL: ${resetUrl}`);
+      console.log(`[EMAIL] Email subject: ${subject}`);
       
       const htmlBody = `
         <!DOCTYPE html>
@@ -218,13 +236,19 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
+      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
+      console.log(`[EMAIL] Sending password reset email via SES...`);
+
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] Password reset email sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] ✅ Password reset email sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] Failed to send password reset email | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      console.error(`[EMAIL] ❌ Failed to send password reset email | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      if (error.name) {
+        console.error(`[EMAIL] Error type: ${error.name}`);
+      }
       throw error;
     }
   }
@@ -238,6 +262,8 @@ This email was sent from ${domain}. Please do not reply to this email.
     message: string,
     domain: string
   ): Promise<boolean> {
+    console.log(`[EMAIL] Starting notification email | To: ${toEmail} | Domain: ${domain} | Subject: ${subject}`);
+    
     try {
       const htmlBody = `
         <!DOCTYPE html>
@@ -288,13 +314,19 @@ This email was sent from ${domain}. Please do not reply to this email.
         },
       };
 
+      console.log(`[EMAIL] Email parameters prepared | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
+      console.log(`[EMAIL] Sending notification email via SES...`);
+
       const command = new SendEmailCommand(emailParams);
       const result = await this.sesClient.send(command);
       
-      console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] ✅ Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
       return true;
     } catch (error: any) {
-      console.error(`[EMAIL] Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      console.error(`[EMAIL] ❌ Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message}`);
+      if (error.name) {
+        console.error(`[EMAIL] Error type: ${error.name}`);
+      }
       throw error;
     }
   }
@@ -304,13 +336,23 @@ This email was sent from ${domain}. Please do not reply to this email.
  * Create an email service instance from environment variables
  */
 export function createEmailService(env: any): EmailService {
+  console.log(`[EMAIL SERVICE] Creating EmailService instance...`);
+  
   const awsRegion = 'us-east-1'; // Hardcoded region
   const awsAccessKeyId = env.AWS_ACCESS_KEY_ID;
   const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY;
 
+  console.log(`[EMAIL SERVICE] AWS Region: ${awsRegion}`);
+  console.log(`[EMAIL SERVICE] AWS Access Key ID available: ${!!awsAccessKeyId}`);
+  console.log(`[EMAIL SERVICE] AWS Secret Access Key available: ${!!awsSecretAccessKey}`);
+
   if (!awsAccessKeyId || !awsSecretAccessKey) {
+    console.error(`[EMAIL SERVICE] ❌ AWS credentials not configured!`);
+    console.error(`[EMAIL SERVICE] Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'}`);
+    console.error(`[EMAIL SERVICE] Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
     throw new Error('AWS credentials not configured');
   }
 
+  console.log(`[EMAIL SERVICE] ✅ AWS credentials found, creating EmailService...`);
   return new EmailService(awsRegion, awsAccessKeyId, awsSecretAccessKey);
 } 
