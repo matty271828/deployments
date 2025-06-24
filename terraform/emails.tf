@@ -135,6 +135,14 @@ resource "aws_sns_topic_subscription" "email_forwarding" {
   endpoint  = var.gmail_address
   
   depends_on = [aws_sns_topic.email_forwarding]
+  
+  # Add validation to ensure it's a Gmail address
+  lifecycle {
+    precondition {
+      condition     = can(regex("^[a-zA-Z0-9._%+-]+@gmail\\.com$", var.gmail_address))
+      error_message = "Gmail address must be a valid Gmail address ending with @gmail.com"
+    }
+  }
 }
 
 resource "aws_ses_receipt_rule" "store" {

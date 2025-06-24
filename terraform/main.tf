@@ -56,4 +56,9 @@ variable "aws_secret_access_key" {
 variable "gmail_address" {
   description = "Gmail address to forward emails to"
   type        = string
+  
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@gmail\\.com$", var.gmail_address))
+    error_message = "Gmail address must be a valid Gmail address ending with @gmail.com"
+  }
 }

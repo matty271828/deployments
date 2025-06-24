@@ -56,23 +56,65 @@ jobs:
     needs: [manage-domains, validate]
     runs-on: ubuntu-latest
     outputs:
-      auth_db_id: ${{ steps.run-terraform.outputs.auth_db_id }}
-      domain_worker_names: ${{ steps.run-terraform.outputs.domain_worker_names }}
-      domain_database_ids: ${{ steps.run-terraform.outputs.domain_database_ids }}
+      auth_db_id: ${{ steps.terraform-outputs.outputs.auth_db_id }}
+      domain_worker_names: ${{ steps.terraform-outputs.outputs.domain_worker_names }}
+      domain_database_ids: ${{ steps.terraform-outputs.outputs.domain_database_ids }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Terraform
-        id: run-terraform
-        uses: ./.github/actions/run_terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          domains: ${{ needs.manage-domains.outputs.domains }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          gmail_address: ${{ inputs.gmail_address }}
+          terraform_version: "1.7.0"
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -upgrade
+        env:
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
+          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
+          TF_IN_AUTOMATION: "true"
+
+      - name: Terraform Plan
+        id: terraform-plan
+        working-directory: ./terraform
+        run: |
+          terraform plan -out=tfplan
+        env:
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
+          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
+          TF_IN_AUTOMATION: "true"
+
+      - name: Terraform Apply
+        id: terraform-apply
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
+          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
+          TF_IN_AUTOMATION: "true"
+
+      - name: Get Terraform Outputs
+        id: terraform-outputs
+        working-directory: ./terraform
+        run: |
+          echo "auth_db_id=$(terraform output -raw auth_db_id)" >> $GITHUB_OUTPUT
+          echo "domain_worker_names=$(terraform output -json domain_worker_names)" >> $GITHUB_OUTPUT
+          echo "domain_database_ids=$(terraform output -json domain_database_ids)" >> $GITHUB_OUTPUT
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
