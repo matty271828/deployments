@@ -109,7 +109,6 @@ runs:
       working-directory: ./terraform
       shell: bash
       run: |
-        set +e
         # Create a custom output formatter
         cat > mask_uuids.sh << 'EOF'
         #!/bin/bash
@@ -119,19 +118,26 @@ runs:
         EOF
         chmod +x mask_uuids.sh
 
-        # Run terraform plan and pipe through our formatter
-        timeout 900 terraform plan -out=tfplan 2>&1 | ./mask_uuids.sh
+        # Run terraform plan and capture the full output
+        timeout 900 terraform plan -out=tfplan 2>&1 | tee plan_output.log
         exit_code=$?
+        
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform plan timed out after 15 minutes"
           echo "terraform_error=true" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           exit 1
         elif [ $exit_code -ne 0 ]; then
+          echo "::error::Terraform plan failed with exit code $exit_code"
+          echo "::error::Full error output:"
+          cat plan_output.log
           echo "terraform_error=true" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          exit $exit_code
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
         fi
-        exit $exit_code
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
@@ -153,15 +159,18 @@ runs:
         if [ $exit_code -eq 124 ]; then
           echo "::error::Terraform apply timed out after 15 minutes"
           echo "terraform_error=true" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           exit 1
         elif [ $exit_code -ne 0 ]; then
           echo "::error::Terraform apply failed with exit code $exit_code"
           echo "::error::Full error output:"
           cat apply_output.log
           echo "terraform_error=true" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           exit $exit_code
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           auth_db_id=$(terraform output -raw auth_db_id)
           echo "auth_db_id=$auth_db_id" >> $GITHUB_OUTPUT
           domain_worker_names=$(terraform output -json domain_worker_names)
@@ -197,10 +206,27 @@ runs:
             --data-binary @terraform.tfstate.lock.info
         fi
 
+    - name: Debug Step Status
+      shell: bash
+      run: |
+        echo "Plan step error status: ${{ steps.plan.outputs.terraform_error }}"
+        echo "Apply step error status: ${{ steps.apply.outputs.terraform_error }}"
+        echo "Plan step exit code: ${{ steps.plan.outputs.exit_code }}"
+        echo "Apply step exit code: ${{ steps.apply.outputs.exit_code }}"
+
     - name: Final Terraform Error Check
       shell: bash
       run: |
         if [ "${{ steps.apply.outputs.terraform_error }}" == "true" ]; then
-          echo "::error::Terraform operations encountered errors"
+          echo "::error::Terraform apply encountered errors"
+          echo "::error::Check the apply step output above for details"
           exit 1
         fi
+        
+        if [ "${{ steps.plan.outputs.terraform_error }}" == "true" ]; then
+          echo "::error::Terraform plan encountered errors"
+          echo "::error::Check the plan step output above for details"
+          exit 1
+        fi
+        
+        echo "✅ Terraform operations completed successfully"
