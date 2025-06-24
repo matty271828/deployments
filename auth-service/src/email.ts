@@ -325,7 +325,7 @@ export function createEmailService(env: any): EmailService {
   
   const awsRegion = 'us-east-1'; // Hardcoded region
   
-  // Check for AWS credentials in environment variables
+  // Check for AWS credentials in environment variables (secret bindings)
   const awsAccessKeyId = env.AWS_ACCESS_KEY_ID;
   const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY;
 

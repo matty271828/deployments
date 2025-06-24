@@ -70,3 +70,22 @@ runs:
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+
+    # Set AWS credentials as wrangler secrets for email functionality
+    - name: Set AWS Access Key Secret
+      working-directory: './auth-service'
+      shell: bash
+      run: |
+        echo "${{ inputs.aws_access_key_id }}" | npx wrangler secret put AWS_ACCESS_KEY_ID
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+
+    - name: Set AWS Secret Key Secret
+      working-directory: './auth-service'
+      shell: bash
+      run: |
+        echo "${{ inputs.aws_secret_access_key }}" | npx wrangler secret put AWS_SECRET_ACCESS_KEY
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

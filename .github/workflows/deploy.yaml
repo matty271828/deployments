@@ -183,6 +183,8 @@ jobs:
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'
