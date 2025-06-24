@@ -15,6 +15,7 @@
  * - GET /auth/csrf-token - CSRF token generation
  * - POST/GET /auth/graphql - GraphQL proxy to domain workers
  * - GET /auth/debug - Debug database state and session creation
+ * - POST /auth/email/send - Email sending
  */
 
 import { createUser } from './users';
@@ -23,6 +24,7 @@ import { SignupRequest, LoginRequest, SessionValidationResult } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
+import { createEmailService } from './email';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -56,6 +58,9 @@ const ENDPOINTS = {
   },
   '/auth/debug': {
     GET: 'debugDatabase'
+  },
+  '/auth/email/send': {
+    POST: 'sendEmail'
   }
 } as const;
 
@@ -186,6 +191,21 @@ const handlers = {
       // Create user
       const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password, firstName, lastName);
 
+      // Send confirmation email
+      let emailSent = false;
+      let emailError = null;
+      try {
+        const emailService = createEmailService(env);
+        const fullDomain = new URL(request.url).hostname;
+        await emailService.sendSignupConfirmation(email, firstName, lastName, fullDomain);
+        emailSent = true;
+        console.log(`[SIGNUP] Confirmation email sent successfully to ${email} for domain ${fullDomain}`);
+      } catch (emailError: any) {
+        console.error(`[SIGNUP] Failed to send confirmation email to ${email}:`, emailError.message);
+        emailError = emailError.message;
+        // Don't fail the signup if email fails - just log the error
+      }
+
       // Create session for the new user
       let session;
       try {
@@ -205,7 +225,9 @@ const handlers = {
             createdAt: user.createdAt
           },
           session: null,
-          sessionError: sessionError.message
+          sessionError: sessionError.message,
+          emailSent: emailSent,
+          emailError: emailError
         }), {
           status: 201,
           headers: corsHeaders
@@ -227,7 +249,9 @@ const handlers = {
           id: session.id,
           token: session.token,
           expiresAt: new Date(session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
-        }
+        },
+        emailSent: emailSent,
+        emailError: emailError
       }), {
         status: 201,
         headers: corsHeaders
@@ -853,6 +877,58 @@ const handlers = {
 
     } catch (error: any) {
       return createErrorResponse(`Debug error: ${error.message}`, 500, corsHeaders);
+    }
+  },
+
+  /**
+   * Email sending endpoint
+   */
+  async sendEmail(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP, 5); // Higher cost
+      if (!isAllowed) {
+        return createErrorResponse('Too many email sending requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as { email: string; subject: string; message: string };
+      const { email, subject, message } = body;
+
+      // Validate required fields
+      if (!email || !subject || !message) {
+        return createErrorResponse('Email, subject, and message are required', 400, corsHeaders);
+      }
+
+      // Validate email and message types
+      if (typeof email !== 'string' || typeof subject !== 'string' || typeof message !== 'string') {
+        return createErrorResponse('All fields must be strings', 400, corsHeaders);
+      }
+
+      // Create email service
+      const emailService = createEmailService(env);
+      const fullDomain = new URL(request.url).hostname;
+
+      // Send email
+      await emailService.sendNotification(email, subject, message, fullDomain);
+
+      // Return success response
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Email sent successfully'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
     }
   }
 };
