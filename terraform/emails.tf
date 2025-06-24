@@ -123,7 +123,7 @@ resource "aws_ses_active_receipt_rule_set" "main" {
 resource "aws_sns_topic" "email_forwarding" {
   for_each = local.frontend_repos
 
-  name = "email-forwarding-${each.key}"
+  name = "email-forwarding-${split(".", each.key)[0]}"
 }
 
 # Create SNS topic subscriptions to forward to Gmail
