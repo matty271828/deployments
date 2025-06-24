@@ -1,5 +1,5 @@
 # AWS SES Configuration for Email Service
-# This file configures SES for sending and receiving emails for each custom domain
+# This file configures SES for sending and receiving emails for each custom domainhea
 
 # Create SES domain identities for each domain
 resource "aws_ses_domain_identity" "domain" {
@@ -119,6 +119,24 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
+# Create SNS topics for email forwarding
+resource "aws_sns_topic" "email_forwarding" {
+  for_each = local.frontend_repos
+
+  name = "email-forwarding-${each.key}"
+}
+
+# Create SNS topic subscriptions to forward to Gmail
+resource "aws_sns_topic_subscription" "email_forwarding" {
+  for_each = local.frontend_repos
+
+  topic_arn = aws_sns_topic.email_forwarding[each.key].arn
+  protocol  = "email"
+  endpoint  = var.gmail_address
+  
+  depends_on = [aws_sns_topic.email_forwarding]
+}
+
 resource "aws_ses_receipt_rule" "store" {
   for_each = local.frontend_repos
 
@@ -139,23 +157,11 @@ resource "aws_ses_receipt_rule" "store" {
     position  = 2
   }
 
-  depends_on = [aws_ses_active_receipt_rule_set.main]
-}
-
-# Create SNS topics for email forwarding
-resource "aws_sns_topic" "email_forwarding" {
-  for_each = local.frontend_repos
-
-  name = "email-forwarding-${each.key}"
-}
-
-# Create SNS topic subscriptions to forward to Gmail
-resource "aws_sns_topic_subscription" "email_forwarding" {
-  for_each = local.frontend_repos
-
-  topic_arn = aws_sns_topic.email_forwarding[each.key].arn
-  protocol  = "email"
-  endpoint  = var.gmail_address # You'll need to add this variable
+  depends_on = [
+    aws_ses_active_receipt_rule_set.main,
+    aws_ses_domain_identity.domain,
+    aws_sns_topic.email_forwarding
+  ]
 }
 
 # Configure SES for sending emails
@@ -200,4 +206,36 @@ output "ses_user_credentials" {
     secret_access_key = aws_iam_access_key.ses_user.secret
   }
   sensitive = true
+}
+
+# Debug outputs to help troubleshoot
+output "ses_domain_status" {
+  description = "SES domain verification status"
+  value = {
+    for key, identity in aws_ses_domain_identity.domain : key => {
+      domain = identity.domain
+      verification_token = identity.verification_token
+    }
+  }
+}
+
+output "sns_topics" {
+  description = "SNS topics created for email forwarding"
+  value = {
+    for key, topic in aws_sns_topic.email_forwarding : key => {
+      name = topic.name
+      arn = topic.arn
+    }
+  }
+}
+
+output "sns_subscriptions" {
+  description = "SNS subscriptions for email forwarding"
+  value = {
+    for key, subscription in aws_sns_topic_subscription.email_forwarding : key => {
+      protocol = subscription.protocol
+      endpoint = subscription.endpoint
+      subscription_arn = subscription.arn
+    }
+  }
 } 
