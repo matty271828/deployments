@@ -2,10 +2,6 @@ name = "auth-service"
 main = "src/worker.ts"
 compatibility_date = "2025-06-14"
 
-# AWS credentials will be set as secrets
-# Use: wrangler secret put AWS_ACCESS_KEY_ID
-# Use: wrangler secret put AWS_SECRET_ACCESS_KEY
-
 [[d1_databases]]
 # We define the binding here and not in the terraform config
 # because there is a bug in the terraform provider relating to
