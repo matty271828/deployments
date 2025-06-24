@@ -131,10 +131,12 @@ resource "aws_ses_receipt_rule" "store" {
   add_header_action {
     header_name  = "X-Forwarded-For"
     header_value = "support@${each.key}"
+    position     = 1
   }
 
   sns_action {
     topic_arn = aws_sns_topic.email_forwarding[each.key].arn
+    position  = 2
   }
 
   depends_on = [aws_ses_active_receipt_rule_set.main]
