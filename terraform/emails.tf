@@ -204,34 +204,6 @@ resource "aws_sns_topic_subscription" "email_forwarding" {
   }
 }
 
-# Forward support@domain emails to Gmail
-resource "aws_ses_receipt_rule" "store" {
-  for_each = local.frontend_repos
-
-  name          = "forward-support-${each.key}"
-  rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
-  recipients    = ["support@${each.key}"]
-  enabled       = true
-  scan_enabled  = true
-
-  add_header_action {
-    header_name  = "X-Forwarded-For"
-    header_value = "support@${each.key}"
-    position     = 1
-  }
-
-  sns_action {
-    topic_arn = aws_sns_topic.email_forwarding[each.key].arn
-    position  = 2
-  }
-
-  depends_on = [
-    aws_ses_active_receipt_rule_set.main,
-    aws_ses_domain_identity.domain,
-    aws_sns_topic.email_forwarding
-  ]
-}
-
 # Forward noreply@domain emails to Gmail (for verification purposes)
 resource "aws_ses_receipt_rule" "noreply" {
   for_each = local.frontend_repos
