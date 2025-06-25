@@ -15,6 +15,14 @@ resource "aws_ses_email_identity" "noreply" {
   email = "noreply@${each.key}"
 }
 
+# Create MAIL FROM configuration for noreply email identities
+resource "aws_ses_email_identity_mail_from_domain" "noreply" {
+  for_each = local.frontend_repos
+
+  email_identity = aws_ses_email_identity.noreply[each.key].email
+  mail_from_domain = "mail.${each.key}"
+}
+
 # Create SES domain DKIM for each domain
 resource "aws_ses_domain_dkim" "domain" {
   for_each = local.frontend_repos
