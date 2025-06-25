@@ -172,63 +172,82 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
-# Create SNS topics for email forwarding
-resource "aws_sns_topic" "email_forwarding" {
+# Create S3 bucket for storing emails
+resource "aws_s3_bucket" "email_storage" {
   for_each = local.frontend_repos
 
-  name = "email-forwarding-${split(".", each.key)[0]}"
+  bucket = "email-storage-${split(".", each.key)[0]}"
   
-  # Add tags for better organization
   tags = {
     Domain = each.key
-    Purpose = "email-forwarding"
+    Purpose = "email-storage"
   }
 }
 
-# Create SNS topic subscriptions to forward to Gmail
-resource "aws_sns_topic_subscription" "email_forwarding" {
+# Configure S3 bucket for email storage
+resource "aws_s3_bucket_versioning" "email_storage" {
   for_each = local.frontend_repos
 
-  topic_arn = aws_sns_topic.email_forwarding[each.key].arn
-  protocol  = "email"
-  endpoint  = var.gmail_address
-  
-  depends_on = [aws_sns_topic.email_forwarding]
-  
-  # Add validation to ensure it's a Gmail address
-  lifecycle {
-    precondition {
-      condition     = can(regex("^[a-zA-Z0-9._%+-]+@gmail\\.com$", var.gmail_address))
-      error_message = "Gmail address must be a valid Gmail address ending with @gmail.com"
-    }
+  bucket = aws_s3_bucket.email_storage[each.key].id
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
-# Forward noreply@domain emails to Gmail (for verification purposes)
+# S3 bucket policy to allow SES to write emails
+resource "aws_s3_bucket_policy" "email_storage" {
+  for_each = local.frontend_repos
+
+  bucket = aws_s3_bucket.email_storage[each.key].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowSESPuts"
+        Effect = "Allow"
+        Principal = {
+          Service = "ses.amazonaws.com"
+        }
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.email_storage[each.key].arn}/*"
+        Condition = {
+          StringEquals = {
+            "aws:Referer" = var.aws_account_id
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Store noreply@domain emails in S3
 resource "aws_ses_receipt_rule" "noreply" {
   for_each = local.frontend_repos
 
-  name          = "forward-noreply-${each.key}"
+  name          = "store-noreply-${each.key}"
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
   recipients    = ["noreply@${each.key}"]
   enabled       = true
   scan_enabled  = true
 
   add_header_action {
-    header_name  = "X-Forwarded-For"
+    header_name  = "X-Received-By"
     header_value = "noreply@${each.key}"
     position     = 1
   }
 
-  sns_action {
-    topic_arn = aws_sns_topic.email_forwarding[each.key].arn
-    position  = 2
+  s3_action {
+    bucket_name = aws_s3_bucket.email_storage[each.key].bucket
+    position    = 2
   }
 
   depends_on = [
     aws_ses_active_receipt_rule_set.main,
     aws_ses_domain_identity.domain,
-    aws_sns_topic.email_forwarding
+    aws_s3_bucket.email_storage
   ]
 }
 
@@ -258,23 +277,13 @@ output "ses_domain_status" {
   }
 }
 
-output "sns_topics" {
-  description = "SNS topics created for email forwarding"
+output "email_storage_buckets" {
+  description = "S3 buckets created for email storage"
   value = {
-    for key, topic in aws_sns_topic.email_forwarding : key => {
-      name = topic.name
-      arn = topic.arn
+    for key, bucket in aws_s3_bucket.email_storage : key => {
+      name = bucket.bucket
+      arn  = bucket.arn
     }
   }
-}
-
-output "sns_subscriptions" {
-  description = "SNS subscriptions for email forwarding"
-  value = {
-    for key, subscription in aws_sns_topic_subscription.email_forwarding : key => {
-      protocol = subscription.protocol
-      endpoint = subscription.endpoint
-      subscription_arn = subscription.arn
-    }
-  }
+  sensitive = true
 } 

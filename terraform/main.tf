@@ -62,3 +62,9 @@ variable "gmail_address" {
     error_message = "Gmail address must be a valid Gmail address ending with @gmail.com"
   }
 }
+
+variable "aws_account_id" {
+  description = "AWS Account ID"
+  type        = string
+  sensitive   = true
+}
