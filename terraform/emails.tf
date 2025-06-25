@@ -8,11 +8,11 @@ resource "aws_ses_domain_identity" "domain" {
   domain = each.key
 }
 
-# Create SES email identities for noreply@domain addresses
-resource "aws_ses_email_identity" "noreply" {
+# Create SES email identities for support@domain addresses
+resource "aws_ses_email_identity" "support" {
   for_each = local.frontend_repos
 
-  email = "noreply@${each.key}"
+  email = "support@${each.key}"
 }
 
 # Create SES domain DKIM for each domain
@@ -117,24 +117,24 @@ resource "cloudflare_dns_record" "ses_mail_from_mx" {
   ttl      = 1
 }
 
-# Create MX record for noreply subdomain
-resource "cloudflare_dns_record" "ses_noreply_mx" {
+# Create MX record for support subdomain
+resource "cloudflare_dns_record" "ses_support_mx" {
   for_each = local.frontend_repos
 
   zone_id  = cloudflare_zone.domain[each.key].id
-  name     = "noreply.${each.key}"
+  name     = "support.${each.key}"
   content  = "feedback-smtp.${var.aws_region}.amazonses.com"
   type     = "MX"
   priority = 10
   ttl      = 1
 }
 
-# Create SPF record for noreply subdomain
-resource "cloudflare_dns_record" "ses_noreply_spf" {
+# Create SPF record for support subdomain
+resource "cloudflare_dns_record" "ses_support_spf" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
-  name    = "noreply.${each.key}"
+  name    = "support.${each.key}"
   content = "\"v=spf1 include:amazonses.com ~all\""
   type    = "TXT"
   ttl     = 1
@@ -223,19 +223,19 @@ resource "aws_s3_bucket_policy" "email_storage" {
   })
 }
 
-# Store noreply@domain emails in S3
-resource "aws_ses_receipt_rule" "noreply" {
+# Store support@domain emails in S3
+resource "aws_ses_receipt_rule" "support" {
   for_each = local.frontend_repos
 
-  name          = "store-noreply-${each.key}"
+  name          = "store-support-${each.key}"
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
-  recipients    = ["noreply@${each.key}"]
+  recipients    = ["support@${each.key}"]
   enabled       = true
   scan_enabled  = true
 
   add_header_action {
     header_name  = "X-Received-By"
-    header_value = "noreply@${each.key}"
+    header_value = "support@${each.key}"
     position     = 1
   }
 
