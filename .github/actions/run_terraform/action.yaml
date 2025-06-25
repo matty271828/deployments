@@ -126,17 +126,18 @@ runs:
           echo "::error::Terraform plan timed out after 15 minutes"
           echo "terraform_error=true" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit 1
+          echo "plan_failed=true" >> $GITHUB_OUTPUT
         elif [ $exit_code -ne 0 ]; then
           echo "::error::Terraform plan failed with exit code $exit_code"
           echo "::error::Full error output:"
           cat plan_output.log
           echo "terraform_error=true" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit $exit_code
+          echo "plan_failed=true" >> $GITHUB_OUTPUT
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "plan_failed=false" >> $GITHUB_OUTPUT
         fi
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
@@ -160,17 +161,18 @@ runs:
           echo "::error::Terraform apply timed out after 15 minutes"
           echo "terraform_error=true" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit 1
+          echo "apply_failed=true" >> $GITHUB_OUTPUT
         elif [ $exit_code -ne 0 ]; then
           echo "::error::Terraform apply failed with exit code $exit_code"
           echo "::error::Full error output:"
           cat apply_output.log
           echo "terraform_error=true" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit $exit_code
+          echo "apply_failed=true" >> $GITHUB_OUTPUT
         else
           echo "terraform_error=false" >> $GITHUB_OUTPUT
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "apply_failed=false" >> $GITHUB_OUTPUT
           auth_db_id=$(terraform output -raw auth_db_id)
           echo "auth_db_id=$auth_db_id" >> $GITHUB_OUTPUT
           domain_worker_names=$(terraform output -json domain_worker_names)
@@ -187,23 +189,47 @@ runs:
         TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
-    - name: Save State to R2
+    - name: Save State to R2 (Always)
       id: save-state
       shell: bash
       working-directory: ./terraform
       run: |
-        # Save the state file
-        curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
-          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-          -H "Content-Type: application/json" \
-          --data-binary @terraform.tfstate
+        echo "Saving Terraform state to R2..."
         
-        # Save the state lock file if it exists
-        if [ -f "terraform.tfstate.lock.info" ]; then
-          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate.lock.info" \
+        # Check if state file exists
+        if [ -f "terraform.tfstate" ]; then
+          echo "State file found, uploading to R2..."
+          
+          # Save the state file
+          SAVE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -H "Content-Type: application/json" \
-            --data-binary @terraform.tfstate.lock.info
+            --data-binary @terraform.tfstate)
+          
+          if echo "$SAVE_RESPONSE" | jq -e '.success == true' > /dev/null; then
+            echo "✅ State file successfully saved to R2"
+          else
+            echo "::warning::Failed to save state file to R2"
+            echo "$SAVE_RESPONSE" | jq -r '.errors[0].message'
+          fi
+          
+          # Save the state lock file if it exists
+          if [ -f "terraform.tfstate.lock.info" ]; then
+            echo "Lock file found, uploading to R2..."
+            LOCK_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/terraform-state/objects/terraform.tfstate.lock.info" \
+              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+              -H "Content-Type: application/json" \
+              --data-binary @terraform.tfstate.lock.info)
+            
+            if echo "$LOCK_RESPONSE" | jq -e '.success == true' > /dev/null; then
+              echo "✅ Lock file successfully saved to R2"
+            else
+              echo "::warning::Failed to save lock file to R2"
+              echo "$LOCK_RESPONSE" | jq -r '.errors[0].message'
+            fi
+          fi
+        else
+          echo "::warning::No terraform.tfstate file found to save"
         fi
 
     - name: Debug Step Status
@@ -213,6 +239,8 @@ runs:
         echo "Apply step error status: ${{ steps.apply.outputs.terraform_error }}"
         echo "Plan step exit code: ${{ steps.plan.outputs.exit_code }}"
         echo "Apply step exit code: ${{ steps.apply.outputs.exit_code }}"
+        echo "Plan failed: ${{ steps.plan.outputs.plan_failed }}"
+        echo "Apply failed: ${{ steps.apply.outputs.apply_failed }}"
 
     - name: Final Terraform Error Check
       shell: bash
