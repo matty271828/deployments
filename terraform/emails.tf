@@ -8,6 +8,13 @@ resource "aws_ses_domain_identity" "domain" {
   domain = each.key
 }
 
+# Create SES email identities for noreply@domain addresses
+resource "aws_ses_email_identity" "noreply" {
+  for_each = local.frontend_repos
+
+  email = "noreply@${each.key}"
+}
+
 # Create SES domain DKIM for each domain
 resource "aws_ses_domain_dkim" "domain" {
   for_each = local.frontend_repos
@@ -98,6 +105,18 @@ resource "cloudflare_dns_record" "ses_mail_from_spf" {
   ttl     = 1
 }
 
+# Create MX record for mail from domain
+resource "cloudflare_dns_record" "ses_mail_from_mx" {
+  for_each = local.frontend_repos
+
+  zone_id  = cloudflare_zone.domain[each.key].id
+  name     = "mail.${each.key}"
+  content  = "feedback-smtp.${var.aws_region}.amazonses.com"
+  type     = "MX"
+  priority = 10
+  ttl      = 1
+}
+
 # Create DMARC record for email authentication
 resource "cloudflare_dns_record" "ses_dmarc" {
   for_each = local.frontend_repos
@@ -162,6 +181,7 @@ resource "aws_sns_topic_subscription" "email_forwarding" {
   }
 }
 
+# Forward support@domain emails to Gmail
 resource "aws_ses_receipt_rule" "store" {
   for_each = local.frontend_repos
 
@@ -174,6 +194,34 @@ resource "aws_ses_receipt_rule" "store" {
   add_header_action {
     header_name  = "X-Forwarded-For"
     header_value = "support@${each.key}"
+    position     = 1
+  }
+
+  sns_action {
+    topic_arn = aws_sns_topic.email_forwarding[each.key].arn
+    position  = 2
+  }
+
+  depends_on = [
+    aws_ses_active_receipt_rule_set.main,
+    aws_ses_domain_identity.domain,
+    aws_sns_topic.email_forwarding
+  ]
+}
+
+# Forward noreply@domain emails to Gmail (for verification purposes)
+resource "aws_ses_receipt_rule" "noreply" {
+  for_each = local.frontend_repos
+
+  name          = "forward-noreply-${each.key}"
+  rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
+  recipients    = ["noreply@${each.key}"]
+  enabled       = true
+  scan_enabled  = true
+
+  add_header_action {
+    header_name  = "X-Forwarded-For"
+    header_value = "noreply@${each.key}"
     position     = 1
   }
 
