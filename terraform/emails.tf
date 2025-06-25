@@ -100,7 +100,7 @@ resource "cloudflare_dns_record" "ses_mail_from_spf" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "mail.${each.key}"
-  content = "v=spf1 include:amazonses.com ~all"
+  content = "\"v=spf1 include:amazonses.com ~all\""
   type    = "TXT"
   ttl     = 1
 }
@@ -135,7 +135,7 @@ resource "cloudflare_dns_record" "ses_noreply_spf" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "noreply.${each.key}"
-  content = "v=spf1 include:amazonses.com ~all"
+  content = "\"v=spf1 include:amazonses.com ~all\""
   type    = "TXT"
   ttl     = 1
 }
