@@ -117,6 +117,29 @@ resource "cloudflare_dns_record" "ses_mail_from_mx" {
   ttl      = 1
 }
 
+# Create MX record for noreply subdomain
+resource "cloudflare_dns_record" "ses_noreply_mx" {
+  for_each = local.frontend_repos
+
+  zone_id  = cloudflare_zone.domain[each.key].id
+  name     = "noreply.${each.key}"
+  content  = "feedback-smtp.${var.aws_region}.amazonses.com"
+  type     = "MX"
+  priority = 10
+  ttl      = 1
+}
+
+# Create SPF record for noreply subdomain
+resource "cloudflare_dns_record" "ses_noreply_spf" {
+  for_each = local.frontend_repos
+
+  zone_id = cloudflare_zone.domain[each.key].id
+  name    = "noreply.${each.key}"
+  content = "v=spf1 include:amazonses.com ~all"
+  type    = "TXT"
+  ttl     = 1
+}
+
 # Create DMARC record for email authentication
 resource "cloudflare_dns_record" "ses_dmarc" {
   for_each = local.frontend_repos
