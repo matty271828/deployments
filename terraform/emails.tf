@@ -213,11 +213,6 @@ resource "aws_s3_bucket_policy" "email_storage" {
           "s3:PutObject"
         ]
         Resource = "${aws_s3_bucket.email_storage[each.key].arn}/*"
-        Condition = {
-          StringEquals = {
-            "aws:Referer" = var.aws_account_id
-          }
-        }
       }
     ]
   })
