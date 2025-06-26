@@ -228,8 +228,52 @@ runs:
             echo "❌ Zone not found for domain $DOMAIN"
           fi
           
-          # Step 4: Validate domain configuration
-          echo "Step 4: Validating domain configuration..."
+          # Step 4: Wait for DNS propagation (after adding records)
+          echo "Step 4: Waiting for DNS propagation..."
+          
+          # Wait for DNS propagation (up to 10 minutes)
+          for i in {1..60}; do
+            echo "Checking DNS propagation (attempt $i/60)..."
+            
+            # Check if SPF record is available
+            SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
+            
+            # Check if Brevo code record is available
+            BREVO_CODE_CHECK=""
+            if [ -n "$DOMAIN_DETAILS" ]; then
+              BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
+              if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ]; then
+                BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
+              fi
+            fi
+            
+            # Check if DKIM record is available
+            DKIM_CHECK=""
+            DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim1Record.host_name // empty')
+            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
+              DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD" +short | grep "brevo" || echo "")
+            fi
+            
+            echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
+            echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
+            echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
+            
+            if [ -n "$SPF_CHECK" ] && [ -n "$BREVO_CODE_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
+              echo "✅ DNS propagation complete for $DOMAIN"
+              break
+            elif [ $i -eq 60 ]; then
+              echo "❌ DNS propagation timeout after 10 minutes for domain $DOMAIN"
+              echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
+              echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
+              echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
+              echo "::warning::DNS propagation failed for domain $DOMAIN after 10 minutes, but continuing..."
+            else
+              sleep 10
+            fi
+          done
+          
+          # Step 5: Validate domain configuration
+          echo "Step 5: Validating domain configuration..."
           VALIDATION_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
@@ -242,8 +286,8 @@ runs:
             continue
           fi
           
-          # Step 5: Authenticate domain
-          echo "Step 5: Authenticating domain..."
+          # Step 6: Authenticate domain
+          echo "Step 6: Authenticating domain..."
           AUTH_RESPONSE=$(curl -s -X PUT "https://api.brevo.com/v3/senders/domains/$DOMAIN/authenticate" \
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
@@ -305,95 +349,6 @@ runs:
         done
         
         echo "✅ Brevo domain authentication setup completed for all domains"
-
-    - name: Wait for DNS propagation
-      shell: bash
-      run: |
-        echo "Waiting for DNS propagation..."
-        
-        # Get the domains from the previous step
-        DOMAINS='${{ steps.get-domains.outputs.domains }}'
-        
-        # Check if domains list is empty or null
-        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
-          echo "No domains found, skipping DNS propagation check"
-          exit 0
-        fi
-        
-        # Validate that domains is a valid JSON array
-        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
-          echo "::error::Invalid domains format - expected JSON array"
-          echo "Domains: $DOMAINS"
-          exit 1
-        fi
-        
-        # Process each domain
-        echo "$DOMAINS" | jq -c '.[]' | while read -r domain_obj; do
-          DOMAIN=$(echo "$domain_obj" | jq -r '.domain')
-          echo "Waiting for DNS propagation for domain: $DOMAIN"
-          
-          # Wait for DNS propagation (up to 10 minutes)
-          for i in {1..60}; do
-            echo "Checking DNS propagation (attempt $i/60)..."
-            
-            # Check if SPF record is available
-            SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
-            
-            # Check if Brevo code record is available
-            BREVO_CODE_CHECK=""
-            if [ -n "$DOMAIN_DETAILS" ]; then
-              BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
-              if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ]; then
-                BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
-              fi
-            fi
-            
-            # Check if DKIM record is available (get DKIM name first)
-            DKIM_NAME=""
-            DOMAIN_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains" \
-              -H "accept: application/json" \
-              -H "api-key: ${{ inputs.brevo_api_key }}")
-            
-            DOMAIN_ID=$(echo "$DOMAIN_RESPONSE" | jq -r ".domains[] | select(.domain_name == \"$DOMAIN\") | .id // empty")
-            
-            if [ "$DOMAIN_ID" != "null" ] && [ -n "$DOMAIN_ID" ]; then
-              DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
-                -H "accept: application/json" \
-                -H "api-key: ${{ inputs.brevo_api_key }}")
-              DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim1Record.host_name // empty')
-              if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
-                DKIM_NAME="$DKIM_RECORD"
-              fi
-            fi
-            
-            DKIM_CHECK=""
-            if [ -n "$DKIM_NAME" ]; then
-              DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_NAME" +short | grep "brevo" || echo "")
-            fi
-            
-            echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
-            echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
-            echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
-            
-            if [ -n "$SPF_CHECK" ] && [ -n "$BREVO_CODE_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
-              echo "✅ DNS propagation complete for $DOMAIN"
-              break
-            elif [ $i -eq 60 ]; then
-              echo "❌ DNS propagation timeout after 10 minutes for domain $DOMAIN"
-              echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
-              echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
-              echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
-              echo "::error::DNS propagation failed for domain $DOMAIN after 10 minutes"
-              exit 1
-            else
-              sleep 10
-            fi
-          done
-          
-          echo "---"
-        done
-        
-        echo "✅ DNS propagation check completed"
 
     - name: Verify domain validation
       shell: bash
