@@ -72,6 +72,44 @@ runs:
             fi
           fi
           
+          # Wait for DNS propagation (up to 10 minutes)
+          echo "Waiting for DNS propagation for domain $DOMAIN..."
+          for i in {1..60}; do
+            echo "Checking DNS propagation (attempt $i/60)..."
+            
+            # Check if SPF record is available
+            SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
+            
+            # Check if DKIM record is available (get DKIM name first)
+            DKIM_NAME=""
+            if [ "$DOMAIN_ID" != "null" ] && [ -n "$DOMAIN_ID" ]; then
+              DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/domains/$DOMAIN_ID" \
+                -H "accept: application/json" \
+                -H "api-key: ${{ inputs.brevo_api_key }}")
+              DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dnsRecords.dkim.record')
+              if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
+                DKIM_NAME=$(echo "$DKIM_RECORD" | cut -d' ' -f1)
+              fi
+            fi
+            
+            DKIM_CHECK=""
+            if [ -n "$DKIM_NAME" ]; then
+              DKIM_CHECK=$(dig TXT @8.8.8.8 "$DKIM_NAME" +short | grep "v=DKIM1" || echo "")
+            fi
+            
+            echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
+            echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
+            
+            if [ -n "$SPF_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
+              echo "✅ DNS propagation complete for $DOMAIN"
+              break
+            elif [ $i -eq 60 ]; then
+              echo "⚠️ DNS propagation still in progress after 10 minutes"
+            else
+              sleep 10
+            fi
+          done
+          
           # Add sender to Brevo (regardless of domain existence)
           echo "Adding sender noreply@$DOMAIN to Brevo..."
           
