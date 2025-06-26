@@ -29,17 +29,28 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
+        echo "Raw response from R2:"
+        echo "$MAPPINGS_RESPONSE"
+        
         # Check if we got a valid response
         if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
-          echo "::error::Failed to retrieve domain mappings from R2"
+          echo "::error::Failed to retrieve domain mappings from R2 - invalid JSON"
           echo "$MAPPINGS_RESPONSE"
           exit 1
         fi
         
-        # Check for errors
-        if echo "$MAPPINGS_RESPONSE" | jq -e '.errors' > /dev/null; then
+        # Check if response is an array (success case) or has errors
+        if echo "$MAPPINGS_RESPONSE" | jq -e 'type == "array"' > /dev/null; then
+          # Response is an array, which is what we expect
+          echo "✅ Successfully retrieved domain mappings from R2"
+        elif echo "$MAPPINGS_RESPONSE" | jq -e '.errors' > /dev/null; then
+          # Response has errors
           echo "::error::Failed to get domain mappings"
           echo "$MAPPINGS_RESPONSE" | jq -r '.errors[0].message'
+          exit 1
+        else
+          echo "::error::Unexpected response format from R2"
+          echo "$MAPPINGS_RESPONSE"
           exit 1
         fi
         
@@ -55,10 +66,19 @@ runs:
         # Get the domains from the previous step
         DOMAINS='${{ steps.get-domains.outputs.domains }}'
         
-        # Check if domains list is empty
-        if [ "$DOMAINS" = "[]" ]; then
+        echo "Domains from step output: $DOMAINS"
+        
+        # Check if domains list is empty or null
+        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
           echo "No domains found, skipping Brevo authentication setup"
           exit 0
+        fi
+        
+        # Validate that domains is a valid JSON array
+        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
+          echo "::error::Invalid domains format - expected JSON array"
+          echo "Domains: $DOMAINS"
+          exit 1
         fi
         
         # Process each domain
@@ -137,10 +157,17 @@ runs:
         # Get the domains from the previous step
         DOMAINS='${{ steps.get-domains.outputs.domains }}'
         
-        # Check if domains list is empty
-        if [ "$DOMAINS" = "[]" ]; then
+        # Check if domains list is empty or null
+        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
           echo "No domains found, skipping DKIM record setup"
           exit 0
+        fi
+        
+        # Validate that domains is a valid JSON array
+        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
+          echo "::error::Invalid domains format - expected JSON array"
+          echo "Domains: $DOMAINS"
+          exit 1
         fi
         
         # Process each domain
@@ -228,10 +255,17 @@ runs:
         # Get the domains from the previous step
         DOMAINS='${{ steps.get-domains.outputs.domains }}'
         
-        # Check if domains list is empty
-        if [ "$DOMAINS" = "[]" ]; then
+        # Check if domains list is empty or null
+        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
           echo "No domains found, skipping DNS propagation check"
           exit 0
+        fi
+        
+        # Validate that domains is a valid JSON array
+        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
+          echo "::error::Invalid domains format - expected JSON array"
+          echo "Domains: $DOMAINS"
+          exit 1
         fi
         
         # Process each domain
@@ -299,10 +333,17 @@ runs:
         # Get the domains from the previous step
         DOMAINS='${{ steps.get-domains.outputs.domains }}'
         
-        # Check if domains list is empty
-        if [ "$DOMAINS" = "[]" ]; then
+        # Check if domains list is empty or null
+        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
           echo "No domains found, skipping domain validation verification"
           exit 0
+        fi
+        
+        # Validate that domains is a valid JSON array
+        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
+          echo "::error::Invalid domains format - expected JSON array"
+          echo "Domains: $DOMAINS"
+          exit 1
         fi
         
         # Process each domain
