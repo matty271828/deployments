@@ -8,7 +8,7 @@ resource "cloudflare_dns_record" "brevo_spf" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "@"
-  content = "v=spf1 include:spf.sendinblue.com ~all"
+  content = "\"v=spf1 include:spf.sendinblue.com ~all\""
   type    = "TXT"
   ttl     = 1
 
@@ -22,7 +22,7 @@ resource "cloudflare_dns_record" "brevo_dmarc" {
 
   zone_id = cloudflare_zone.domain[each.key].id
   name    = "_dmarc"
-  content = "v=DMARC1; p=quarantine; rua=mailto:dmarc@${each.key}; ruf=mailto:dmarc@${each.key}; sp=quarantine; adkim=r; aspf=r;"
+  content = "\"v=DMARC1; p=quarantine; rua=mailto:dmarc@${each.key}; ruf=mailto:dmarc@${each.key}; sp=quarantine; adkim=r; aspf=r;\""
   type    = "TXT"
   ttl     = 1
 
