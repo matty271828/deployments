@@ -84,15 +84,12 @@ export class EmailService {
                 </div>
               </div>
               
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="https://${domain}" style="background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(74, 85, 104, 0.4); transition: all 0.3s ease; border: none;">
-                  Get Started →
-                </a>
-              </div>
-              
               <p style="font-size: 16px; margin: 30px 0 20px 0; color: #555;">
-                If you have any questions or need help getting started, our support team is here to help.
+                Once you've verified your email, you'll have full access to all features and can start exploring what ${domain} has to offer. We're committed to providing you with a secure and seamless experience.
+              </p>
+              
+              <p style="font-size: 16px; margin: 20px 0; color: #555;">
+                If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at <a href="mailto:support@${domain}" style="color: #4a5568; text-decoration: underline;">support@${domain}</a>, and we'll be happy to assist you.
               </p>
               
               <p style="font-size: 16px; margin: 0; color: #555;">
@@ -126,9 +123,9 @@ VERIFY YOUR ACCOUNT:
 To ensure the security of your account, please verify your email address by visiting:
 https://${domain}/verify-email?token=PLACEHOLDER_TOKEN
 
-Visit https://${domain} to begin using our services.
+Once you've verified your email, you'll have full access to all features and can start exploring what ${domain} has to offer. We're committed to providing you with a secure and seamless experience.
 
-If you have any questions or need help getting started, our support team is here to help.
+If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at support@${domain}, and we'll be happy to assist you.
 
 Welcome aboard!
 The ${domain} Team
@@ -218,7 +215,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               </div>
               
               <p style="font-size: 16px; margin: 30px 0 20px 0; color: #555;">
-                If you have any questions or need assistance, our support team is here to help.
+                If you have any questions or need assistance, our support team is here to help. You can reach us anytime at <a href="mailto:support@${domain}" style="color: #4a5568; text-decoration: underline;">support@${domain}</a>.
               </p>
               
               <p style="font-size: 16px; margin: 0; color: #555;">
@@ -253,7 +250,7 @@ This link will expire in 1 hour for security reasons.
 
 SECURITY NOTICE: If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
 
-If you have any questions or need assistance, our support team is here to help.
+If you have any questions or need assistance, our support team is here to help. You can reach us anytime at support@${domain}.
 
 Stay secure!
 The ${domain} Team
