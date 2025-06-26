@@ -10,15 +10,14 @@ on:
       frontend_repo:
         required: true
         type: string
-      gmail_address:
-        required: true
-        type: string
     secrets:
       CLOUDFLARE_ACCOUNT_ID:
         required: true
       CLOUDFLARE_API_TOKEN:
         required: true
       GH_PERSONAL_ACCESS_TOKEN:
+        required: true
+      BREVO_API_KEY:
         required: true
 
 jobs:
@@ -71,18 +70,6 @@ jobs:
         with:
           frontend_repo: ${{ inputs.frontend_repo }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-
-  validate-gmail-address:
-    name: 'Gmail Address'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Validate Gmail address
-        uses: ./.github/actions/validate_gmail_address
-        with:
-          gmail_address: ${{ inputs.gmail_address }}
 
   validate-brevo-api-key:
     name: 'Brevo API Key'

@@ -11,9 +11,6 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
-  gmail_address:
-    description: 'Gmail address to forward emails to'
-    required: true
 
 outputs:
   terraform_error:
@@ -137,7 +134,6 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
-        TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
     - name: Terraform Apply
@@ -176,7 +172,6 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
-        TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
     - name: Save State to R2 (Always)

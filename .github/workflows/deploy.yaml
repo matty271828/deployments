@@ -12,10 +12,6 @@ on:
         description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
         required: true
         type: string
-      gmail_address:
-        description: 'Gmail address to forward emails to'
-        required: true
-        type: string
 
 jobs:
   validate:
@@ -24,11 +20,11 @@ jobs:
     with:
       domain: ${{ inputs.domain }}
       frontend_repo: ${{ inputs.frontend_repo }}
-      gmail_address: ${{ inputs.gmail_address }}
     secrets:
       cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+      BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
 
   manage-domains:
     name: 'Manage Domains'
@@ -105,7 +101,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
       - name: Terraform Plan
@@ -117,7 +112,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
       - name: Terraform Apply
@@ -129,7 +123,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
       - name: Get Terraform Outputs
