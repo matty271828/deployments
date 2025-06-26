@@ -66,7 +66,7 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   setup-brevo-domains:
-    name: 'Setup Brevo Domain Authentication'
+    name: 'Create Email Domains'
     needs: [run-terraform, manage-domains]
     runs-on: ubuntu-latest
     steps:
