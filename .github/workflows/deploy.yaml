@@ -27,7 +27,7 @@ jobs:
       BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
 
   manage-domains:
-    name: 'Manage Domains'
+    name: 'Construct Domains List'
     needs: [validate]
     runs-on: ubuntu-latest
     outputs:
@@ -42,6 +42,22 @@ jobs:
         with:
           domain: ${{ inputs.domain }}
           frontend_repo: ${{ inputs.frontend_repo }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  setup-brevo-domains:
+    name: 'Setup Domains on Brevo'
+    needs: [manage-domains]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Brevo Domain Authentication
+        uses: ./.github/actions/setup_brevo_domain
+        with:
+          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+          domains: ${{ needs.manage-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
@@ -169,22 +185,6 @@ jobs:
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
-
-  setup-brevo-domains:
-    name: 'Setup Brevo Domain Authentication'
-    needs: [manage-domains, run-terraform]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Brevo Domain Authentication
-        uses: ./.github/actions/setup_brevo_domain
-        with:
-          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
-          domains: ${{ needs.manage-domains.outputs.domains }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'
