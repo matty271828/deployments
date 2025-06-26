@@ -95,6 +95,82 @@ runs:
       run: |
         terraform init -upgrade 
 
+    - name: Clean up AWS resources from state
+      id: cleanup-aws
+      working-directory: ./terraform
+      shell: bash
+      run: |
+        echo "Checking for AWS resources in Terraform state..."
+        
+        # List all resources in state
+        if [ -f "terraform.tfstate" ]; then
+          echo "Current resources in state:"
+          terraform state list || echo "No resources in state or state is empty"
+          
+          # Remove common AWS SES resources that might exist
+          echo "Attempting to remove AWS resources from state..."
+          
+          # Common AWS SES resource names to try removing
+          AWS_RESOURCES=(
+            "aws_ses_domain"
+            "aws_ses_domain_verification"
+            "aws_ses_domain_identity"
+            "aws_ses_domain_identity_verification"
+            "aws_ses_email_identity"
+            "aws_ses_email_identity_verification"
+            "aws_ses_configuration_set"
+            "aws_ses_event_destination"
+            "aws_ses_receipt_rule"
+            "aws_ses_receipt_rule_set"
+            "aws_ses_template"
+            "aws_s3_bucket"
+            "aws_s3_bucket_versioning"
+            "aws_s3_bucket_server_side_encryption_configuration"
+            "aws_s3_bucket_public_access_block"
+            "aws_s3_bucket_policy"
+            "aws_s3_bucket_notification"
+            "aws_s3_bucket_lifecycle_configuration"
+            "aws_s3_bucket_cors_configuration"
+            "aws_s3_bucket_website_configuration"
+            "aws_s3_bucket_accelerate_configuration"
+            "aws_s3_bucket_logging"
+            "aws_s3_bucket_object"
+            "aws_s3_bucket_analytics_configuration"
+            "aws_s3_bucket_inventory"
+            "aws_s3_bucket_metric"
+            "aws_s3_bucket_replication_configuration"
+            "aws_iam_role"
+            "aws_iam_policy"
+            "aws_iam_role_policy_attachment"
+            "aws_iam_user"
+            "aws_iam_access_key"
+            "aws_sns_topic"
+            "aws_sns_topic_subscription"
+            "aws_sqs_queue"
+            "aws_sqs_queue_policy"
+          )
+          
+          for resource_type in "${AWS_RESOURCES[@]}"; do
+            echo "Checking for $resource_type resources..."
+            # List resources of this type
+            RESOURCES=$(terraform state list | grep "^$resource_type" || true)
+            
+            if [ -n "$RESOURCES" ]; then
+              echo "Found $resource_type resources: $RESOURCES"
+              for resource in $RESOURCES; do
+                echo "Removing $resource from state..."
+                terraform state rm "$resource" || echo "Failed to remove $resource (may not exist)"
+              done
+            else
+              echo "No $resource_type resources found"
+            fi
+          done
+          
+          echo "AWS resource cleanup completed"
+        else
+          echo "No terraform.tfstate file found, skipping AWS cleanup"
+        fi
+
     - name: Terraform Plan
       id: plan
       working-directory: ./terraform
