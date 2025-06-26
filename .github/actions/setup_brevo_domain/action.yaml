@@ -296,8 +296,8 @@ runs:
             fi
             
             # Check if DKIM record is available (hostname already validated above)
-            echo "DEBUG: Checking DKIM record for '$DKIM_RECORD'"
-            DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD" +short | grep "brevo" || echo "")
+            echo "DEBUG: Checking DKIM record for '$DKIM_RECORD.$DOMAIN'"
+            DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD.$DOMAIN" +short | grep "brevo" || echo "")
             
             echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
             echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
