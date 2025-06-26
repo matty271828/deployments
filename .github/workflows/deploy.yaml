@@ -27,7 +27,7 @@ jobs:
       BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
 
   manage-domains:
-    name: 'Manage Domains'
+    name: 'Construct Domains List'
     needs: [validate]
     runs-on: ubuntu-latest
     outputs:
@@ -50,107 +50,20 @@ jobs:
     needs: [manage-domains, validate]
     runs-on: ubuntu-latest
     outputs:
-      auth_db_id: ${{ steps.terraform-outputs.outputs.auth_db_id }}
-      domain_worker_names: ${{ steps.terraform-outputs.outputs.domain_worker_names }}
-      domain_database_ids: ${{ steps.terraform-outputs.outputs.domain_database_ids }}
+      auth_db_id: ${{ steps.run-terraform.outputs.auth_db_id }}
+      domain_worker_names: ${{ steps.run-terraform.outputs.domain_worker_names }}
+      domain_database_ids: ${{ steps.run-terraform.outputs.domain_database_ids }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Run Terraform
+        id: run-terraform
+        uses: ./.github/actions/run_terraform
         with:
-          terraform_version: "1.7.0"
-
-      - name: Get State from R2
-        id: get-state
-        shell: bash
-        run: |
-          # Try to get the state file
-          STATE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json")
-          
-          # Check if we got a valid response and if the file exists
-          if echo "$STATE_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
-            echo "No existing state file found - this is expected on first run"
-            echo "state_exists=false" >> $GITHUB_OUTPUT
-          elif echo "$STATE_RESPONSE" | jq empty 2>/dev/null; then
-            # State file exists, save it directly
-            echo "$STATE_RESPONSE" > terraform/terraform.tfstate
-            
-            # Verify the state file has the required version field
-            if ! jq -e '.version' terraform/terraform.tfstate > /dev/null; then
-              echo "::error::Invalid state file format - missing version field"
-              echo "state_exists=false" >> $GITHUB_OUTPUT
-              rm terraform/terraform.tfstate
-              exit 1
-            else
-              echo "state_exists=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "::error::Unexpected error from R2"
-            echo "$STATE_RESPONSE"
-            exit 1
-          fi
-
-      - name: Terraform Init
-        working-directory: ./terraform
-        run: terraform init -upgrade
-        env:
-          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_IN_AUTOMATION: "true"
-
-      - name: Terraform Plan
-        id: terraform-plan
-        working-directory: ./terraform
-        run: |
-          terraform plan -out=tfplan
-        env:
-          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_IN_AUTOMATION: "true"
-
-      - name: Terraform Apply
-        id: terraform-apply
-        working-directory: ./terraform
-        run: |
-          terraform apply -auto-approve tfplan
-        env:
-          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_IN_AUTOMATION: "true"
-
-      - name: Get Terraform Outputs
-        id: terraform-outputs
-        working-directory: ./terraform
-        run: |
-          echo "auth_db_id=$(terraform output -raw auth_db_id)" >> $GITHUB_OUTPUT
-          echo "domain_worker_names=$(terraform output -json domain_worker_names)" >> $GITHUB_OUTPUT
-          echo "domain_database_ids=$(terraform output -json domain_database_ids)" >> $GITHUB_OUTPUT
-
-      - name: Save State to R2
-        id: save-state
-        shell: bash
-        working-directory: ./terraform
-        run: |
-          # Save the state file
-          curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data-binary @terraform.tfstate
-          
-          # Save the state lock file if it exists
-          if [ -f "terraform.tfstate.lock.info" ]; then
-            curl -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/r2/buckets/terraform-state/objects/terraform.tfstate.lock.info" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              --data-binary @terraform.tfstate.lock.info
-          fi
+          domains: ${{ needs.manage-domains.outputs.domains }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
@@ -169,22 +82,6 @@ jobs:
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
-
-  setup-brevo-domains:
-    name: 'Setup Brevo Domain Authentication'
-    needs: [manage-domains, run-terraform]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Brevo Domain Authentication
-        uses: ./.github/actions/setup_brevo_domain
-        with:
-          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
-          domains: ${{ needs.manage-domains.outputs.domains }}
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'
