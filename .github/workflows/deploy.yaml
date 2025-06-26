@@ -65,7 +65,6 @@ jobs:
         with:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          support_email: ${{ inputs.support_email }}
 
   setup-brevo-domains:
     name: 'Create Email Domains'
