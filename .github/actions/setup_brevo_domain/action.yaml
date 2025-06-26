@@ -135,13 +135,106 @@ runs:
             fi
           fi
           
-          # Step 3: Validate domain configuration
-          echo "Step 3: Validating domain configuration..."
+          # Step 3: Add DNS records to Cloudflare (before validation/authentication)
+          echo "Step 3: Adding DNS records to Cloudflare..."
+          
+          # Get domain details to extract DNS records
+          DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
+            -H "accept: application/json" \
+            -H "api-key: ${{ inputs.brevo_api_key }}")
+          
+          # Get zone ID for the domain
+          ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+          
+          ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
+          
+          if [ "$ZONE_ID" != "null" ] && [ -n "$ZONE_ID" ]; then
+            # Add DKIM record
+            DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim1Record.host_name // empty')
+            DKIM_VALUE=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim1Record.value // empty')
+            
+            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ] && [ "$DKIM_VALUE" != "null" ] && [ -n "$DKIM_VALUE" ]; then
+              echo "Adding DKIM record: $DKIM_RECORD -> $DKIM_VALUE"
+              
+              # Check if DKIM record already exists
+              EXISTING_DKIM=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DKIM_RECORD&type=CNAME" \
+                -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+                -H "Content-Type: application/json")
+              
+              if echo "$EXISTING_DKIM" | jq -e '.result[] | select(.content == "'$DKIM_VALUE'")' > /dev/null 2>&1; then
+                echo "✅ DKIM record already exists for $DOMAIN"
+              else
+                # Add DKIM record
+                DKIM_ADD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+                  -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"type\": \"CNAME\",
+                    \"name\": \"$DKIM_RECORD\",
+                    \"content\": \"$DKIM_VALUE\",
+                    \"ttl\": 1
+                  }")
+                
+                if echo "$DKIM_ADD_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+                  echo "✅ DKIM record added for $DOMAIN"
+                else
+                  ERROR_MSG=$(echo "$DKIM_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
+                  echo "❌ Failed to add DKIM record for $DOMAIN: $ERROR_MSG"
+                fi
+              fi
+            else
+              echo "⚠️ No DKIM record found for domain $DOMAIN"
+            fi
+            
+            # Add Brevo code record
+            BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
+            BREVO_CODE_VALUE=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.value // empty')
+            
+            if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ] && [ "$BREVO_CODE_VALUE" != "null" ] && [ -n "$BREVO_CODE_VALUE" ]; then
+              echo "Adding Brevo code record: $BREVO_CODE_HOST -> $BREVO_CODE_VALUE"
+              
+              # Check if Brevo code record already exists
+              EXISTING_BREVO_CODE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$BREVO_CODE_HOST&type=TXT" \
+                -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+                -H "Content-Type: application/json")
+              
+              if echo "$EXISTING_BREVO_CODE" | jq -e '.result[] | select(.content == "'$BREVO_CODE_VALUE'")' > /dev/null 2>&1; then
+                echo "✅ Brevo code record already exists for $DOMAIN"
+              else
+                # Add Brevo code record
+                BREVO_CODE_ADD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+                  -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"type\": \"TXT\",
+                    \"name\": \"$BREVO_CODE_HOST\",
+                    \"content\": \"$BREVO_CODE_VALUE\",
+                    \"ttl\": 1
+                  }")
+                
+                if echo "$BREVO_CODE_ADD_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+                  echo "✅ Brevo code record added for $DOMAIN"
+                else
+                  ERROR_MSG=$(echo "$BREVO_CODE_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
+                  echo "❌ Failed to add Brevo code record for $DOMAIN: $ERROR_MSG"
+                fi
+              fi
+            else
+              echo "⚠️ No Brevo code record found for domain $DOMAIN"
+            fi
+          else
+            echo "❌ Zone not found for domain $DOMAIN"
+          fi
+          
+          # Step 4: Validate domain configuration
+          echo "Step 4: Validating domain configuration..."
           VALIDATION_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
           
-          if echo "$VALIDATION_RESPONSE" | jq -e '.domain_name' > /dev/null 2>&1; then
+          if echo "$VALIDATION_RESPONSE" | jq -e '.domain' > /dev/null 2>&1; then
             echo "✅ Domain configuration validated for $DOMAIN"
           else
             echo "❌ Failed to validate domain configuration for $DOMAIN"
@@ -149,8 +242,8 @@ runs:
             continue
           fi
           
-          # Step 4: Authenticate domain
-          echo "Step 4: Authenticating domain..."
+          # Step 5: Authenticate domain
+          echo "Step 5: Authenticating domain..."
           AUTH_RESPONSE=$(curl -s -X PUT "https://api.brevo.com/v3/senders/domains/$DOMAIN/authenticate" \
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
@@ -213,104 +306,6 @@ runs:
         
         echo "✅ Brevo domain authentication setup completed for all domains"
 
-    - name: Add DKIM records to Cloudflare
-      shell: bash
-      run: |
-        echo "Adding DKIM records to Cloudflare..."
-        
-        # Get the domains from the previous step
-        DOMAINS='${{ steps.get-domains.outputs.domains }}'
-        
-        # Check if domains list is empty or null
-        if [ "$DOMAINS" = "[]" ] || [ "$DOMAINS" = "null" ] || [ -z "$DOMAINS" ]; then
-          echo "No domains found, skipping DKIM record setup"
-          exit 0
-        fi
-        
-        # Validate that domains is a valid JSON array
-        if ! echo "$DOMAINS" | jq -e 'type == "array"' > /dev/null; then
-          echo "::error::Invalid domains format - expected JSON array"
-          echo "Domains: $DOMAINS"
-          exit 1
-        fi
-        
-        # Process each domain
-        echo "$DOMAINS" | jq -c '.[]' | while read -r domain_obj; do
-          DOMAIN=$(echo "$domain_obj" | jq -r '.domain')
-          echo "Processing DKIM for domain: $DOMAIN"
-          
-          # Get domain details from Brevo to extract DKIM record
-          DOMAIN_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains" \
-            -H "accept: application/json" \
-            -H "api-key: ${{ inputs.brevo_api_key }}")
-          
-          DOMAIN_ID=$(echo "$DOMAIN_RESPONSE" | jq -r ".domains[] | select(.domain_name == \"$DOMAIN\") | .id // empty")
-          
-          if [ "$DOMAIN_ID" != "null" ] && [ -n "$DOMAIN_ID" ]; then
-            # Get domain details
-            DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
-              -H "accept: application/json" \
-              -H "api-key: ${{ inputs.brevo_api_key }}")
-            
-            # Extract DKIM record
-            DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dnsRecords.dkim.record')
-            
-            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
-              echo "DKIM Record for $DOMAIN: $DKIM_RECORD"
-              
-              # Get zone ID for the domain
-              ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
-                -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-                -H "Content-Type: application/json")
-              
-              ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
-              
-              if [ "$ZONE_ID" != "null" ] && [ -n "$ZONE_ID" ]; then
-                # Parse DKIM record (format: "name value")
-                DKIM_NAME=$(echo "$DKIM_RECORD" | cut -d' ' -f1)
-                DKIM_CONTENT=$(echo "$DKIM_RECORD" | cut -d' ' -f2-)
-                
-                # Check if DKIM record already exists
-                EXISTING_DKIM=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DKIM_NAME&type=TXT" \
-                  -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-                  -H "Content-Type: application/json")
-                
-                if echo "$EXISTING_DKIM" | jq -e '.result[] | select(.content == "'$DKIM_CONTENT'")' > /dev/null 2>&1; then
-                  echo "✅ DKIM record already exists for $DOMAIN"
-                else
-                  # Add DKIM record
-                  DKIM_ADD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-                    -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-                    -H "Content-Type: application/json" \
-                    -d "{
-                      \"type\": \"TXT\",
-                      \"name\": \"$DKIM_NAME\",
-                      \"content\": \"$DKIM_CONTENT\",
-                      \"ttl\": 1
-                    }")
-                  
-                  if echo "$DKIM_ADD_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
-                    echo "✅ DKIM record added for $DOMAIN"
-                  else
-                    ERROR_MSG=$(echo "$DKIM_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
-                    echo "❌ Failed to add DKIM record for $DOMAIN: $ERROR_MSG"
-                  fi
-                fi
-              else
-                echo "❌ Zone not found for domain $DOMAIN"
-              fi
-            else
-              echo "⚠️ No DKIM record found for domain $DOMAIN (may need to wait for Brevo to generate it)"
-            fi
-          else
-            echo "❌ Domain $DOMAIN not found in Brevo"
-          fi
-          
-          echo "---"
-        done
-        
-        echo "✅ DKIM record setup completed for all domains"
-
     - name: Wait for DNS propagation
       shell: bash
       run: |
@@ -344,6 +339,15 @@ runs:
             # Check if SPF record is available
             SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
             
+            # Check if Brevo code record is available
+            BREVO_CODE_CHECK=""
+            if [ -n "$DOMAIN_DETAILS" ]; then
+              BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
+              if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ]; then
+                BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
+              fi
+            fi
+            
             # Check if DKIM record is available (get DKIM name first)
             DKIM_NAME=""
             DOMAIN_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains" \
@@ -356,26 +360,28 @@ runs:
               DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/senders/domains/$DOMAIN" \
                 -H "accept: application/json" \
                 -H "api-key: ${{ inputs.brevo_api_key }}")
-              DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dnsRecords.dkim.record')
+              DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim1Record.host_name // empty')
               if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
-                DKIM_NAME=$(echo "$DKIM_RECORD" | cut -d' ' -f1)
+                DKIM_NAME="$DKIM_RECORD"
               fi
             fi
             
             DKIM_CHECK=""
             if [ -n "$DKIM_NAME" ]; then
-              DKIM_CHECK=$(dig TXT @8.8.8.8 "$DKIM_NAME" +short | grep "v=DKIM1" || echo "")
+              DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_NAME" +short | grep "brevo" || echo "")
             fi
             
             echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
+            echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
             echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
             
-            if [ -n "$SPF_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
+            if [ -n "$SPF_CHECK" ] && [ -n "$BREVO_CODE_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
               echo "✅ DNS propagation complete for $DOMAIN"
               break
             elif [ $i -eq 60 ]; then
               echo "❌ DNS propagation timeout after 10 minutes for domain $DOMAIN"
               echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
+              echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
               echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
               echo "::error::DNS propagation failed for domain $DOMAIN after 10 minutes"
               exit 1
