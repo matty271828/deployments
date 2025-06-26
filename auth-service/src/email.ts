@@ -94,7 +94,7 @@ export class EmailService {
               
               <p style="font-size: 16px; margin: 0; color: #555;">
                 Welcome aboard!<br>
-                <strong>The ${domain} Team</strong>
+                <strong>The ${domain} team</strong>
               </p>
             </div>
             
@@ -128,7 +128,7 @@ Once you've verified your email, you'll have full access to all features and can
 If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at support@${domain}, and we'll be happy to assist you.
 
 Welcome aboard!
-The ${domain} Team
+The ${domain} team
 
 ---
 This email was sent to ${toEmail} from ${domain}. Please do not reply to this email.
@@ -220,7 +220,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               
               <p style="font-size: 16px; margin: 0; color: #555;">
                 Stay secure!<br>
-                <strong>The ${domain} Team</strong>
+                <strong>The ${domain} team</strong>
               </p>
             </div>
             
@@ -253,7 +253,7 @@ SECURITY NOTICE: If you didn't request this password reset, please ignore this e
 If you have any questions or need assistance, our support team is here to help. You can reach us anytime at support@${domain}.
 
 Stay secure!
-The ${domain} Team
+The ${domain} team
 
 ---
 This email was sent to ${toEmail} from ${domain}. Please do not reply to this email.
@@ -307,7 +307,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               ${message.replace(/\n/g, '<br>')}
             </div>
             
-            <p>Best regards,<br>The ${domain} Team</p>
+            <p>Best regards,<br>The ${domain} team</p>
             
             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
             <p style="font-size: 12px; color: #666; text-align: center;">
