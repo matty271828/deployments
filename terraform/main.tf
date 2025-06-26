@@ -23,9 +23,3 @@ variable "cloudflare_account_id" {
   type        = string
   sensitive   = true
 }
-
-variable "aws_region" {
-  description = "AWS Region for SES resources"
-  type        = string
-  default     = "us-east-1"
-}
