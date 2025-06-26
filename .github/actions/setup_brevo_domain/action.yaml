@@ -141,6 +141,10 @@ runs:
           # Step 2: Add DNS records to Cloudflare
           echo "Step 2: Adding DNS records to Cloudflare..."
           
+          # Debug: Print domain details to understand the structure
+          echo "DEBUG: Domain details from Brevo:"
+          echo "$DOMAIN_DETAILS" | jq '.'
+          
           # Get zone ID for the domain
           ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
@@ -153,7 +157,9 @@ runs:
             DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim_record.host_name // .dns_records.dkim1Record.host_name // empty')
             DKIM_VALUE=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim_record.value // .dns_records.dkim1Record.value // empty')
             
-            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ] && [ "$DKIM_VALUE" != "null" ] && [ -n "$DKIM_VALUE" ]; then
+            echo "DEBUG: DKIM Record - Host: '$DKIM_RECORD', Value: '$DKIM_VALUE'"
+            
+            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ] && [ "$DKIM_RECORD" != "" ] && [ "$DKIM_VALUE" != "null" ] && [ -n "$DKIM_VALUE" ]; then
               echo "Adding DKIM record: $DKIM_RECORD -> $DKIM_VALUE"
               
               # Check if DKIM record already exists
@@ -179,18 +185,25 @@ runs:
                   echo "✅ DKIM record added for $DOMAIN"
                 else
                   ERROR_MSG=$(echo "$DKIM_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
-                  echo "❌ Failed to add DKIM record for $DOMAIN: $ERROR_MSG"
+                  if [[ "$ERROR_MSG" == *"already exists"* ]]; then
+                    echo "✅ DKIM record already exists for $DOMAIN (detected via error)"
+                  else
+                    echo "❌ Failed to add DKIM record for $DOMAIN: $ERROR_MSG"
+                  fi
                 fi
               fi
             else
-              echo "⚠️ No DKIM record found for domain $DOMAIN"
+              echo "⚠️ No valid DKIM record found for domain $DOMAIN"
+              echo "DEBUG: DKIM_RECORD='$DKIM_RECORD', DKIM_VALUE='$DKIM_VALUE'"
             fi
             
             # Add Brevo code record - handle both response formats
             BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
             BREVO_CODE_VALUE=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.value // empty')
             
-            if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ] && [ "$BREVO_CODE_VALUE" != "null" ] && [ -n "$BREVO_CODE_VALUE" ]; then
+            echo "DEBUG: Brevo Code Record - Host: '$BREVO_CODE_HOST', Value: '$BREVO_CODE_VALUE'"
+            
+            if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ] && [ "$BREVO_CODE_HOST" != "" ] && [ "$BREVO_CODE_VALUE" != "null" ] && [ -n "$BREVO_CODE_VALUE" ]; then
               echo "Adding Brevo code record: $BREVO_CODE_HOST -> $BREVO_CODE_VALUE"
               
               # Check if Brevo code record already exists
@@ -216,11 +229,16 @@ runs:
                   echo "✅ Brevo code record added for $DOMAIN"
                 else
                   ERROR_MSG=$(echo "$BREVO_CODE_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
-                  echo "❌ Failed to add Brevo code record for $DOMAIN: $ERROR_MSG"
+                  if [[ "$ERROR_MSG" == *"already exists"* ]]; then
+                    echo "✅ Brevo code record already exists for $DOMAIN (detected via error)"
+                  else
+                    echo "❌ Failed to add Brevo code record for $DOMAIN: $ERROR_MSG"
+                  fi
                 fi
               fi
             else
-              echo "⚠️ No Brevo code record found for domain $DOMAIN"
+              echo "⚠️ No valid Brevo code record found for domain $DOMAIN"
+              echo "DEBUG: BREVO_CODE_HOST='$BREVO_CODE_HOST', BREVO_CODE_VALUE='$BREVO_CODE_VALUE'"
             fi
           else
             echo "❌ Zone not found for domain $DOMAIN"
@@ -229,6 +247,37 @@ runs:
           # Step 3: Wait for DNS propagation (after adding records)
           echo "Step 3: Waiting for DNS propagation..."
           
+          # Debug: Print the hostnames we'll be checking
+          echo "DEBUG: Will check DNS propagation for:"
+          echo "  - SPF: $DOMAIN"
+          echo "  - Brevo Code: $BREVO_CODE_HOST"
+          echo "  - DKIM: $DKIM_RECORD"
+          
+          # Check if we have all required hostnames to validate
+          VALID_HOSTNAMES=0
+          MISSING_HOSTNAMES=""
+          
+          if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ] && [ "$BREVO_CODE_HOST" != "" ]; then
+            VALID_HOSTNAMES=$((VALID_HOSTNAMES + 1))
+          else
+            MISSING_HOSTNAMES="$MISSING_HOSTNAMES Brevo code"
+          fi
+          
+          if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ] && [ "$DKIM_RECORD" != "" ]; then
+            VALID_HOSTNAMES=$((VALID_HOSTNAMES + 1))
+          else
+            MISSING_HOSTNAMES="$MISSING_HOSTNAMES DKIM"
+          fi
+          
+          if [ $VALID_HOSTNAMES -lt 2 ]; then
+            echo "::error::Missing required DNS record hostnames for domain $DOMAIN: $MISSING_HOSTNAMES"
+            echo "DEBUG: BREVO_CODE_HOST='$BREVO_CODE_HOST', DKIM_RECORD='$DKIM_RECORD'"
+            echo "Cannot proceed with DNS validation without all required hostnames"
+            exit 1
+          fi
+          
+          echo "DEBUG: Found all required hostnames ($VALID_HOSTNAMES/2)"
+          
           # Wait for DNS propagation (up to 10 minutes)
           for i in {1..60}; do
             echo "Checking DNS propagation (attempt $i/60)..."
@@ -236,29 +285,35 @@ runs:
             # Check if SPF record is available
             SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
             
-            # Check if Brevo code record is available
-            BREVO_CODE_CHECK=""
-            BREVO_CODE_HOST=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.brevo_code.host_name // empty')
-            if [ "$BREVO_CODE_HOST" != "null" ] && [ -n "$BREVO_CODE_HOST" ]; then
-              BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
-            else
-              echo "⚠️ No Brevo code hostname found in domain details"
-            fi
+            # Check if Brevo code record is available (hostname already validated above)
+            echo "DEBUG: Checking Brevo code record for '$BREVO_CODE_HOST'"
+            BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
             
-            # Check if DKIM record is available - handle both response formats
-            DKIM_CHECK=""
-            DKIM_RECORD=$(echo "$DOMAIN_DETAILS" | jq -r '.dns_records.dkim_record.host_name // .dns_records.dkim1Record.host_name // empty')
-            if [ "$DKIM_RECORD" != "null" ] && [ -n "$DKIM_RECORD" ]; then
-              DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD" +short | grep "brevo" || echo "")
-            else
-              echo "⚠️ No DKIM hostname found in domain details"
-            fi
+            # Check if DKIM record is available (hostname already validated above)
+            echo "DEBUG: Checking DKIM record for '$DKIM_RECORD'"
+            DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD" +short | grep "brevo" || echo "")
             
             echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
             echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
             echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
             
-            if [ -n "$SPF_CHECK" ] && [ -n "$BREVO_CODE_CHECK" ] && [ -n "$DKIM_CHECK" ]; then
+            # Check all required records (SPF + Brevo code + DKIM)
+            VALID_CHECKS=0
+            TOTAL_CHECKS=3
+            
+            if [ -n "$SPF_CHECK" ]; then
+              VALID_CHECKS=$((VALID_CHECKS + 1))
+            fi
+            if [ -n "$BREVO_CODE_CHECK" ]; then
+              VALID_CHECKS=$((VALID_CHECKS + 1))
+            fi
+            if [ -n "$DKIM_CHECK" ]; then
+              VALID_CHECKS=$((VALID_CHECKS + 1))
+            fi
+            
+            echo "DEBUG: Valid checks: $VALID_CHECKS/$TOTAL_CHECKS"
+            
+            if [ $VALID_CHECKS -eq $TOTAL_CHECKS ]; then
               echo "✅ DNS propagation complete for $DOMAIN"
               break
             elif [ $i -eq 60 ]; then
