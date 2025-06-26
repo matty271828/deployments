@@ -36,22 +36,6 @@ runs:
         fi
         echo "✅ Brevo API Key is present"
 
-    - name: Validate Brevo API Key format
-      shell: bash
-      run: |
-        API_KEY="${{ inputs.brevo_api_key }}"
-        
-        # Check if it looks like a valid API key format
-        if ! [[ "$API_KEY" =~ ^xkeysib-[a-zA-Z0-9]{64}$ ]]; then
-          echo "::error::Invalid Brevo API Key format"
-          echo "Brevo API keys should start with 'xkeysib-' followed by 64 characters"
-          echo ""
-          echo "Please check your API key and ensure it's copied correctly from:"
-          echo "https://app.brevo.com/settings/keys/api"
-          exit 1
-        fi
-        echo "✅ Brevo API Key format is valid"
-
     - name: Validate Brevo API Key with API call
       shell: bash
       run: |
