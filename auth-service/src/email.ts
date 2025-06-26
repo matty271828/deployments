@@ -89,7 +89,7 @@ export class EmailService {
               </p>
               
               <p style="font-size: 16px; margin: 20px 0; color: #555;">
-                If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at <a href="mailto:support@${domain}" style="color: #4a5568; text-decoration: underline;">support@${domain}</a>, and we'll be happy to assist you.
+                If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at <a href="mailto:support@team.${domain}" style="color: #4a5568; text-decoration: underline;">support@team.${domain}</a>, and we'll be happy to assist you.
               </p>
               
               <p style="font-size: 16px; margin: 0; color: #555;">
@@ -125,7 +125,7 @@ https://${domain}/verify-email?token=PLACEHOLDER_TOKEN
 
 Once you've verified your email, you'll have full access to all features and can start exploring what ${domain} has to offer. We're committed to providing you with a secure and seamless experience.
 
-If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at support@${domain}, and we'll be happy to assist you.
+If you have any questions or need help getting started, our support team is here to help. You can reach us anytime at support@team.${domain}, and we'll be happy to assist you.
 
 Welcome aboard!
 The ${domain} team
@@ -215,7 +215,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               </div>
               
               <p style="font-size: 16px; margin: 30px 0 20px 0; color: #555;">
-                If you have any questions or need assistance, our support team is here to help. You can reach us anytime at <a href="mailto:support@${domain}" style="color: #4a5568; text-decoration: underline;">support@${domain}</a>.
+                If you have any questions or need assistance, our support team is here to help. You can reach us anytime at <a href="mailto:support@team.${domain}" style="color: #4a5568; text-decoration: underline;">support@team.${domain}</a>.
               </p>
               
               <p style="font-size: 16px; margin: 0; color: #555;">
@@ -250,7 +250,7 @@ This link will expire in 1 hour for security reasons.
 
 SECURITY NOTICE: If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
 
-If you have any questions or need assistance, our support team is here to help. You can reach us anytime at support@${domain}.
+If you have any questions or need assistance, our support team is here to help. You can reach us anytime at support@team.${domain}.
 
 Stay secure!
 The ${domain} team

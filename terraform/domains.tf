@@ -121,7 +121,7 @@ resource "cloudflare_email_routing_rule" "domain_email_routing_rule" {
   matchers = [{
     type = "literal"
     field = "to"
-    value = "support@${each.key}"  # Match emails sent to support@domain.com
+    value = "support@team.${each.key}"  # Match emails sent to support@team.domain.com
   }]
   
   enabled = true
