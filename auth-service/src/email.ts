@@ -54,10 +54,7 @@ export class EmailService {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <!-- Header -->
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
-              <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 60px; height: 60px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 24px; font-weight: bold;">✓</span>
-              </div>
+            <div style="background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); padding: 40px 20px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Welcome to ${domain}</h1>
               <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your account is ready!</p>
             </div>
@@ -87,19 +84,9 @@ export class EmailService {
                 </div>
               </div>
               
-              <!-- Next Steps -->
-              <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                <h3 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 16px;">What's next?</h3>
-                <ul style="margin: 0; padding-left: 20px; color: #555;">
-                  <li>Explore your dashboard</li>
-                  <li>Complete your profile</li>
-                  <li>Check out our getting started guide</li>
-                </ul>
-              </div>
-              
               <!-- CTA Button -->
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://${domain}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s ease; border: none;">
+                <a href="https://${domain}" style="background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(74, 85, 104, 0.4); transition: all 0.3s ease; border: none;">
                   Get Started →
                 </a>
               </div>
@@ -198,10 +185,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <!-- Header -->
-            <div style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); padding: 40px 20px; text-align: center;">
-              <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 60px; height: 60px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-                <span style="color: white; font-size: 24px; font-weight: bold;">🔒</span>
-              </div>
+            <div style="background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); padding: 40px 20px; text-align: center;">
               <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Password Reset</h1>
               <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Secure your account</p>
             </div>
@@ -220,7 +204,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               
               <!-- CTA Button -->
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetUrl}" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4); transition: all 0.3s ease; border: none;">
+                <a href="${resetUrl}" style="background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); color: white; padding: 16px 36px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 15px rgba(74, 85, 104, 0.4); transition: all 0.3s ease; border: none;">
                   Reset Password →
                 </a>
               </div>
