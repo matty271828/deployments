@@ -99,3 +99,11 @@ resource "cloudflare_pages_project" "frontend" {
 
   depends_on = [cloudflare_d1_database.domain_db]
 }
+
+# Enable Email Routing for each domain
+resource "cloudflare_email_routing_settings" "domain_email_routing" {
+  for_each = local.frontend_repos
+
+  zone_id = cloudflare_zone.domain[each.key].id
+  enabled = true
+}
