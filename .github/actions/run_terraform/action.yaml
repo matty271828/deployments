@@ -8,6 +8,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
+  support_email:
+    description: 'Email address to forward support emails to'
+    required: true
 
 outputs:
   terraform_error:
@@ -130,6 +133,7 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
+        TF_VAR_support_email: ${{ inputs.support_email }}
         TF_IN_AUTOMATION: "true"
 
     - name: Terraform Apply
@@ -167,6 +171,7 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
+        TF_VAR_support_email: ${{ inputs.support_email }}
         TF_IN_AUTOMATION: "true"
 
     - name: Save State to R2 (Always)
