@@ -84,4 +84,16 @@ jobs:
         with:
           gmail_address: ${{ inputs.gmail_address }}
 
+  validate-brevo-api-key:
+    name: 'Brevo API Key'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Brevo API Key
+        uses: ./.github/actions/validate_brevo_api_key
+        with:
+          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+
 

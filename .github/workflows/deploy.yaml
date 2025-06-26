@@ -30,22 +30,9 @@ jobs:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
-  validate-brevo:
-    name: 'Validate Brevo API Key'
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Validate Brevo API Key
-        uses: ./.github/actions/validate_brevo_api_key
-        with:
-          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
-
   manage-domains:
     name: 'Manage Domains'
-    needs: [validate, validate-brevo]
+    needs: [validate]
     runs-on: ubuntu-latest
     outputs:
       domains: ${{ steps.manage-domains.outputs.domains }}
