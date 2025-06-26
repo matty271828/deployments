@@ -100,9 +100,24 @@ resource "cloudflare_pages_project" "frontend" {
   depends_on = [cloudflare_d1_database.domain_db]
 }
 
-# Enable Email Routing for each domain
-resource "cloudflare_email_routing_settings" "domain_email_routing" {
+# Create Email Routing Rules for each domain
+resource "cloudflare_email_routing_rule" "domain_email_routing_rule" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
+  
+  actions = [{
+    type = "forward"
+    value = [var.support_email]  # Forward to the support email provided to deploy job
+  }]
+  
+  matchers = [{
+    type = "literal"
+    field = "to"
+    value = "support@${each.key}"  # Match emails sent to support@domain.com
+  }]
+  
+  enabled = true
+  name = "Forward support emails to ${var.support_email} for ${each.key}"
+  priority = 0
 }
