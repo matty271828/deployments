@@ -1,20 +1,31 @@
-import { ApiClient, TransactionalEmailsApi, SendSmtpEmail } from '@getbrevo/brevo';
-
-// Email service for sending emails via Brevo
+// Email service for sending emails via Brevo REST API
 export class EmailService {
-  private brevoClient: ApiClient;
-  private transactionalApi: TransactionalEmailsApi;
+  private apiKey: string;
 
   constructor(apiKey?: string) {
-    console.log(`[EMAIL SERVICE] Initializing EmailService with Brevo`);
-    
-    // Initialize Brevo client
-    this.brevoClient = new ApiClient();
-    if (apiKey) {
-      this.brevoClient.setApiKey('api-key', apiKey);
+    console.log(`[EMAIL SERVICE] Initializing EmailService with Brevo REST API`);
+    this.apiKey = apiKey || '';
+  }
+
+  /**
+   * Send email via Brevo REST API
+   */
+  private async sendEmail(emailData: any): Promise<any> {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': this.apiKey,
+      },
+      body: JSON.stringify(emailData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Brevo API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
-    
-    this.transactionalApi = new TransactionalEmailsApi(this.brevoClient);
+
+    return await response.json();
   }
 
   /**
@@ -89,7 +100,7 @@ The ${domain} Team
 This email was sent from ${domain}. Please do not reply to this email.
       `;
 
-      const emailData: SendSmtpEmail = {
+      const emailData = {
         to: [{ email: toEmail, name: `${firstName} ${lastName}` }],
         sender: { email: `noreply@${domain}`, name: domain },
         subject: subject,
@@ -99,7 +110,7 @@ This email was sent from ${domain}. Please do not reply to this email.
 
       console.log(`[EMAIL] Sending signup confirmation | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
-      const result = await this.transactionalApi.sendTransacEmail(emailData);
+      const result = await this.sendEmail(emailData);
       
       console.log(`[EMAIL] Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
@@ -182,7 +193,7 @@ The ${domain} Team
 This email was sent from ${domain}. Please do not reply to this email.
       `;
 
-      const emailData: SendSmtpEmail = {
+      const emailData = {
         to: [{ email: toEmail, name: `${firstName} ${lastName}` }],
         sender: { email: `noreply@${domain}`, name: domain },
         subject: subject,
@@ -192,7 +203,7 @@ This email was sent from ${domain}. Please do not reply to this email.
 
       console.log(`[EMAIL] Sending password reset | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject} | Reset URL: ${resetUrl}`);
 
-      const result = await this.transactionalApi.sendTransacEmail(emailData);
+      const result = await this.sendEmail(emailData);
       
       console.log(`[EMAIL] Password reset sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
@@ -240,7 +251,7 @@ This email was sent from ${domain}. Please do not reply to this email.
         </html>
       `;
 
-      const emailData: SendSmtpEmail = {
+      const emailData = {
         to: [{ email: toEmail }],
         sender: { email: `noreply@${domain}`, name: domain },
         subject: subject,
@@ -250,7 +261,7 @@ This email was sent from ${domain}. Please do not reply to this email.
 
       console.log(`[EMAIL] Sending notification | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
-      const result = await this.transactionalApi.sendTransacEmail(emailData);
+      const result = await this.sendEmail(emailData);
       
       console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
