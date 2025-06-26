@@ -105,5 +105,4 @@ resource "cloudflare_email_routing_settings" "domain_email_routing" {
   for_each = local.frontend_repos
 
   zone_id = cloudflare_zone.domain[each.key].id
-  enabled = true
 }
