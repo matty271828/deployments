@@ -410,7 +410,7 @@ runs:
           
           # Step 6a: Enable Email Routing for the domain
           echo "Step 6a: Enabling Email Routing for $DOMAIN..."
-          ENABLE_EMAIL_ROUTING_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing" \
+          ENABLE_EMAIL_ROUTING_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/enable" \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -H "Content-Type: application/json" \
             -d "{\"enabled\": true}")
