@@ -138,6 +138,17 @@ runs:
             fi
           fi
           
+          # Retrieve Cloudflare zone ID for the domain
+          ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+          ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
+          echo "DEBUG: ZONE_ID for $DOMAIN is '$ZONE_ID'"
+          if [ "$ZONE_ID" = "null" ] || [ -z "$ZONE_ID" ]; then
+            echo "::error::Zone ID not found for domain $DOMAIN"
+            exit 1
+          fi
+          
           # Step 2: Add DNS records to Cloudflare
           echo "Step 2: Adding DNS records to Cloudflare..."
           
