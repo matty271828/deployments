@@ -286,8 +286,14 @@ runs:
             SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
             
             # Check if Brevo code record is available (hostname already validated above)
-            echo "DEBUG: Checking Brevo code record for '$BREVO_CODE_HOST'"
-            BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
+            # Handle @ symbol for root domain
+            if [ "$BREVO_CODE_HOST" = "@" ]; then
+              echo "DEBUG: Checking Brevo code record for root domain '$DOMAIN'"
+              BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "brevo-code" || echo "")
+            else
+              echo "DEBUG: Checking Brevo code record for '$BREVO_CODE_HOST'"
+              BREVO_CODE_CHECK=$(dig TXT @8.8.8.8 "$BREVO_CODE_HOST" +short | grep "brevo-code" || echo "")
+            fi
             
             # Check if DKIM record is available (hostname already validated above)
             echo "DEBUG: Checking DKIM record for '$DKIM_RECORD'"
