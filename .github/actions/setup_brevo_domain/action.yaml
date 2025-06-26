@@ -11,6 +11,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
+  support_email:
+    description: 'Email address to forward support emails to'
+    required: true
 
 runs:
   using: 'composite'
@@ -399,7 +402,60 @@ runs:
             fi
           fi
           
+          # Step 6: Set up email forwarding for support@<domain>
+          echo "Step 6: Setting up email forwarding for support@$DOMAIN..."
+          
+          # Use the support email from the input parameter
+          FORWARD_TO_EMAIL="${{ inputs.support_email }}"
+          
+          # Check if email routing is enabled for the zone
+          EMAIL_ROUTING_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json")
+          
+          if echo "$EMAIL_ROUTING_RESPONSE" | jq -e '.result.enabled' > /dev/null 2>&1; then
+            echo "✅ Email routing is enabled for $DOMAIN"
+            
+            # Create forwarding rule for support@domain
+            FORWARD_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/rules" \
+              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"name\": \"Support Email Forwarding\",
+                \"enabled\": true,
+                \"matchers\": [
+                  {
+                    \"type\": \"literal\",
+                    \"field\": \"to\",
+                    \"value\": \"support@$DOMAIN\"
+                  }
+                ],
+                \"actions\": [
+                  {
+                    \"type\": \"forward\",
+                    \"value\": [\"$FORWARD_TO_EMAIL\"]
+                  }
+                ]
+              }")
+            
+            if echo "$FORWARD_RULE_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+              echo "✅ Email forwarding rule created for support@$DOMAIN → $FORWARD_TO_EMAIL"
+            else
+              ERROR_MSG=$(echo "$FORWARD_RULE_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
+              if [[ "$ERROR_MSG" == *"already exists"* ]]; then
+                echo "✅ Email forwarding rule already exists for support@$DOMAIN"
+              else
+                echo "⚠️ Failed to create email forwarding rule: $ERROR_MSG"
+                echo "You may need to manually set up forwarding in Cloudflare dashboard"
+              fi
+            fi
+          else
+            echo "⚠️ Email routing is not enabled for $DOMAIN"
+            echo "Please enable Email Routing in Cloudflare dashboard and run this action again"
+            echo "Or manually set up forwarding: support@$DOMAIN → $FORWARD_TO_EMAIL"
+          fi
+          
           echo "---"
         done
         
-        echo "✅ Brevo domain authentication setup completed for all domains" 
+        echo "✅ Brevo domain setup completed for all domains" 

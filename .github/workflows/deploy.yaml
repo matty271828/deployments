@@ -12,6 +12,10 @@ on:
         description: 'Frontend Repository URL (e.g., https://github.com/username/repo)'
         required: true
         type: string
+      support_email:
+        description: 'Email address to forward support emails to (e.g., your-email@gmail.com)'
+        required: true
+        type: string
 
 jobs:
   validate:
@@ -76,6 +80,7 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+          support_email: ${{ inputs.support_email }}
 
   deploy-auth-service:
     name: 'Deploy Auth Service'
