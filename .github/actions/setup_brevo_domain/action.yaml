@@ -48,8 +48,10 @@ runs:
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
           
-          if echo "$DOMAIN_RESPONSE" | jq -e ".domains[] | select(.domain == \"$DOMAIN\")" > /dev/null 2>&1; then
-            echo "✅ Domain $DOMAIN is already authenticated in Brevo"
+          DOMAIN_ID=$(echo "$DOMAIN_RESPONSE" | jq -r ".domains[] | select(.domain == \"$DOMAIN\") | .id")
+          
+          if [ "$DOMAIN_ID" != "null" ] && [ -n "$DOMAIN_ID" ]; then
+            echo "✅ Domain $DOMAIN already exists in Brevo with ID: $DOMAIN_ID"
           else
             echo "Adding domain $DOMAIN to Brevo..."
             
@@ -66,7 +68,7 @@ runs:
             else
               ERROR_MSG=$(echo "$DOMAIN_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
               echo "❌ Failed to add domain $DOMAIN to Brevo: $ERROR_MSG"
-              # Continue with other domains instead of failing
+              continue
             fi
           fi
           
@@ -96,7 +98,6 @@ runs:
             else
               ERROR_MSG=$(echo "$SENDER_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
               echo "❌ Failed to add sender noreply@$DOMAIN: $ERROR_MSG"
-              # Continue with other domains instead of failing
             fi
           fi
           
@@ -188,4 +189,55 @@ runs:
           echo "---"
         done
         
-        echo "✅ DKIM record setup completed for all domains" 
+        echo "✅ DKIM record setup completed for all domains"
+
+    - name: Verify domain validation
+      shell: bash
+      run: |
+        echo "Verifying domain validation..."
+        
+        # Parse the domains JSON
+        DOMAINS='${{ inputs.domains }}'
+        
+        # Process each domain
+        echo "$DOMAINS" | jq -c '.[]' | while read -r domain_obj; do
+          DOMAIN=$(echo "$domain_obj" | jq -r '.domain')
+          echo "Verifying domain: $DOMAIN"
+          
+          # Get domain details from Brevo
+          DOMAIN_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/domains" \
+            -H "accept: application/json" \
+            -H "api-key: ${{ inputs.brevo_api_key }}")
+          
+          DOMAIN_ID=$(echo "$DOMAIN_RESPONSE" | jq -r ".domains[] | select(.domain == \"$DOMAIN\") | .id")
+          
+          if [ "$DOMAIN_ID" != "null" ] && [ -n "$DOMAIN_ID" ]; then
+            # Get detailed domain information
+            DOMAIN_DETAILS=$(curl -s -X GET "https://api.brevo.com/v3/domains/$DOMAIN_ID" \
+              -H "accept: application/json" \
+              -H "api-key: ${{ inputs.brevo_api_key }}")
+            
+            DOMAIN_STATUS=$(echo "$DOMAIN_DETAILS" | jq -r '.status')
+            SPF_STATUS=$(echo "$DOMAIN_DETAILS" | jq -r '.dnsRecords.spf.status')
+            DKIM_STATUS=$(echo "$DOMAIN_DETAILS" | jq -r '.dnsRecords.dkim.status')
+            
+            echo "Domain Status: $DOMAIN_STATUS"
+            echo "SPF Status: $SPF_STATUS"
+            echo "DKIM Status: $DKIM_STATUS"
+            
+            if [ "$DOMAIN_STATUS" = "valid" ] && [ "$SPF_STATUS" = "valid" ] && [ "$DKIM_STATUS" = "valid" ]; then
+              echo "✅ Domain $DOMAIN is fully validated and ready for email sending"
+            else
+              echo "⚠️ Domain $DOMAIN validation status:"
+              echo "   - Overall: $DOMAIN_STATUS"
+              echo "   - SPF: $SPF_STATUS"
+              echo "   - DKIM: $DKIM_STATUS"
+            fi
+          else
+            echo "❌ Domain $DOMAIN not found in Brevo"
+          fi
+          
+          echo "---"
+        done
+        
+        echo "✅ Domain validation verification completed" 
