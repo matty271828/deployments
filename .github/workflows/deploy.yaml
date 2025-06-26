@@ -65,6 +65,22 @@ jobs:
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
+  setup-brevo-domains:
+    name: 'Setup Brevo Domain Authentication'
+    needs: [run-terraform, manage-domains]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Brevo Domain Authentication
+        uses: ./.github/actions/setup_brevo_domain
+        with:
+          domains: ${{ needs.manage-domains.outputs.domains }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+
   deploy-auth-service:
     name: 'Deploy Auth Service'
     needs: [run-terraform]
