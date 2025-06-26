@@ -23,8 +23,3 @@ variable "cloudflare_account_id" {
   type        = string
   sensitive   = true
 }
-
-variable "support_email" {
-  description = "Email address to forward support emails to"
-  type        = string
-}

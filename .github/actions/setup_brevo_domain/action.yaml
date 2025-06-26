@@ -269,74 +269,6 @@ runs:
             echo "DEBUG: BREVO_CODE_HOST='$BREVO_CODE_HOST', BREVO_CODE_VALUE='$BREVO_CODE_VALUE_RAW'"
           fi
           
-          # Add DNS records for team subdomain email routing
-          echo "Adding DNS records for team subdomain email routing..."
-          
-          # MX records for team subdomain
-          echo "Adding MX records for team.$DOMAIN..."
-          
-          # Check if MX records already exist
-          EXISTING_MX=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=team&type=MX" \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json")
-          
-          if echo "$EXISTING_MX" | jq -e '.result[] | select(.content == "route1.mx.cloudflare.net")' > /dev/null 2>&1; then
-            echo "✅ MX records already exist for team.$DOMAIN"
-          else
-            # Add MX records for team subdomain
-            MX1_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"type\": \"MX\", \"name\": \"team\", \"content\": \"route1.mx.cloudflare.net\", \"priority\": 10, \"ttl\": 1}")
-            
-            MX2_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"type\": \"MX\", \"name\": \"team\", \"content\": \"route2.mx.cloudflare.net\", \"priority\": 76, \"ttl\": 1}")
-            
-            MX3_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"type\": \"MX\", \"name\": \"team\", \"content\": \"route3.mx.cloudflare.net\", \"priority\": 38, \"ttl\": 1}")
-            
-            if echo "$MX1_RESPONSE" | jq -e '.success' > /dev/null 2>&1 && \
-               echo "$MX2_RESPONSE" | jq -e '.success' > /dev/null 2>&1 && \
-               echo "$MX3_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
-              echo "✅ MX records added for team.$DOMAIN"
-            else
-              echo "⚠️ Some MX records may have failed to add for team.$DOMAIN"
-              echo "MX1: $(echo "$MX1_RESPONSE" | jq -r '.errors[0].message // "success"')"
-              echo "MX2: $(echo "$MX2_RESPONSE" | jq -r '.errors[0].message // "success"')"
-              echo "MX3: $(echo "$MX3_RESPONSE" | jq -r '.errors[0].message // "success"')"
-            fi
-          fi
-          
-          # SPF record for team subdomain
-          echo "Adding SPF record for team.$DOMAIN..."
-          EXISTING_SPF=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=team&type=TXT" \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json")
-          
-          if echo "$EXISTING_SPF" | jq -e '.result[] | select(.content == "v=spf1 include:_spf.mx.cloudflare.net ~all")' > /dev/null 2>&1; then
-            echo "✅ SPF record already exists for team.$DOMAIN"
-          else
-            SPF_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"type\": \"TXT\", \"name\": \"team\", \"content\": \"v=spf1 include:_spf.mx.cloudflare.net ~all\", \"ttl\": 1}")
-            
-            if echo "$SPF_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
-              echo "✅ SPF record added for team.$DOMAIN"
-            else
-              ERROR_MSG=$(echo "$SPF_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
-              if [[ "$ERROR_MSG" == *"already exists"* ]]; then
-                echo "✅ SPF record already exists for team.$DOMAIN (detected via error)"
-              else
-                echo "⚠️ Failed to add SPF record for team.$DOMAIN: $ERROR_MSG"
-              fi
-            fi
-          fi
-          
           # Step 3: Wait for DNS propagation (after adding records)
           echo "Step 3: Waiting for DNS propagation..."
           
@@ -470,26 +402,52 @@ runs:
             fi
           fi
           
-          # Step 6: Set up email forwarding for support@<domain>
-          echo "Step 6: Setting up email forwarding for support@$DOMAIN..."
+          # Step 6: Set up email routing for support emails
+          echo "Step 6: Setting up email routing for support emails on $DOMAIN..."
           
           # Use the support email from the input parameter
           FORWARD_TO_EMAIL="${{ inputs.support_email }}"
           
-          # Check if email routing is enabled for the zone
-          EMAIL_ROUTING_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing" \
+          # Step 6a: Enable Email Routing for the domain
+          echo "Step 6a: Enabling Email Routing for $DOMAIN..."
+          ENABLE_EMAIL_ROUTING_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"enabled\": true}")
+          
+          if echo "$ENABLE_EMAIL_ROUTING_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+            echo "✅ Email routing enabled for $DOMAIN"
+          else
+            ERROR_MSG=$(echo "$ENABLE_EMAIL_ROUTING_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
+            if [[ "$ERROR_MSG" == *"already enabled"* ]] || [[ "$ERROR_MSG" == *"already exists"* ]]; then
+              echo "✅ Email routing already enabled for $DOMAIN"
+            else
+              echo "⚠️ Failed to enable email routing for $DOMAIN: $ERROR_MSG"
+              echo "You may need to manually enable Email Routing in Cloudflare dashboard"
+            fi
+          fi
+          
+          # Step 6b: Create forwarding rule for support@domain.com (root domain)
+          echo "Step 6b: Creating email forwarding rule for support@$DOMAIN..."
+          
+          # Check if the forwarding rule already exists for root domain
+          EXISTING_RULES_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/rules" \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
             -H "Content-Type: application/json")
           
-          if echo "$EMAIL_ROUTING_RESPONSE" | jq -e '.result.enabled' > /dev/null 2>&1; then
-            echo "✅ Email routing is enabled for $DOMAIN"
-            
-            # Create forwarding rule for support@domain
+          RULE_EXISTS=false
+          if echo "$EXISTING_RULES_RESPONSE" | jq -e '.result[] | select(.matchers[0].value == "support@'$DOMAIN'")' > /dev/null 2>&1; then
+            echo "✅ Email forwarding rule already exists for support@$DOMAIN"
+            RULE_EXISTS=true
+          fi
+          
+          if [ "$RULE_EXISTS" = false ]; then
+            # Create forwarding rule for support@domain (root domain)
             FORWARD_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/rules" \
               -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
               -H "Content-Type: application/json" \
               -d "{
-                \"name\": \"Support Email Forwarding\",
+                \"name\": \"Forward support emails to $FORWARD_TO_EMAIL for $DOMAIN\",
                 \"enabled\": true,
                 \"matchers\": [
                   {
@@ -517,11 +475,10 @@ runs:
                 echo "You may need to manually set up forwarding in Cloudflare dashboard"
               fi
             fi
-          else
-            echo "⚠️ Email routing is not enabled for $DOMAIN"
-            echo "Please enable Email Routing in Cloudflare dashboard and run this action again"
-            echo "Or manually set up forwarding: support@$DOMAIN → $FORWARD_TO_EMAIL"
           fi
+          
+          echo "✅ Support email routing configured for $DOMAIN:"
+          echo "   • support@$DOMAIN → $FORWARD_TO_EMAIL"
           
           echo "---"
         done
