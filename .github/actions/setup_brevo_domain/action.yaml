@@ -141,32 +141,6 @@ runs:
           # Step 2: Add DNS records to Cloudflare
           echo "Step 2: Adding DNS records to Cloudflare..."
           
-          # SPF record (always the same for Brevo)
-          SPF_HOST="$DOMAIN"
-          SPF_VALUE='"v=spf1 include:spf.sendinblue.com ~all"'
-          echo "Adding SPF record: $SPF_HOST -> $SPF_VALUE"
-          EXISTING_SPF=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$SPF_HOST&type=TXT" \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json")
-          if echo "$EXISTING_SPF" | jq -e '.result[] | select(.content == "v=spf1 include:spf.sendinblue.com ~all")' > /dev/null 2>&1; then
-            echo "✅ SPF record already exists for $DOMAIN"
-          else
-            SPF_ADD_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"type\": \"TXT\", \"name\": \"$SPF_HOST\", \"content\": $SPF_VALUE, \"ttl\": 1}")
-            if echo "$SPF_ADD_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
-              echo "✅ SPF record added for $DOMAIN"
-            else
-              ERROR_MSG=$(echo "$SPF_ADD_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
-              if [[ "$ERROR_MSG" == *"already exists"* ]]; then
-                echo "✅ SPF record already exists for $DOMAIN (detected via error)"
-              else
-                echo "❌ Failed to add SPF record for $DOMAIN: $ERROR_MSG"
-              fi
-            fi
-          fi
-          
           # DMARC record (as specified)
           DMARC_HOST="_dmarc"
           DMARC_VALUE='"v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com"'
@@ -285,7 +259,6 @@ runs:
           
           # Debug: Print the hostnames we'll be checking
           echo "DEBUG: Will check DNS propagation for:"
-          echo "  - SPF: $DOMAIN"
           echo "  - Brevo Code: $BREVO_CODE_HOST"
           echo "  - DKIM: $DKIM_RECORD"
           
@@ -318,9 +291,6 @@ runs:
           for i in {1..60}; do
             echo "Checking DNS propagation (attempt $i/60)..."
             
-            # Check if SPF record is available
-            SPF_CHECK=$(dig TXT @8.8.8.8 "$DOMAIN" +short | grep "v=spf1" || echo "")
-            
             # Check if Brevo code record is available (hostname already validated above)
             # Handle @ symbol for root domain
             if [ "$BREVO_CODE_HOST" = "@" ]; then
@@ -335,17 +305,13 @@ runs:
             echo "DEBUG: Checking DKIM record for '$DKIM_RECORD.$DOMAIN'"
             DKIM_CHECK=$(dig CNAME @8.8.8.8 "$DKIM_RECORD.$DOMAIN" +short | grep "brevo" || echo "")
             
-            echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
             echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
             echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
             
-            # Check all required records (SPF + Brevo code + DKIM)
+            # Check all required records (Brevo code + DKIM)
             VALID_CHECKS=0
-            TOTAL_CHECKS=3
+            TOTAL_CHECKS=2
             
-            if [ -n "$SPF_CHECK" ]; then
-              VALID_CHECKS=$((VALID_CHECKS + 1))
-            fi
             if [ -n "$BREVO_CODE_CHECK" ]; then
               VALID_CHECKS=$((VALID_CHECKS + 1))
             fi
@@ -361,11 +327,6 @@ runs:
               # Debug: Show detailed DNS record information before authentication
               echo "DEBUG: Final DNS record verification before authentication:"
               echo "Domain: $DOMAIN"
-              
-              # Check SPF record
-              SPF_DETAILED=$(dig TXT @8.8.8.8 "$DOMAIN" +short)
-              echo "SPF records for $DOMAIN:"
-              echo "$SPF_DETAILED"
               
               # Check Brevo code record
               if [ "$BREVO_CODE_HOST" = "@" ]; then
@@ -386,7 +347,6 @@ runs:
               break
             elif [ $i -eq 60 ]; then
               echo "❌ DNS propagation timeout after 10 minutes for domain $DOMAIN"
-              echo "SPF available: $([ -n "$SPF_CHECK" ] && echo "✅" || echo "❌")"
               echo "Brevo code available: $([ -n "$BREVO_CODE_CHECK" ] && echo "✅" || echo "❌")"
               echo "DKIM available: $([ -n "$DKIM_CHECK" ] && echo "✅" || echo "❌")"
               echo "::warning::DNS propagation failed for domain $DOMAIN after 10 minutes, but continuing..."
@@ -406,52 +366,6 @@ runs:
           else
             echo "⚠️ Failed to trigger domain authentication for $DOMAIN (may already be authenticated)"
             echo "$AUTH_RESPONSE"
-          fi
-          
-          # Add sender to Brevo (regardless of domain existence)
-          echo "Adding sender noreply@$DOMAIN to Brevo..."
-          
-          # Check if sender already exists
-          SENDER_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders" \
-            -H "accept: application/json" \
-            -H "api-key: ${{ inputs.brevo_api_key }}")
-          
-          echo "Brevo senders response:"
-          echo "$SENDER_RESPONSE"
-          
-          # Check if the response is valid JSON
-          if ! echo "$SENDER_RESPONSE" | jq empty 2>/dev/null; then
-            echo "❌ Invalid JSON response from Brevo senders API"
-            echo "$SENDER_RESPONSE"
-            continue
-          fi
-          
-          # Check if the response has the expected structure
-          if ! echo "$SENDER_RESPONSE" | jq -e '.senders' > /dev/null 2>&1; then
-            echo "❌ Unexpected response structure from Brevo senders API"
-            echo "$SENDER_RESPONSE"
-            continue
-          fi
-          
-          if echo "$SENDER_RESPONSE" | jq -e ".senders[] | select(.email == \"noreply@$DOMAIN\")" > /dev/null 2>&1; then
-            echo "✅ Sender noreply@$DOMAIN already exists in Brevo"
-          else
-            # Add sender
-            SENDER_ADD_RESPONSE=$(curl -s -X POST "https://api.brevo.com/v3/senders" \
-              -H "accept: application/json" \
-              -H "content-type: application/json" \
-              -H "api-key: ${{ inputs.brevo_api_key }}" \
-              -d "{
-                \"email\": \"noreply@$DOMAIN\",
-                \"name\": \"$DOMAIN\"
-              }")
-            
-            if echo "$SENDER_ADD_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
-              echo "✅ Sender noreply@$DOMAIN added to Brevo"
-            else
-              ERROR_MSG=$(echo "$SENDER_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
-              echo "❌ Failed to add sender noreply@$DOMAIN: $ERROR_MSG"
-            fi
           fi
           
           echo "---"
