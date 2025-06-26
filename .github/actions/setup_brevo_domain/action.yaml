@@ -408,27 +408,45 @@ runs:
           # Use the support email from the input parameter
           FORWARD_TO_EMAIL="${{ inputs.support_email }}"
           
-          # Step 6a: Enable Email Routing for the domain
-          echo "Step 6a: Enabling Email Routing for $DOMAIN..."
-          ENABLE_EMAIL_ROUTING_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/enable" \
+          # Step 6a: Enable Email Routing for the zone (adds MX and SPF records)
+          echo "Step 6a: Enabling Email Routing for $DOMAIN zone..."
+          ENABLE_EMAIL_ROUTING_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/dns" \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"enabled\": true}")
+            -H "Content-Type: application/json")
           
           if echo "$ENABLE_EMAIL_ROUTING_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
-            echo "✅ Email routing enabled for $DOMAIN"
+            echo "✅ Email routing enabled for $DOMAIN zone (MX and SPF records added)"
           else
             ERROR_MSG=$(echo "$ENABLE_EMAIL_ROUTING_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
             if [[ "$ERROR_MSG" == *"already enabled"* ]] || [[ "$ERROR_MSG" == *"already exists"* ]]; then
-              echo "✅ Email routing already enabled for $DOMAIN"
+              echo "✅ Email routing already enabled for $DOMAIN zone"
             else
-              echo "⚠️ Failed to enable email routing for $DOMAIN: $ERROR_MSG"
+              echo "⚠️ Failed to enable email routing for $DOMAIN zone: $ERROR_MSG"
               echo "You may need to manually enable Email Routing in Cloudflare dashboard"
             fi
           fi
           
-          # Step 6b: Create forwarding rule for support@domain.com (root domain)
-          echo "Step 6b: Creating email forwarding rule for support@$DOMAIN..."
+          # Step 6b: Create destination address for email forwarding
+          echo "Step 6b: Creating destination address for email forwarding..."
+          DESTINATION_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/email/routing/addresses" \
+            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\": \"$FORWARD_TO_EMAIL\"}")
+          
+          if echo "$DESTINATION_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
+            echo "✅ Destination address created for $FORWARD_TO_EMAIL"
+          else
+            ERROR_MSG=$(echo "$DESTINATION_RESPONSE" | jq -r '.errors[0].message // "Unknown error"')
+            if [[ "$ERROR_MSG" == *"already exists"* ]] || [[ "$ERROR_MSG" == *"already been added"* ]]; then
+              echo "✅ Destination address already exists for $FORWARD_TO_EMAIL"
+            else
+              echo "⚠️ Failed to create destination address: $ERROR_MSG"
+              echo "You may need to manually add the destination address in Cloudflare dashboard"
+            fi
+          fi
+          
+          # Step 6c: Create forwarding rule for support@domain.com (root domain)
+          echo "Step 6c: Creating email forwarding rule for support@$DOMAIN..."
           
           # Check if the forwarding rule already exists for root domain
           EXISTING_RULES_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/email/routing/rules" \
@@ -447,8 +465,12 @@ runs:
               -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
               -H "Content-Type: application/json" \
               -d "{
-                \"name\": \"Forward support emails to $FORWARD_TO_EMAIL for $DOMAIN\",
-                \"enabled\": true,
+                \"actions\": [
+                  {
+                    \"type\": \"forward\",
+                    \"value\": [\"$FORWARD_TO_EMAIL\"]
+                  }
+                ],
                 \"matchers\": [
                   {
                     \"type\": \"literal\",
@@ -456,12 +478,8 @@ runs:
                     \"value\": \"support@$DOMAIN\"
                   }
                 ],
-                \"actions\": [
-                  {
-                    \"type\": \"forward\",
-                    \"value\": [\"$FORWARD_TO_EMAIL\"]
-                  }
-                ]
+                \"enabled\": true,
+                \"name\": \"Forward support emails to $FORWARD_TO_EMAIL for $DOMAIN\"
               }")
             
             if echo "$FORWARD_RULE_RESPONSE" | jq -e '.success' > /dev/null 2>&1; then
