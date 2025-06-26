@@ -2,9 +2,6 @@ name: 'Run Terraform'
 description: 'Runs Terraform configuration'
 
 inputs:
-  domains:
-    description: 'JSON string containing the list of domains and their frontend repos'
-    required: true
   cloudflare_account_id:
     description: 'Cloudflare Account ID'
     required: true
@@ -133,7 +130,6 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
-        TF_VAR_domains_json: ${{ inputs.domains }}
         TF_IN_AUTOMATION: "true"
 
     - name: Terraform Apply
@@ -171,7 +167,6 @@ runs:
       env:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
-        TF_VAR_domains_json: ${{ inputs.domains }}
         TF_IN_AUTOMATION: "true"
 
     - name: Save State to R2 (Always)

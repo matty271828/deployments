@@ -30,8 +30,6 @@ jobs:
     name: 'Construct Domains List'
     needs: [validate]
     runs-on: ubuntu-latest
-    outputs:
-      domains: ${{ steps.manage-domains.outputs.domains }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -61,7 +59,6 @@ jobs:
         id: run-terraform
         uses: ./.github/actions/run_terraform
         with:
-          domains: ${{ needs.manage-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
@@ -76,7 +73,6 @@ jobs:
       - name: Setup Brevo Domain Authentication
         uses: ./.github/actions/setup_brevo_domain
         with:
-          domains: ${{ needs.manage-domains.outputs.domains }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}

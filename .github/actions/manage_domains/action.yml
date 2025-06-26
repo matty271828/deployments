@@ -15,11 +15,6 @@ inputs:
     description: 'Cloudflare API Token'
     required: true
 
-outputs:
-  domains:
-    description: 'JSON array of all domains and their frontend repos'
-    value: ${{ steps.get-domains.outputs.domains }}
-
 runs:
   using: "composite"
   steps:
