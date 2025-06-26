@@ -29,12 +29,23 @@ jobs:
       cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  validate-brevo:
+    name: 'Validate Brevo API Key'
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Brevo API Key
+        uses: ./.github/actions/validate_brevo_api_key
+        with:
+          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
 
   manage-domains:
     name: 'Manage Domains'
-    needs: validate
+    needs: [validate, validate-brevo]
     runs-on: ubuntu-latest
     outputs:
       domains: ${{ steps.manage-domains.outputs.domains }}
@@ -107,8 +118,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
@@ -121,8 +130,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
@@ -135,8 +142,6 @@ jobs:
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_domains_json: ${{ needs.manage-domains.outputs.domains }}
-          TF_VAR_aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_gmail_address: ${{ inputs.gmail_address }}
           TF_IN_AUTOMATION: "true"
 
@@ -183,8 +188,7 @@ jobs:
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          brevo_api_key: ${{ secrets.BREVO_API_KEY }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'

@@ -596,3 +596,99 @@ CREATE TABLE {PREFIX}_rate_limits (
 ```
 
 Where `{PREFIX}` is replaced with the domain name (e.g., `leetrepeat`).
+
+---
+
+### 8. Email Sending
+
+**Endpoint:** `POST /auth/email/send`
+
+**Description:** Send a notification email using Brevo (formerly Sendinblue)
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "recipient@example.com",
+  "subject": "Email Subject",
+  "message": "Email message content"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/email/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "subject": "Welcome to our service!",
+    "message": "Thank you for signing up with our platform."
+  }'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Email sent successfully"
+}
+```
+
+**Rate Limiting:** 5 requests per minute per IP address
+
+---
+
+## Email Service
+
+The authentication service includes email functionality powered by **Brevo** (formerly Sendinblue):
+
+### Features
+- 📧 **Transactional Emails**: Signup confirmations, password resets, notifications
+- 🎨 **Professional Templates**: HTML and text versions with domain branding
+- 🔧 **Easy Integration**: Simple API for sending custom emails
+
+### Email Types
+
+#### 1. Signup Confirmation
+Automatically sent when a user registers:
+- Welcome message with domain branding
+- Account details confirmation
+- Professional HTML and text versions
+
+#### 2. Password Reset
+Sent when password reset is requested:
+- Secure reset link with token
+- 1-hour expiration
+- Clear instructions and security warnings
+
+#### 3. Generic Notifications
+Custom emails for any purpose:
+- Flexible subject and message content
+- HTML formatting support
+- Domain-specific branding
+
+### Configuration
+
+To use the email service, set the following environment variable:
+
+```bash
+BREVO_API_KEY=your_brevo_api_key_here
+```
+
+To get your Brevo API key:
+1. Go to https://app.brevo.com/
+2. Sign in to your Brevo account
+3. Navigate to Settings → API Keys
+4. Click 'Create a new API key'
+5. Give it a name (e.g., 'Auth Service')
+6. Select 'Full Access' or 'Restricted Access' with these permissions:
+   - Transactional emails: Read & Write
+7. Copy the generated API key
+
+---
+
+## Error Responses

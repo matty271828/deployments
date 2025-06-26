@@ -1,0 +1,95 @@
+name: 'Validate Brevo API Key'
+description: 'Validate that the Brevo API key is present and valid'
+
+inputs:
+  brevo_api_key:
+    description: 'Brevo API key for email service'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check Brevo API Key presence
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.brevo_api_key }}" ]; then
+          echo "::error::Brevo API Key is missing. Please add it to your repository secrets:"
+          echo ""
+          echo "To get your Brevo API key:"
+          echo "1. Go to https://app.brevo.com/"
+          echo "2. Sign in to your Brevo account"
+          echo "3. Navigate to Settings → API Keys"
+          echo "4. Click 'Create a new API key'"
+          echo "5. Give it a name (e.g., 'Auth Service')"
+          echo "6. Select 'Full Access' or 'Restricted Access' with these permissions:"
+          echo "   - Transactional emails: Read & Write"
+          echo "7. Copy the generated API key"
+          echo ""
+          echo "To add it to your repository:"
+          echo "1. Go to your repository settings"
+          echo "2. Navigate to Secrets and Variables > Actions"
+          echo "3. Click 'New repository secret'"
+          echo "4. Name: BREVO_API_KEY"
+          echo "5. Value: Your Brevo API key"
+          echo "6. Click 'Add secret'"
+          exit 1
+        fi
+        echo "✅ Brevo API Key is present"
+
+    - name: Validate Brevo API Key format
+      shell: bash
+      run: |
+        API_KEY="${{ inputs.brevo_api_key }}"
+        
+        # Check if it looks like a valid API key format
+        if ! [[ "$API_KEY" =~ ^xkeysib-[a-zA-Z0-9]{64}$ ]]; then
+          echo "::error::Invalid Brevo API Key format"
+          echo "Brevo API keys should start with 'xkeysib-' followed by 64 characters"
+          echo ""
+          echo "Please check your API key and ensure it's copied correctly from:"
+          echo "https://app.brevo.com/settings/keys/api"
+          exit 1
+        fi
+        echo "✅ Brevo API Key format is valid"
+
+    - name: Validate Brevo API Key with API call
+      shell: bash
+      run: |
+        # Install jq if not present
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update && sudo apt-get install -y jq
+        fi
+
+        # Test the API key by calling Brevo's account info endpoint
+        API_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/account" \
+          -H "accept: application/json" \
+          -H "api-key: ${{ inputs.brevo_api_key }}")
+
+        # Check if the API call was successful
+        if ! echo "$API_RESPONSE" | jq -e '.email' > /dev/null 2>&1; then
+          ERROR_MESSAGE=$(echo "$API_RESPONSE" | jq -r '.message // "Unknown error"' 2>/dev/null || echo "Invalid response format")
+          echo "::error::Invalid Brevo API Key: $ERROR_MESSAGE"
+          echo ""
+          echo "This could be because:"
+          echo "1. The API key is incorrect or has been revoked"
+          echo "2. The API key doesn't have the required permissions"
+          echo "3. There's an issue with your Brevo account"
+          echo ""
+          echo "Please verify your API key at:"
+          echo "https://app.brevo.com/settings/keys/api"
+          echo ""
+          echo "Ensure the API key has these permissions:"
+          echo "   - Transactional emails: Read & Write"
+          exit 1
+        fi
+
+        # Extract account information
+        ACCOUNT_EMAIL=$(echo "$API_RESPONSE" | jq -r '.email')
+        PLAN_TYPE=$(echo "$API_RESPONSE" | jq -r '.plan[0].type // "unknown"')
+        
+        echo "✅ Brevo API Key is valid and active"
+        echo "Account: $ACCOUNT_EMAIL"
+        echo "Plan: $PLAN_TYPE"
+        echo ""
+        echo "Note: Please ensure your API key has the following permissions:"
+        echo "   - Transactional emails: Read & Write" 

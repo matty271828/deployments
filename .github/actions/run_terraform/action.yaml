@@ -11,12 +11,6 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API Token'
     required: true
-  aws_access_key_id:
-    description: 'AWS Access Key ID'
-    required: true
-  aws_secret_access_key:
-    description: 'AWS Secret Access Key'
-    required: true
   gmail_address:
     description: 'Gmail address to forward emails to'
     required: true
@@ -143,8 +137,6 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
-        TF_VAR_aws_access_key_id: ${{ inputs.aws_access_key_id }}
-        TF_VAR_aws_secret_access_key: ${{ inputs.aws_secret_access_key }}
         TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 
@@ -184,8 +176,6 @@ runs:
         TF_VAR_cloudflare_account_id: ${{ inputs.cloudflare_account_id }}
         TF_VAR_cloudflare_api_token: ${{ inputs.cloudflare_api_token }}
         TF_VAR_domains_json: ${{ inputs.domains }}
-        TF_VAR_aws_access_key_id: ${{ inputs.aws_access_key_id }}
-        TF_VAR_aws_secret_access_key: ${{ inputs.aws_secret_access_key }}
         TF_VAR_gmail_address: ${{ inputs.gmail_address }}
         TF_IN_AUTOMATION: "true"
 

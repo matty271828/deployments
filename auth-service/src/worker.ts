@@ -16,9 +16,11 @@
  * - POST/GET /auth/graphql - GraphQL proxy to domain workers
  * - GET /auth/debug - Debug database state and session creation
  * - POST /auth/email/send - Email sending
+ * - POST /auth/webhook/brevo - Handle Brevo webhook events
  */
 
-import { createUser } from './users';
+import { D1Database } from '@cloudflare/workers-types';
+import { createUser, getUserByEmail, getUserById } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
 import { SignupRequest, LoginRequest, SessionValidationResult } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
@@ -306,7 +308,7 @@ const handlers = {
       }
 
       // Import required functions
-      const { validateCredentials, getUserByEmail, checkAccountLockout, recordFailedLogin, resetFailedLogins } = await import('./users');
+      const { validateCredentials, checkAccountLockout, recordFailedLogin, resetFailedLogins } = await import('./users');
 
       // First, get user by email to check lockout status
       const userWithPassword = await getUserByEmail(env.AUTH_DB_BINDING, subdomain, email);
@@ -424,9 +426,6 @@ const handlers = {
       }
 
       const session = validationResult.session!;
-
-      // Import getUserById function
-      const { getUserById } = await import('./users');
 
       // Get user information
       const user = await getUserById(env.AUTH_DB_BINDING, subdomain, session.userId);
@@ -694,7 +693,6 @@ const handlers = {
       console.log(`[AUTH SERVICE] [${requestId}] User ID extracted: ${userId}`);
 
       // Get user information
-      const { getUserById } = await import('./users');
       const user = await getUserById(env.AUTH_DB_BINDING, subdomain, userId);
       if (!user) {
         return createErrorResponse('User not found', 404, corsHeaders);

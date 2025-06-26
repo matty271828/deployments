@@ -17,13 +17,10 @@ inputs:
   GH_PERSONAL_ACCESS_TOKEN:
     description: 'GitHub Personal Access Token'
     required: true
-  aws_access_key_id:
-    description: 'AWS Access Key ID for SES email functionality'
+  brevo_api_key:
+    description: 'Brevo API key for email service'
     required: true
-  aws_secret_access_key:
-    description: 'AWS Secret Access Key for SES email functionality'
-    required: true
-
+    
 runs:
   using: 'composite'
   steps:
@@ -62,7 +59,7 @@ runs:
         echo "# Worker-to-worker bindings" >> wrangler.toml
         echo "$DOMAIN_WORKERS" | jq -r 'to_entries[] | "[[services]]\nbinding = \"" + .value + "\"\nservice = \"" + .value + "\""' >> wrangler.toml
 
-    # Deploy the worker with all configuration including secret bindings
+    # Deploy the worker first (without secrets)
     - name: Deploy Worker
       working-directory: './auth-service'
       shell: bash
@@ -71,21 +68,12 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
 
-    # Set AWS credentials as wrangler secrets for email functionality
-    - name: Set AWS Access Key Secret
+    # Set Brevo API key as a Wrangler secret (after worker exists)
+    - name: Set Brevo API Key Secret
       working-directory: './auth-service'
       shell: bash
       run: |
-        echo "${{ inputs.aws_access_key_id }}" | npx wrangler secret put AWS_ACCESS_KEY_ID
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-
-    - name: Set AWS Secret Key Secret
-      working-directory: './auth-service'
-      shell: bash
-      run: |
-        echo "${{ inputs.aws_secret_access_key }}" | npx wrangler secret put AWS_SECRET_ACCESS_KEY
+        echo "${{ inputs.brevo_api_key }}" | npx wrangler secret put BREVO_API_KEY
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

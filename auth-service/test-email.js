@@ -1,5 +1,5 @@
 /**
- * Test script for email functionality
+ * Test script for email functionality using Brevo
  * Run this to test the email sending capabilities
  */
 
@@ -9,12 +9,12 @@ const testEmailEndpoint = async () => {
   
   const testData = {
     email: 'test@example.com', // Replace with your test email
-    subject: 'Test Email from Auth Service',
-    message: 'This is a test email to verify the email functionality is working correctly.'
+    subject: 'Test Email from Auth Service (Brevo)',
+    message: 'This is a test email to verify the Brevo email functionality is working correctly.'
   };
 
   try {
-    console.log('Testing email endpoint...');
+    console.log('Testing Brevo email endpoint...');
     console.log('URL:', authServiceUrl);
     console.log('Data:', testData);
 
@@ -32,12 +32,12 @@ const testEmailEndpoint = async () => {
     console.log('Response body:', result);
 
     if (response.ok) {
-      console.log('✅ Email test successful!');
+      console.log('✅ Brevo email test successful!');
     } else {
-      console.log('❌ Email test failed!');
+      console.log('❌ Brevo email test failed!');
     }
   } catch (error) {
-    console.error('❌ Error testing email endpoint:', error);
+    console.error('❌ Error testing Brevo email endpoint:', error);
   }
 };
 
@@ -90,7 +90,7 @@ if (typeof window === 'undefined') {
   console.log('Running email tests...');
   
   // Uncomment the test you want to run:
-  // testEmailEndpoint();
+  testEmailEndpoint();
   // testSignupWithEmail();
   
   console.log('Tests completed. Uncomment the test functions above to run them.');

@@ -1,28 +1,20 @@
-import { SESClient, SendEmailCommand, SendEmailCommandInput } from '@aws-sdk/client-ses';
+import { ApiClient, TransactionalEmailsApi, SendSmtpEmail } from '@getbrevo/brevo';
 
-// Email service for sending emails via AWS SES
+// Email service for sending emails via Brevo
 export class EmailService {
-  private sesClient: SESClient;
-  private awsRegion: string;
-  private awsAccessKeyId: string;
-  private awsSecretAccessKey: string;
+  private brevoClient: ApiClient;
+  private transactionalApi: TransactionalEmailsApi;
 
-  constructor(awsRegion: string, awsAccessKeyId: string, awsSecretAccessKey: string) {
-    console.log(`[EMAIL SERVICE] Initializing EmailService | Region: ${awsRegion} | AccessKey: ${awsAccessKeyId.substring(0, 8)}...`);
+  constructor(apiKey?: string) {
+    console.log(`[EMAIL SERVICE] Initializing EmailService with Brevo`);
     
-    this.awsRegion = awsRegion;
-    this.awsAccessKeyId = awsAccessKeyId;
-    this.awsSecretAccessKey = awsSecretAccessKey;
+    // Initialize Brevo client
+    this.brevoClient = new ApiClient();
+    if (apiKey) {
+      this.brevoClient.setApiKey('api-key', apiKey);
+    }
     
-    this.sesClient = new SESClient({
-      region: this.awsRegion,
-      credentials: {
-        accessKeyId: this.awsAccessKeyId,
-        secretAccessKey: this.awsSecretAccessKey,
-      },
-    });
-    
-    console.log(`[EMAIL SERVICE] EmailService initialized successfully | Region: ${awsRegion}`);
+    this.transactionalApi = new TransactionalEmailsApi(this.brevoClient);
   }
 
   /**
@@ -97,35 +89,19 @@ The ${domain} Team
 This email was sent from ${domain}. Please do not reply to this email.
       `;
 
-      const emailParams: SendEmailCommandInput = {
-        Source: `noreply@${domain}`,
-        Destination: {
-          ToAddresses: [toEmail],
-        },
-        Message: {
-          Subject: {
-            Data: subject,
-            Charset: 'UTF-8',
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: 'UTF-8',
-            },
-            Text: {
-              Data: textBody,
-              Charset: 'UTF-8',
-            },
-          },
-        },
+      const emailData: SendSmtpEmail = {
+        to: [{ email: toEmail, name: `${firstName} ${lastName}` }],
+        sender: { email: `noreply@${domain}`, name: domain },
+        subject: subject,
+        htmlContent: htmlBody,
+        textContent: textBody,
       };
 
       console.log(`[EMAIL] Sending signup confirmation | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
-      const command = new SendEmailCommand(emailParams);
-      const result = await this.sesClient.send(command);
+      const result = await this.transactionalApi.sendTransacEmail(emailData);
       
-      console.log(`[EMAIL] Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Signup confirmation sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
     } catch (error: any) {
       console.error(`[EMAIL] Failed to send signup confirmation | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
@@ -206,35 +182,19 @@ The ${domain} Team
 This email was sent from ${domain}. Please do not reply to this email.
       `;
 
-      const emailParams: SendEmailCommandInput = {
-        Source: `noreply@${domain}`,
-        Destination: {
-          ToAddresses: [toEmail],
-        },
-        Message: {
-          Subject: {
-            Data: subject,
-            Charset: 'UTF-8',
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: 'UTF-8',
-            },
-            Text: {
-              Data: textBody,
-              Charset: 'UTF-8',
-            },
-          },
-        },
+      const emailData: SendSmtpEmail = {
+        to: [{ email: toEmail, name: `${firstName} ${lastName}` }],
+        sender: { email: `noreply@${domain}`, name: domain },
+        subject: subject,
+        htmlContent: htmlBody,
+        textContent: textBody,
       };
 
       console.log(`[EMAIL] Sending password reset | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject} | Reset URL: ${resetUrl}`);
 
-      const command = new SendEmailCommand(emailParams);
-      const result = await this.sesClient.send(command);
+      const result = await this.transactionalApi.sendTransacEmail(emailData);
       
-      console.log(`[EMAIL] Password reset sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Password reset sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
     } catch (error: any) {
       console.error(`[EMAIL] Failed to send password reset | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
@@ -280,35 +240,19 @@ This email was sent from ${domain}. Please do not reply to this email.
         </html>
       `;
 
-      const emailParams: SendEmailCommandInput = {
-        Source: `noreply@${domain}`,
-        Destination: {
-          ToAddresses: [toEmail],
-        },
-        Message: {
-          Subject: {
-            Data: subject,
-            Charset: 'UTF-8',
-          },
-          Body: {
-            Html: {
-              Data: htmlBody,
-              Charset: 'UTF-8',
-            },
-            Text: {
-              Data: message,
-              Charset: 'UTF-8',
-            },
-          },
-        },
+      const emailData: SendSmtpEmail = {
+        to: [{ email: toEmail }],
+        sender: { email: `noreply@${domain}`, name: domain },
+        subject: subject,
+        htmlContent: htmlBody,
+        textContent: message,
       };
 
       console.log(`[EMAIL] Sending notification | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
 
-      const command = new SendEmailCommand(emailParams);
-      const result = await this.sesClient.send(command);
+      const result = await this.transactionalApi.sendTransacEmail(emailData);
       
-      console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.MessageId}`);
+      console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
       return true;
     } catch (error: any) {
       console.error(`[EMAIL] Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
@@ -321,21 +265,6 @@ This email was sent from ${domain}. Please do not reply to this email.
  * Create an email service instance from environment variables
  */
 export function createEmailService(env: any): EmailService {
-  console.log(`[EMAIL SERVICE] Creating EmailService instance`);
-  
-  const awsRegion = 'us-east-1'; // Hardcoded region
-  
-  // Check for AWS credentials in environment variables (secret bindings)
-  const awsAccessKeyId = env.AWS_ACCESS_KEY_ID;
-  const awsSecretAccessKey = env.AWS_SECRET_ACCESS_KEY;
-
-  console.log(`[EMAIL SERVICE] AWS configuration | Region: ${awsRegion} | Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'} | Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
-
-  if (!awsAccessKeyId || !awsSecretAccessKey) {
-    console.error(`[EMAIL SERVICE] AWS credentials not configured | Access Key ID: ${awsAccessKeyId ? 'Present' : 'Missing'} | Secret Access Key: ${awsSecretAccessKey ? 'Present' : 'Missing'}`);
-    throw new Error('AWS credentials not configured');
-  }
-
-  console.log(`[EMAIL SERVICE] EmailService created successfully`);
-  return new EmailService(awsRegion, awsAccessKeyId, awsSecretAccessKey);
+  const apiKey = env.BREVO_API_KEY;
+  return new EmailService(apiKey);
 } 
