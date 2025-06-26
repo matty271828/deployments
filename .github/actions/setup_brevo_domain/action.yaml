@@ -355,25 +355,47 @@ runs:
             echo "$AUTH_RESPONSE"
           fi
 
-          # Step 5: Add sender to Brevo (noreply@<domain>)
-          SENDER_EMAIL="noreply@$DOMAIN"
-          echo "Adding sender $SENDER_EMAIL to Brevo..."
+          # Step 5: Add senders to Brevo (noreply@<domain> and support@<domain>)
+          echo "Adding senders to Brevo..."
+          
+          # Add noreply@<domain> sender
+          NOREPLY_EMAIL="noreply@$DOMAIN"
+          echo "Adding sender $NOREPLY_EMAIL to Brevo..."
           SENDER_RESPONSE=$(curl -s -X GET "https://api.brevo.com/v3/senders" \
             -H "accept: application/json" \
             -H "api-key: ${{ inputs.brevo_api_key }}")
-          if echo "$SENDER_RESPONSE" | jq -e ".senders[] | select(.email == \"$SENDER_EMAIL\")" > /dev/null 2>&1; then
-            echo "✅ Sender $SENDER_EMAIL already exists in Brevo"
+          if echo "$SENDER_RESPONSE" | jq -e ".senders[] | select(.email == \"$NOREPLY_EMAIL\")" > /dev/null 2>&1; then
+            echo "✅ Sender $NOREPLY_EMAIL already exists in Brevo"
           else
-            SENDER_ADD_RESPONSE=$(curl -s -X POST "https://api.brevo.com/v3/senders" \
+            NOREPLY_ADD_RESPONSE=$(curl -s -X POST "https://api.brevo.com/v3/senders" \
               -H "accept: application/json" \
               -H "content-type: application/json" \
               -H "api-key: ${{ inputs.brevo_api_key }}" \
-              -d "{\"email\": \"$SENDER_EMAIL\", \"name\": \"$DOMAIN\"}")
-            if echo "$SENDER_ADD_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
-              echo "✅ Sender $SENDER_EMAIL added to Brevo"
+              -d "{\"email\": \"$NOREPLY_EMAIL\", \"name\": \"$DOMAIN\"}")
+            if echo "$NOREPLY_ADD_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+              echo "✅ Sender $NOREPLY_EMAIL added to Brevo"
             else
-              ERROR_MSG=$(echo "$SENDER_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
-              echo "❌ Failed to add sender $SENDER_EMAIL: $ERROR_MSG"
+              ERROR_MSG=$(echo "$NOREPLY_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
+              echo "❌ Failed to add sender $NOREPLY_EMAIL: $ERROR_MSG"
+            fi
+          fi
+          
+          # Add support@<domain> sender
+          SUPPORT_EMAIL="support@$DOMAIN"
+          echo "Adding sender $SUPPORT_EMAIL to Brevo..."
+          if echo "$SENDER_RESPONSE" | jq -e ".senders[] | select(.email == \"$SUPPORT_EMAIL\")" > /dev/null 2>&1; then
+            echo "✅ Sender $SUPPORT_EMAIL already exists in Brevo"
+          else
+            SUPPORT_ADD_RESPONSE=$(curl -s -X POST "https://api.brevo.com/v3/senders" \
+              -H "accept: application/json" \
+              -H "content-type: application/json" \
+              -H "api-key: ${{ inputs.brevo_api_key }}" \
+              -d "{\"email\": \"$SUPPORT_EMAIL\", \"name\": \"$DOMAIN Support\"}")
+            if echo "$SUPPORT_ADD_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+              echo "✅ Sender $SUPPORT_EMAIL added to Brevo"
+            else
+              ERROR_MSG=$(echo "$SUPPORT_ADD_RESPONSE" | jq -r '.message // "Unknown error"')
+              echo "❌ Failed to add sender $SUPPORT_EMAIL: $ERROR_MSG"
             fi
           fi
           
