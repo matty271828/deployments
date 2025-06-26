@@ -117,7 +117,7 @@ jobs:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
   apply-domain-schemas:
-    name: 'Apply Domain Database Schemas'
+    name: 'Apply Domain DB Schemas'
     needs: [run-terraform, deploy-domain-workers]
     runs-on: ubuntu-latest
     steps:
@@ -133,7 +133,7 @@ jobs:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
   apply-auth-schema:
-    name: 'Apply Auth Database Schema'
+    name: 'Apply Auth DB Schema'
     needs: [run-terraform, deploy-auth-service]
     runs-on: ubuntu-latest
     steps:
