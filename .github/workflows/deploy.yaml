@@ -171,7 +171,7 @@ jobs:
 
   generate-api-docs:
     name: 'Generate API Docs'
-    needs: [run-terraform, deploy-domain-workers, apply-domain-schemas]
+    needs: [run-terraform, deploy-domain-workers]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
