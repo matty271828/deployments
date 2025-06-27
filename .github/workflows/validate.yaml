@@ -19,6 +19,10 @@ on:
         required: true
       BREVO_API_KEY:
         required: true
+      STRIPE_SECRET_KEY:
+        required: true
+      STRIPE_WEBHOOK_SECRET:
+        required: true
 
 jobs:
   check-nameservers:
@@ -82,5 +86,18 @@ jobs:
         uses: ./.github/actions/validate_brevo_api_key
         with:
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+
+  validate-stripe-credentials:
+    name: 'Stripe Credentials'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Stripe Credentials
+        uses: ./.github/actions/validate_stripe_credentials
+        with:
+          stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
+          stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
 

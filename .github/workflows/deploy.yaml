@@ -29,6 +29,8 @@ jobs:
       cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
   manage-domains:
     name: 'Construct Domains List'
@@ -99,6 +101,8 @@ jobs:
           domain_worker_names: ${{ needs.run-terraform.outputs.domain_worker_names }}
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
+          stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
+          stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'

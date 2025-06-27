@@ -154,4 +154,58 @@ export interface EmailVerificationRequest {
 export interface ResendVerificationRequest {
   email: string;
   csrfToken?: string; // Optional CSRF token for form protection
+}
+
+// Subscription-related interfaces
+
+/**
+ * Subscription status
+ */
+export interface Subscription {
+  id: string;
+  userId: string;
+  stripeSubscriptionId?: string;
+  status: 'free' | 'premium' | 'canceled' | 'past_due';
+  planId?: string;
+  currentPeriodEnd?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Stripe customer interface
+ */
+export interface StripeCustomer {
+  id: string;
+  userId: string;
+  stripeCustomerId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Create checkout session request
+ */
+export interface CreateCheckoutSessionRequest {
+  planId: string;
+  successUrl: string;
+  cancelUrl: string;
+  csrfToken?: string;
+}
+
+/**
+ * Create customer portal session request
+ */
+export interface CreatePortalSessionRequest {
+  returnUrl: string;
+  csrfToken?: string;
+}
+
+/**
+ * Subscription response
+ */
+export interface SubscriptionResponse {
+  success: boolean;
+  subscription?: Subscription;
+  error?: string;
 } 

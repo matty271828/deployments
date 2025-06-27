@@ -19,16 +19,21 @@
  * - POST /auth/password-reset/confirm - Confirm password reset
  * - POST /auth/verify-email - Verify user email
  * - POST /auth/resend-verification - Resend verification email
+ * - GET /auth/subscription - Get user subscription status
+ * - POST /auth/create-checkout-session - Create Stripe Checkout session
+ * - POST /auth/create-portal-session - Create customer portal session
+ * - POST /auth/webhook - Handle Stripe webhooks
  */
 
 import { D1Database } from '@cloudflare/workers-types';
 import { createUser, getUserByEmail, getUserById, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed, updateUserPassword, createEmailVerificationToken, verifyUserEmail } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
-import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest, EmailVerificationRequest, ResendVerificationRequest } from './types';
+import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest, EmailVerificationRequest, ResendVerificationRequest, CreateCheckoutSessionRequest, CreatePortalSessionRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
 import { createEmailService } from './email';
+import { getSubscription, createCheckoutSession, createPortalSession, updateSubscriptionFromWebhook, createInitialSubscription, isWebhookProcessed, markWebhookProcessed, getUserEmail } from './subscriptions';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -74,6 +79,18 @@ const ENDPOINTS = {
   },
   '/auth/resend-verification': {
     POST: 'resendVerification'
+  },
+  '/auth/subscription': {
+    GET: 'getSubscription'
+  },
+  '/auth/create-checkout-session': {
+    POST: 'createCheckoutSession'
+  },
+  '/auth/create-portal-session': {
+    POST: 'createPortalSession'
+  },
+  '/auth/webhook': {
+    POST: 'handleWebhook'
   }
 } as const;
 
@@ -419,30 +436,22 @@ const handlers = {
         return createErrorResponse('Too many session requests. Please try again later.', 429, corsHeaders);
       }
 
-      // Get session token from Authorization header
+      // Get user from session
       const authHeader = request.headers.get('Authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return createErrorResponse('Authorization header with Bearer token is required', 401, corsHeaders);
+        return createErrorResponse('Authentication required', 401, corsHeaders);
       }
-
+      
       const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-      // Ensure we have database access
-      if (!env?.AUTH_DB_BINDING) {
-        return createErrorResponse('Database not available', 500, corsHeaders);
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
       }
 
-      // Validate the session token
-      const validationResult = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
-      if (!validationResult.success) {
-        console.error(`[VALIDATE SESSION API] Session validation failed | Subdomain: ${subdomain} | Error type: ${validationResult.error!.type} | Error message: ${validationResult.error!.message} | Token: ${token.substring(0, 20)}...`);
-        return createErrorResponse(validationResult.error!.message, 401, corsHeaders);
-      }
-
-      const session = validationResult.session!;
+      const userId = sessionValidation.session.userId;
 
       // Get user information
-      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, session.userId);
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, userId);
       if (!user) {
         return createErrorResponse('User not found', 404, corsHeaders);
       }
@@ -459,9 +468,9 @@ const handlers = {
           createdAt: user.createdAt
         },
         session: {
-          id: session.id,
-          createdAt: session.createdAt,
-          expiresAt: new Date(session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
+          id: sessionValidation.session.id,
+          createdAt: sessionValidation.session.createdAt,
+          expiresAt: new Date(sessionValidation.session.createdAt.getTime() + (24 * 60 * 60 * 1000)) // 24 hours
         }
       }), {
         status: 200,
@@ -1192,6 +1201,316 @@ const handlers = {
         success: true,
         message: 'Verification email sent successfully'
       }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Get user subscription status endpoint
+   */
+  async getSubscription(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many subscription requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Get user from session
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+      
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+
+      const userId = sessionValidation.session.userId;
+
+      // Get subscription status
+      const subscription = await getSubscription(env.AUTH_DB_BINDING, subdomain, userId);
+      
+      // If no subscription exists, create a free one
+      if (!subscription) {
+        await createInitialSubscription(env.AUTH_DB_BINDING, subdomain, userId);
+        return new Response(JSON.stringify({
+          success: true,
+          subscription: {
+            status: 'free',
+            planId: null,
+            currentPeriodEnd: null
+          }
+        }), {
+          status: 200,
+          headers: corsHeaders
+        });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        subscription: subscription
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Create Stripe Checkout session endpoint
+   */
+  async createCheckoutSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many checkout session requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Check if Stripe is configured
+      if (!env?.STRIPE_SECRET_KEY) {
+        return createErrorResponse('Stripe integration not yet configured. Please set up STRIPE_SECRET_KEY environment variable.', 503, corsHeaders);
+      }
+
+      // Get user from session
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+      
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+
+      const userId = sessionValidation.session.userId;
+
+      // Parse request body
+      const body = await request.json() as CreateCheckoutSessionRequest;
+      const { planId, successUrl, cancelUrl, csrfToken } = body;
+
+      // Validate required fields
+      if (!planId || !successUrl || !cancelUrl) {
+        return createErrorResponse('Plan ID, success URL, and cancel URL are required', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
+      }
+
+      // Get user email
+      const userEmail = await getUserEmail(env.AUTH_DB_BINDING, subdomain, userId);
+      if (!userEmail) {
+        return createErrorResponse('User email not found', 404, corsHeaders);
+      }
+
+      // Initialize Stripe
+      const { default: Stripe } = await import('stripe');
+      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      });
+
+      // Create checkout session
+      const checkoutUrl = await createCheckoutSession(
+        env.AUTH_DB_BINDING,
+        subdomain,
+        userId,
+        userEmail,
+        { planId, successUrl, cancelUrl },
+        stripe,
+        request.headers.get('host') || subdomain
+      );
+
+      return new Response(JSON.stringify({
+        success: true,
+        checkoutUrl: checkoutUrl
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Create customer portal session endpoint
+   */
+  async createPortalSession(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many portal session requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Check if Stripe is configured
+      if (!env?.STRIPE_SECRET_KEY) {
+        return createErrorResponse('Stripe integration not yet configured. Please set up STRIPE_SECRET_KEY environment variable.', 503, corsHeaders);
+      }
+
+      // Get user from session
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+      
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Authentication required', 401, corsHeaders);
+      }
+
+      const userId = sessionValidation.session.userId;
+
+      // Parse request body
+      const body = await request.json() as CreatePortalSessionRequest;
+      const { returnUrl, csrfToken } = body;
+
+      // Validate required fields
+      if (!returnUrl) {
+        return createErrorResponse('Return URL is required', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
+      }
+
+      // Initialize Stripe
+      const { default: Stripe } = await import('stripe');
+      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      });
+
+      // Create portal session
+      const portalUrl = await createPortalSession(
+        env.AUTH_DB_BINDING,
+        subdomain,
+        userId,
+        { returnUrl },
+        stripe
+      );
+
+      return new Response(JSON.stringify({
+        success: true,
+        portalUrl: portalUrl
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Handle Stripe webhook endpoint
+   */
+  async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Check if Stripe is configured
+      if (!env?.STRIPE_SECRET_KEY || !env?.STRIPE_WEBHOOK_SECRET) {
+        return createErrorResponse('Stripe webhook handling not yet configured. Please set up STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET environment variables.', 503, corsHeaders);
+      }
+
+      // Get the raw body for webhook signature verification
+      const body = await request.text();
+      const signature = request.headers.get('stripe-signature');
+
+      if (!signature) {
+        return createErrorResponse('Missing Stripe signature', 400, corsHeaders);
+      }
+
+      // Initialize Stripe
+      const { default: Stripe } = await import('stripe');
+      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      });
+
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
+      } catch (err: any) {
+        console.error('Webhook signature verification failed:', err.message);
+        return createErrorResponse('Invalid webhook signature', 400, corsHeaders);
+      }
+
+      // Check if we've already processed this event
+      if (await isWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id)) {
+        return new Response(JSON.stringify({ received: true }), {
+          status: 200,
+          headers: corsHeaders
+        });
+      }
+
+      // Handle the event
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          const subscription = event.data.object as any;
+          await updateSubscriptionFromWebhook(
+            env.AUTH_DB_BINDING,
+            subdomain,
+            subscription.id,
+            subscription.status,
+            subscription.items?.data[0]?.price?.id,
+            subscription.current_period_end
+          );
+          break;
+        default:
+          console.log(`Unhandled event type: ${event.type}`);
+      }
+
+      // Mark event as processed
+      await markWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id, event.type);
+
+      return new Response(JSON.stringify({ received: true }), {
         status: 200,
         headers: corsHeaders
       });
