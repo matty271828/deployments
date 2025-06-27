@@ -170,6 +170,49 @@ runs:
               console.log('::set-output name=all_results::' + JSON.stringify(results));
             }
             
+            // 5. Update domain mappings with price IDs
+            console.log('\\n📝 Updating domain mappings with price IDs...');
+            const { execSync } = require('child_process');
+            
+            // Read current domain mappings
+            const currentMappings = JSON.parse(fs.readFileSync('/tmp/domains.json', 'utf8'));
+            
+            // Update mappings with price IDs
+            const updatedMappings = currentMappings.map(domainObj => {
+              const result = results.find(r => r.domain === domainObj.domain);
+              if (result) {
+                return {
+                  ...domainObj,
+                  stripe_price_id: result.price_id,
+                  stripe_product_id: result.product_id
+                };
+              }
+              return domainObj;
+            });
+            
+            // Upload updated mappings to R2
+            const uploadResponse = await fetch(\`https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json\`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': \`Bearer ${{ inputs.cloudflare_api_token }}\`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(updatedMappings)
+            });
+            
+            if (!uploadResponse.ok) {
+              console.error('❌ Failed to update domain mappings with price IDs');
+              const errorText = await uploadResponse.text();
+              console.error('Upload error:', errorText);
+              process.exit(1);
+            }
+            
+            console.log('✅ Successfully updated domain mappings with price IDs');
+            console.log('Updated mappings:');
+            updatedMappings.forEach(mapping => {
+              console.log(\`  \${mapping.domain}: Price ID \${mapping.stripe_price_id}\`);
+            });
+            
             console.log('\\n✅ Stripe products setup complete for all domains!');
             
           } catch (error) {

@@ -52,18 +52,19 @@ runs:
     - name: Create Deployments
       shell: bash
       run: |
-        # Extract project names from mappings
+        # Extract project names and domains from mappings
         MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
         if [ "$MAPPINGS" = "[]" ]; then
           echo "No domain mappings found, skipping deployments"
           exit 0
         fi
         
-        PROJECTS=$(echo "$MAPPINGS" | jq -r '.[].frontend_repo | split("/") | last')
+        # Create a map of project names to their domains and price IDs
+        PROJECT_DOMAIN_MAP=$(echo "$MAPPINGS" | jq -r '.[] | "\(.frontend_repo | split("/") | last):\(.domain):\(.stripe_price_id // "")"')
         
         # Deploy each project only if there are new commits
-        for project in $PROJECTS; do
-          echo "Checking for new commits in project: $project"
+        while IFS=: read -r project domain price_id; do
+          echo "Checking for new commits in project: $project (domain: $domain)"
           
           # Get the latest deployment to check if we need to deploy
           latest_deployment=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments?per_page=1" \
@@ -91,10 +92,21 @@ runs:
           
           echo "New commits detected for project $project, triggering deployment"
           echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
+          
+          # Prepare deployment data with environment variables
+          DEPLOYMENT_DATA="{\"branch\":\"main\""
+          if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
+            echo "Using price ID for $domain: $price_id"
+            DEPLOYMENT_DATA="$DEPLOYMENT_DATA,\"environment_variables\":{\"STRIPE_PRICE_ID\":\"$price_id\"}"
+          else
+            echo "No price ID found for $domain, deploying without Stripe configuration"
+          fi
+          DEPLOYMENT_DATA="$DEPLOYMENT_DATA}"
+          
           response=$(curl -s https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
-            -H 'Content-Type: multipart/form-data' \
+            -H 'Content-Type: application/json' \
             -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -F branch=main)
+            -d "$DEPLOYMENT_DATA")
           
           # Check if the request was successful
           if ! echo "$response" | jq -e '.success == true' > /dev/null; then
@@ -104,7 +116,7 @@ runs:
           fi
           
           echo "Successfully triggered deployment for project $project"
-        done
+        done <<< "$PROJECT_DOMAIN_MAP"
 
     - name: Configure Custom Domains
       shell: bash

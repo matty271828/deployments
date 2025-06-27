@@ -186,7 +186,7 @@ jobs:
 
   deploy-pages:
     name: 'Deploy Pages'
-    needs: [run-terraform, apply-domain-schemas, apply-auth-schema]
+    needs: [run-terraform, apply-domain-schemas, apply-auth-schema, setup-stripe]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
