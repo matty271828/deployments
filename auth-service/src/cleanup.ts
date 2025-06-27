@@ -5,7 +5,7 @@
 
 import { cleanupExpiredSessions } from './sessions';
 import { rateLimiters } from './rate-limiter';
-import { cleanupExpiredPasswordResetTokens } from './users';
+import { cleanupExpiredPasswordResetTokens, cleanupExpiredEmailVerificationTokens } from './users';
 
 /**
  * Get all active domains from the database
@@ -109,6 +109,30 @@ async function cleanupAllPasswordResetTokens(db: D1Database): Promise<void> {
 }
 
 /**
+ * Clean up expired email verification tokens for all domains
+ * 
+ * @param db - D1Database instance
+ */
+async function cleanupAllEmailVerificationTokens(db: D1Database): Promise<void> {
+  try {
+    const domains = await getActiveDomains(db);
+    
+    for (const domain of domains) {
+      try {
+        const cleanedCount = await cleanupExpiredEmailVerificationTokens(db, domain);
+        if (cleanedCount > 0) {
+          console.log(`Cleaned up ${cleanedCount} expired email verification tokens for domain: ${domain}`);
+        }
+      } catch (error) {
+        console.error(`Error cleaning up email verification tokens for domain ${domain}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Error in email verification token cleanup:', error);
+  }
+}
+
+/**
  * Perform comprehensive cleanup for all domains
  * This function should be called periodically (e.g., daily)
  * 
@@ -125,6 +149,9 @@ export async function performCleanup(db: D1Database): Promise<void> {
   
   // Clean up expired password reset tokens
   await cleanupAllPasswordResetTokens(db);
+  
+  // Clean up expired email verification tokens
+  await cleanupAllEmailVerificationTokens(db);
   
   console.log('Automated cleanup completed');
 }

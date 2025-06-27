@@ -19,12 +19,14 @@
  * - POST /auth/webhook/brevo - Handle Brevo webhook events
  * - POST /auth/password-reset - Request password reset
  * - POST /auth/password-reset/confirm - Confirm password reset
+ * - POST /auth/verify-email - Verify user email
+ * - POST /auth/resend-verification - Resend verification email
  */
 
 import { D1Database } from '@cloudflare/workers-types';
-import { createUser, getUserByEmail, getUserById, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed, updateUserPassword } from './users';
+import { createUser, getUserByEmail, getUserById, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed, updateUserPassword, createEmailVerificationToken, verifyUserEmail } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
-import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest } from './types';
+import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest, EmailVerificationRequest, ResendVerificationRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
@@ -71,6 +73,12 @@ const ENDPOINTS = {
   },
   '/auth/password-reset/confirm': {
     POST: 'confirmPasswordReset'
+  },
+  '/auth/verify-email': {
+    POST: 'verifyEmail'
+  },
+  '/auth/resend-verification': {
+    POST: 'resendVerification'
   }
 } as const;
 
@@ -201,6 +209,9 @@ const handlers = {
       // Create user
       const user = await createUser(env.AUTH_DB_BINDING, subdomain, email, password, firstName, lastName);
 
+      // Create email verification token
+      const verificationToken = await createEmailVerificationToken(env.AUTH_DB_BINDING, subdomain, email);
+
       // Send confirmation email
       let emailSent = false;
       let emailError = null;
@@ -209,7 +220,7 @@ const handlers = {
         const emailService = createEmailService(env);
         const fullDomain = new URL(request.url).hostname;
         console.log(`[SIGNUP] Using domain: ${fullDomain} for email`);
-        await emailService.sendSignupConfirmation(email, firstName, lastName, fullDomain);
+        await emailService.sendSignupConfirmation(email, firstName, lastName, fullDomain, verificationToken?.token || '');
         emailSent = true;
         console.log(`[SIGNUP] ✅ Confirmation email sent successfully to ${email} for domain ${fullDomain}`);
       } catch (emailError: any) {
@@ -1118,6 +1129,134 @@ const handlers = {
 
     } catch (error: any) {
       console.error('[PASSWORD RESET CONFIRM] Error:', error);
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Email verification endpoint
+   */
+  async verifyEmail(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many email verification requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as EmailVerificationRequest;
+      const { token } = body;
+
+      // Validate required fields
+      if (!token) {
+        return createErrorResponse('Token is required', 400, corsHeaders);
+      }
+
+      // Validate token type
+      if (typeof token !== 'string') {
+        return createErrorResponse('Token must be a string', 400, corsHeaders);
+      }
+
+      // Verify user email
+      const verificationResult = await verifyUserEmail(env.AUTH_DB_BINDING, subdomain, token);
+      if (!verificationResult) {
+        return createErrorResponse('Invalid or expired verification token', 400, corsHeaders);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Email verification successful',
+        user: {
+          id: verificationResult.id,
+          email: verificationResult.email,
+          firstName: verificationResult.firstName,
+          lastName: verificationResult.lastName,
+          emailVerified: verificationResult.emailVerified
+        }
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Resend verification email endpoint
+   */
+  async resendVerification(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many resend verification requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as ResendVerificationRequest;
+      const { email } = body;
+
+      // Validate required fields
+      if (!email) {
+        return createErrorResponse('Email is required', 400, corsHeaders);
+      }
+
+      // Validate email type
+      if (typeof email !== 'string') {
+        return createErrorResponse('Email must be a string', 400, corsHeaders);
+      }
+
+      // Create verification token
+      const verificationToken = await createEmailVerificationToken(env.AUTH_DB_BINDING, subdomain, email);
+      if (!verificationToken) {
+        return createErrorResponse('User not found or already verified', 404, corsHeaders);
+      }
+
+      // Get user details for email
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, verificationToken.userId);
+      if (!user) {
+        return createErrorResponse('User not found', 404, corsHeaders);
+      }
+
+      // Send verification email
+      let emailSent = false;
+      let emailError = null;
+      try {
+        console.log(`[RESEND VERIFICATION] Sending verification email to ${email}...`);
+        const emailService = createEmailService(env);
+        const fullDomain = new URL(request.url).hostname;
+        await emailService.sendSignupConfirmation(email, user.firstName, user.lastName, fullDomain, verificationToken.token);
+        emailSent = true;
+        console.log(`[RESEND VERIFICATION] ✅ Verification email sent successfully to ${email}`);
+      } catch (emailError: any) {
+        console.error(`[RESEND VERIFICATION] ❌ Failed to send verification email to ${email}:`, emailError.message);
+        emailError = emailError.message;
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Verification email sent successfully'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
       return handleApiError(error, corsHeaders);
     }
   }

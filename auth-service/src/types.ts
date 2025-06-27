@@ -41,6 +41,7 @@ export interface User {
   createdAt: Date;
   failedLoginAttempts: number;
   lockedUntil?: Date;
+  emailVerified: boolean;
 }
 
 /**
@@ -126,4 +127,31 @@ export interface PasswordResetToken {
   createdAt: Date;
   expiresAt: Date;
   usedAt?: Date;
+}
+
+/**
+ * Email verification token interface
+ */
+export interface EmailVerificationToken {
+  token: string;
+  userId: string;
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt?: Date;
+}
+
+/**
+ * Email verification request
+ */
+export interface EmailVerificationRequest {
+  token: string;
+  csrfToken?: string; // Optional CSRF token for form protection
+}
+
+/**
+ * Resend verification email request
+ */
+export interface ResendVerificationRequest {
+  email: string;
+  csrfToken?: string; // Optional CSRF token for form protection
 } 

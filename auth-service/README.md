@@ -413,44 +413,131 @@ curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
 
 ---
 
-## Testing Password Reset
+### 10. Email Verification
 
-### Complete Password Reset Flow
+**Endpoint:** `POST /auth/verify-email`
 
+**Description:** Verify a user's email address using a verification token
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "token": "verification-token-from-email",
+  "csrfToken": "optional-csrf-token"
+}
+```
+
+**Example Request:**
 ```bash
-# 1. Request password reset
-curl -X POST https://leetrepeat.com/auth/password-reset \
+curl -X POST https://leetrepeat.com/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"token": "abc123def456"}'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Email verification successful",
+  "user": {
+    "id": "tncy8nc46v8grqwfvmifteyt",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "emailVerified": true
+  }
+}
+```
+
+**Validation Rules:**
+- Token must be valid and not expired
+- Token can only be used once
+- User's email will be marked as verified
+
+---
+
+### 11. Resend Verification Email
+
+**Endpoint:** `POST /auth/resend-verification`
+
+**Description:** Resend email verification link to a user
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "csrfToken": "optional-csrf-token"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/resend-verification \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com"}'
+```
 
-# 2. Check email for reset link (token will be in URL)
-# Reset link format: https://yourdomain.com/reset-password?token=TOKEN_HERE
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Verification email sent successfully"
+}
+```
 
-# 3. Confirm password reset with new password
-curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
-  -H "Content-Type: application/json" \
-  -d '{
-    "token": "TOKEN_FROM_EMAIL",
-    "newPassword": "NewSecurePass123!"
-  }'
+**Notes:**
+- Only works for unverified users
+- Creates a new verification token
+- Sends the same signup confirmation email with new verification link
 
-# 4. Login with new password
-curl -X POST https://leetrepeat.com/auth/login \
+---
+
+## Testing Email Verification
+
+### Complete Email Verification Flow
+
+```bash
+# 1. Sign up a new user (verification email sent automatically)
+curl -X POST https://leetrepeat.com/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
-    "password": "NewSecurePass123!"
+    "password": "SecurePass123!",
+    "firstName": "John",
+    "lastName": "Doe"
   }'
+
+# 2. Check email for verification link (token will be in URL)
+# Verification link format: https://yourdomain.com/verify-email?token=TOKEN_HERE
+
+# 3. Verify email with token
+curl -X POST https://leetrepeat.com/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"token": "TOKEN_FROM_EMAIL"}'
+
+# 4. Resend verification if needed
+curl -X POST https://leetrepeat.com/auth/resend-verification \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
 ```
 
-### Password Reset Security Features
+### Email Verification Security Features
 
-- **Time-limited tokens**: Reset tokens expire after 15 minutes
+- **Time-limited tokens**: Verification tokens expire after 24 hours
 - **Single-use tokens**: Each token can only be used once
-- **Rate limiting**: Prevents abuse of reset requests
-- **Email enumeration protection**: Always returns success response
-- **Account unlocking**: Automatically unlocks accounts after reset
-- **Failed attempt reset**: Clears failed login attempts after reset
+- **Rate limiting**: Prevents abuse of verification requests
+- **Automatic cleanup**: Expired tokens are automatically removed
+- **User status tracking**: Email verification status is stored in user record
 
 ---
 

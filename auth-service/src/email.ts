@@ -35,11 +35,13 @@ export class EmailService {
     toEmail: string, 
     firstName: string, 
     lastName: string, 
-    domain: string
+    domain: string,
+    verificationToken: string
   ): Promise<boolean> {
     console.log(`[EMAIL] Starting signup confirmation | To: ${toEmail} | Domain: ${domain} | Name: ${firstName} ${lastName}`);
     
     try {
+      const verifyUrl = `https://${domain}/verify-email?token=${verificationToken}`;
       const subject = `Welcome to ${domain}!`;
       
       const htmlBody = `
@@ -78,7 +80,7 @@ export class EmailService {
                   To ensure the security of your account, please verify your email address by clicking the button below.
                 </p>
                 <div style="text-align: center;">
-                  <a href="https://${domain}/verify-email?token=PLACEHOLDER_TOKEN" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">
+                  <a href="${verifyUrl}" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 14px; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">
                     Verify Email →
                   </a>
                 </div>
@@ -121,7 +123,7 @@ Your account has been successfully created and you're all set to get started.
 
 VERIFY YOUR ACCOUNT:
 To ensure the security of your account, please verify your email address by visiting:
-https://${domain}/verify-email?token=PLACEHOLDER_TOKEN
+${verifyUrl}
 
 Once you've verified your email, you'll have full access to all features and can start exploring what ${domain} has to offer. We're committed to providing you with a secure and seamless experience.
 
@@ -142,7 +144,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
         textContent: textBody,
       };
 
-      console.log(`[EMAIL] Sending signup confirmation | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
+      console.log(`[EMAIL] Sending signup confirmation | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject} | Verify URL: ${verifyUrl}`);
 
       const result = await this.sendEmail(emailData);
       

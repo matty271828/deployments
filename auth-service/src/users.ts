@@ -1,4 +1,4 @@
-import { User, UserWithPassword, PasswordResetToken } from './types';
+import { User, UserWithPassword, PasswordResetToken, EmailVerificationToken } from './types';
 import { generateSecureRandomString, hashPassword, verifyPassword } from './generator';
 
 /**
@@ -41,8 +41,8 @@ export async function createUser(db: D1Database, domain: string, email: string, 
 
   // Store user in domain-specific table
   await db.prepare(`
-    INSERT INTO ${domain}_users (id, email, first_name, last_name, password_hash, password_salt, created_at) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO ${domain}_users (id, email, first_name, last_name, password_hash, password_salt, created_at, email_verified) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
     email.toLowerCase(), // Store email in lowercase
@@ -50,7 +50,8 @@ export async function createUser(db: D1Database, domain: string, email: string, 
     lastName.trim(),
     passwordHash,
     salt,
-    Math.floor(now.getTime() / 1000)
+    Math.floor(now.getTime() / 1000),
+    0 // email_verified = false by default
   ).run();
 
   // Return user without password
@@ -61,7 +62,8 @@ export async function createUser(db: D1Database, domain: string, email: string, 
     lastName: lastName.trim(),
     createdAt: now,
     failedLoginAttempts: 0,
-    lockedUntil: undefined
+    lockedUntil: undefined,
+    emailVerified: false
   };
 
   return user;
@@ -77,7 +79,7 @@ export async function createUser(db: D1Database, domain: string, email: string, 
  */
 export async function getUserByEmail(db: D1Database, domain: string, email: string): Promise<UserWithPassword | null> {
   const result = await db.prepare(`
-    SELECT id, email, first_name, last_name, password_hash, password_salt, created_at, failed_login_attempts, locked_until
+    SELECT id, email, first_name, last_name, password_hash, password_salt, created_at, failed_login_attempts, locked_until, email_verified
     FROM ${domain}_users 
     WHERE email = ?
   `).bind(email.toLowerCase()).first();
@@ -94,7 +96,8 @@ export async function getUserByEmail(db: D1Database, domain: string, email: stri
     passwordHash: result.password_hash as string,
     createdAt: new Date((result.created_at as number) * 1000),
     failedLoginAttempts: result.failed_login_attempts as number,
-    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined
+    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined,
+    emailVerified: Boolean(result.email_verified)
   };
 
   return user;
@@ -110,7 +113,7 @@ export async function getUserByEmail(db: D1Database, domain: string, email: stri
  */
 export async function getUserById(db: D1Database, domain: string, userId: string): Promise<User | null> {
   const result = await db.prepare(`
-    SELECT id, email, first_name, last_name, created_at, failed_login_attempts, locked_until
+    SELECT id, email, first_name, last_name, created_at, failed_login_attempts, locked_until, email_verified
     FROM ${domain}_users 
     WHERE id = ?
   `).bind(userId).first();
@@ -126,7 +129,8 @@ export async function getUserById(db: D1Database, domain: string, userId: string
     lastName: result.last_name as string,
     createdAt: new Date((result.created_at as number) * 1000),
     failedLoginAttempts: result.failed_login_attempts as number,
-    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined
+    lockedUntil: result.locked_until ? new Date((result.locked_until as number) * 1000) : undefined,
+    emailVerified: Boolean(result.email_verified)
   };
 
   return user;
@@ -173,7 +177,8 @@ export async function validateCredentials(db: D1Database, domain: string, email:
     lastName: userWithPassword.lastName,
     createdAt: userWithPassword.createdAt,
     failedLoginAttempts: userWithPassword.failedLoginAttempts,
-    lockedUntil: userWithPassword.lockedUntil
+    lockedUntil: userWithPassword.lockedUntil,
+    emailVerified: userWithPassword.emailVerified
   };
 
   return user;
@@ -627,6 +632,155 @@ export async function cleanupExpiredPasswordResetTokens(db: D1Database, domain: 
   // Delete expired tokens
   await db.prepare(`
     DELETE FROM ${domain}_password_reset_tokens 
+    WHERE expires_at < ?
+  `).bind(now).run();
+
+  return count;
+}
+
+/**
+ * Create an email verification token for a user
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param email - User's email address
+ * @returns Promise<EmailVerificationToken | null> - Verification token if user exists, null otherwise
+ */
+export async function createEmailVerificationToken(db: D1Database, domain: string, email: string): Promise<EmailVerificationToken | null> {
+  // Find user by email
+  const user = await getUserByEmail(db, domain, email);
+  if (!user) {
+    return null;
+  }
+
+  // Check if user is already verified
+  if (user.emailVerified) {
+    return null;
+  }
+
+  // Generate secure token
+  const token = generateSecureRandomString();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours expiry
+
+  // Store token in database
+  await db.prepare(`
+    INSERT INTO ${domain}_email_verification_tokens (token, user_id, created_at, expires_at) 
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    token,
+    user.id,
+    Math.floor(now.getTime() / 1000),
+    Math.floor(expiresAt.getTime() / 1000)
+  ).run();
+
+  const verificationToken: EmailVerificationToken = {
+    token,
+    userId: user.id,
+    createdAt: now,
+    expiresAt,
+    usedAt: undefined
+  };
+
+  return verificationToken;
+}
+
+/**
+ * Validate an email verification token
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param token - Verification token to validate
+ * @returns Promise<EmailVerificationToken | null> - Valid token if found and not expired/used, null otherwise
+ */
+export async function validateEmailVerificationToken(db: D1Database, domain: string, token: string): Promise<EmailVerificationToken | null> {
+  const result = await db.prepare(`
+    SELECT token, user_id, created_at, expires_at, used_at
+    FROM ${domain}_email_verification_tokens 
+    WHERE token = ?
+  `).bind(token).first();
+
+  if (!result) {
+    return null;
+  }
+
+  const verificationToken: EmailVerificationToken = {
+    token: result.token as string,
+    userId: result.user_id as string,
+    createdAt: new Date((result.created_at as number) * 1000),
+    expiresAt: new Date((result.expires_at as number) * 1000),
+    usedAt: result.used_at ? new Date((result.used_at as number) * 1000) : undefined
+  };
+
+  // Check if token is expired
+  if (verificationToken.expiresAt < new Date()) {
+    return null;
+  }
+
+  // Check if token has already been used
+  if (verificationToken.usedAt) {
+    return null;
+  }
+
+  return verificationToken;
+}
+
+/**
+ * Mark an email verification token as used and verify the user's email
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param token - Verification token to mark as used
+ * @returns Promise<User | null> - Updated user if token was valid, null otherwise
+ */
+export async function verifyUserEmail(db: D1Database, domain: string, token: string): Promise<User | null> {
+  // Validate the token first
+  const verificationToken = await validateEmailVerificationToken(db, domain, token);
+  if (!verificationToken) {
+    return null;
+  }
+
+  const now = Math.floor(new Date().getTime() / 1000);
+  
+  // Mark token as used
+  await db.prepare(`
+    UPDATE ${domain}_email_verification_tokens 
+    SET used_at = ? 
+    WHERE token = ? AND used_at IS NULL
+  `).bind(now, token).run();
+
+  // Verify the user's email
+  await db.prepare(`
+    UPDATE ${domain}_users 
+    SET email_verified = 1 
+    WHERE id = ?
+  `).bind(verificationToken.userId).run();
+
+  // Return updated user
+  const user = await getUserById(db, domain, verificationToken.userId);
+  return user;
+}
+
+/**
+ * Clean up expired email verification tokens
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @returns Promise<number> - Number of tokens cleaned up
+ */
+export async function cleanupExpiredEmailVerificationTokens(db: D1Database, domain: string): Promise<number> {
+  const now = Math.floor(new Date().getTime() / 1000);
+  
+  // Get count before deletion
+  const countResult = await db.prepare(`
+    SELECT COUNT(*) as count FROM ${domain}_email_verification_tokens WHERE expires_at < ?
+  `).bind(now).first();
+  
+  const count = countResult ? (countResult.count as number) : 0;
+  
+  // Delete expired tokens
+  await db.prepare(`
+    DELETE FROM ${domain}_email_verification_tokens 
     WHERE expires_at < ?
   `).bind(now).run();
 

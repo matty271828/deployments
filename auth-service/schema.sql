@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_users (
     password_salt TEXT NOT NULL,
     created_at INTEGER NOT NULL, -- unix time (seconds)
     failed_login_attempts INTEGER NOT NULL DEFAULT 0,
-    locked_until INTEGER -- unix time (seconds) when account unlocks
+    locked_until INTEGER, -- unix time (seconds) when account unlocks
+    email_verified INTEGER NOT NULL DEFAULT 0 -- 0 = unverified, 1 = verified
 ) STRICT;
 
 -- Sessions table - stores secure session data
@@ -36,6 +37,16 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_password_reset_tokens (
     FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
 ) STRICT;
 
+-- Email verification tokens table - stores temporary verification tokens
+CREATE TABLE IF NOT EXISTS {PREFIX}_email_verification_tokens (
+    token TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    expires_at INTEGER NOT NULL, -- unix time (seconds)
+    used_at INTEGER, -- unix time (seconds) when token was used
+    FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
+) STRICT;
+
 -- CSRF tokens table - stores one-time use CSRF tokens for form protection
 CREATE TABLE IF NOT EXISTS {PREFIX}_csrf_tokens (
     token TEXT NOT NULL PRIMARY KEY,
@@ -47,6 +58,8 @@ CREATE INDEX IF NOT EXISTS idx_{PREFIX}_users_email ON {PREFIX}_users(email);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_sessions_created_at ON {PREFIX}_sessions(created_at);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_user_id ON {PREFIX}_password_reset_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_expires_at ON {PREFIX}_password_reset_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_email_verification_tokens_user_id ON {PREFIX}_email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_email_verification_tokens_expires_at ON {PREFIX}_email_verification_tokens(expires_at);
 
 -- Rate limiting table for token bucket implementation
 CREATE TABLE IF NOT EXISTS {PREFIX}_rate_limits (
