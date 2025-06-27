@@ -209,19 +209,6 @@ export async function getSecureCorsHeaders(request: Request, env: any): Promise<
     ...getSecurityHeaders()
   };
 
-  // TEMPORARILY DISABLED: Domain-based CORS restrictions
-  // TODO: Re-enable domain validation after debugging is complete
-  // This allows manual testing of endpoints from any origin
-  // Original code should be restored to validate origins against allowed domains
-  
-  if (origin) {
-    // Allow all origins for now (temporary for debugging)
-    corsHeaders['Access-Control-Allow-Origin'] = origin;
-    console.log(`DEBUG: Allowing origin ${origin} (domain restrictions temporarily disabled)`);
-  }
-
-  // ORIGINAL SECURE CODE (commented out for now):
-  /*
   // If no origin header, return headers without Access-Control-Allow-Origin
   // This allows direct API calls (non-browser requests)
   if (!origin) {
@@ -245,7 +232,6 @@ export async function getSecureCorsHeaders(request: Request, env: any): Promise<
     console.error('Error validating CORS origin:', error);
     // On error, don't set Access-Control-Allow-Origin (fail secure)
   }
-  */
 
   return corsHeaders;
 }
@@ -264,16 +250,6 @@ export async function getSecureCorsHeaders(request: Request, env: any): Promise<
 export async function handlePreflight(request: Request, env: any): Promise<Response> {
   const corsHeaders = await getSecureCorsHeaders(request, env);
   
-  // TEMPORARILY DISABLED: Domain-based preflight restrictions
-  // TODO: Re-enable domain validation after debugging is complete
-  // This allows preflight requests from any origin for manual testing
-  
-  // Allow all preflight requests for now (temporary for debugging)
-  console.log(`DEBUG: Allowing preflight request (domain restrictions temporarily disabled)`);
-  return new Response(null, { headers: corsHeaders });
-
-  // ORIGINAL SECURE CODE (commented out for now):
-  /*
   // For preflight requests, we need to include Access-Control-Allow-Origin if it exists
   if (corsHeaders['Access-Control-Allow-Origin']) {
     // Origin is allowed - return successful preflight response
@@ -289,5 +265,4 @@ export async function handlePreflight(request: Request, env: any): Promise<Respo
       }
     });
   }
-  */
 } 
