@@ -97,7 +97,10 @@ runs:
           DEPLOYMENT_DATA="{\"branch\":\"main\""
           if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
             echo "Using price ID for $domain: $price_id"
-            DEPLOYMENT_DATA="$DEPLOYMENT_DATA,\"environment_variables\":{\"STRIPE_PRICE_ID\":\"$price_id\"}"
+            # Create domain-prefixed environment variable name
+            ENV_VAR_NAME="STRIPE_PRICE_ID_$(echo "$domain" | tr '.-' '_' | tr '[:lower:]' '[:upper:]')"
+            echo "Setting environment variable: $ENV_VAR_NAME"
+            DEPLOYMENT_DATA="$DEPLOYMENT_DATA,\"environment_variables\":{\"$ENV_VAR_NAME\":\"$price_id\"}"
           else
             echo "No price ID found for $domain, deploying without Stripe configuration"
           fi
