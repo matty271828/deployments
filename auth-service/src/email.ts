@@ -177,7 +177,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Password Reset - ${domain}</title>
-          <meta name="description" content="Reset your password for your ${domain} account. This link will expire in 1 hour.">
+          <meta name="description" content="Reset your password for your ${domain} account. This link will expire in 15 minutes.">
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 0;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -196,7 +196,7 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
               </p>
               
               <p style="font-size: 16px; margin: 0 0 30px 0; color: #555;">
-                Click the button below to securely reset your password. This link will expire in 1 hour.
+                Click the button below to securely reset your password. This link will expire in 15 minutes.
               </p>
               
               <!-- CTA Button -->
@@ -246,7 +246,7 @@ We received a request to reset your password for your ${domain} account.
 Click the link below to securely reset your password:
 ${resetUrl}
 
-This link will expire in 1 hour for security reasons.
+This link will expire in 15 minutes for security reasons.
 
 SECURITY NOTICE: If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
 

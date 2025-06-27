@@ -354,7 +354,7 @@ curl -X POST https://leetrepeat.com/auth/password-reset \
 
 **Security Notes:**
 - Always returns success to prevent email enumeration attacks
-- Reset tokens expire after 1 hour
+- Reset tokens expire after 15 minutes
 - Rate limited to prevent abuse
 - CSRF protection available for form submissions
 
@@ -445,7 +445,7 @@ curl -X POST https://leetrepeat.com/auth/login \
 
 ### Password Reset Security Features
 
-- **Time-limited tokens**: Reset tokens expire after 1 hour
+- **Time-limited tokens**: Reset tokens expire after 15 minutes
 - **Single-use tokens**: Each token can only be used once
 - **Rate limiting**: Prevents abuse of reset requests
 - **Email enumeration protection**: Always returns success response
@@ -624,7 +624,7 @@ Example: `58rh2iarc64r2blbv7sq2a2i.tdfi7ful8ftttqrg8wue6z2u`
 ### CSRF Protection
 - **Token Generation**: Secure random tokens for form protection
 - **One-Time Use**: Tokens are consumed after validation
-- **Expiration**: Tokens expire after 1 hour
+- **Expiration**: Tokens expire after 15 minutes
 - **Form Integration**: Easy integration with HTML forms
 - **Automatic Cleanup**: Expired tokens are automatically removed
 

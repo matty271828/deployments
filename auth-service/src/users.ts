@@ -477,7 +477,7 @@ export async function createPasswordResetToken(db: D1Database, domain: string, e
   // Generate secure token
   const token = generateSecureRandomString();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour expiry
+  const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes expiry
 
   // Store token in database
   await db.prepare(`
