@@ -691,4 +691,70 @@ To get your Brevo API key:
 
 ---
 
+## Gmail "Send Mail As" Setup
+
+Since support emails are forwarded to your Gmail inbox, you can configure Gmail to reply as if you're sending from the support email address.
+
+### Prerequisites
+- Support email forwarding is already configured (e.g., `support@yourdomain.com` → your Gmail)
+- Brevo domain authentication is set up for your domain
+
+### Setup Instructions
+
+#### 1. Get Brevo SMTP Credentials
+1. Log into your Brevo account at https://app.brevo.com/
+2. Navigate to **Settings → SMTP & API** (or look for SMTP settings)
+3. **Important:** Check the **"Master Password"** box to enable SMTP access
+4. Generate an SMTP password for your `support@yourdomain.com` sender
+5. Note down the SMTP settings:
+   - **SMTP Server:** `smtp-relay.brevo.com`
+   - **Port:** `587` (or `465` for SSL)
+   - **Username:** `support@yourdomain.com`
+   - **Password:** Your Brevo SMTP password
+
+#### 2. Configure Gmail
+1. In Gmail, go to **Settings → Accounts and Import**
+2. Under "Send mail as", click **"Add another email address"**
+3. Enter the following details:
+   - **Name:** Your Domain Support (or preferred name)
+   - **Email address:** `support@yourdomain.com`
+4. **Uncheck** "Treat as an alias"
+5. Click **"Next Step"**
+6. Configure SMTP settings:
+   - **SMTP Server:** `smtp-relay.brevo.com`
+   - **Port:** `587`
+   - **Username:** `support@yourdomain.com`
+   - **Password:** Your Brevo SMTP password
+   - **Security:** TLS (recommended)
+7. Click **"Add Account"**
+
+#### 3. Verify the Setup
+1. Gmail will send a verification email to `support@yourdomain.com`
+2. Since you have forwarding configured, this email will arrive in your Gmail inbox
+3. Click the verification link in the email to complete the setup
+
+#### 4. Using the Feature
+- When composing emails in Gmail, you'll see a "From" dropdown
+- Select `support@yourdomain.com` to send emails as the support address
+- Recipients will see the email as coming from your support address
+
+### Troubleshooting
+
+**If you can't find SMTP settings in Brevo:**
+- Some Brevo accounts may use API keys for SMTP authentication
+- Try using your Brevo API key as the SMTP password
+- Contact Brevo support if you need specific SMTP credentials
+
+**If verification email doesn't arrive:**
+- Check that email forwarding is working correctly
+- Verify that `support@yourdomain.com` is configured as a sender in Brevo
+- Check your spam folder
+
+**If SMTP authentication fails:**
+- Double-check the SMTP server and port settings
+- Ensure your Brevo account has SMTP access enabled
+- Verify the username and password are correct
+
+---
+
 ## Error Responses
