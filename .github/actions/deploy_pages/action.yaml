@@ -160,3 +160,50 @@ runs:
             fi
           fi
         done
+
+    - name: Configure Environment Variables
+      shell: bash
+      run: |
+        # Extract project names and domains from mappings
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        if [ "$MAPPINGS" = "[]" ]; then
+          echo "No domain mappings found, skipping environment variable configuration"
+          exit 0
+        fi
+        
+        # Create a map of project names to their domains and price IDs
+        PROJECT_DOMAIN_MAP=$(echo "$MAPPINGS" | jq -r '.[] | "\(.frontend_repo | split("/") | last):\(.domain):\(.stripe_price_id // "")"')
+        
+        # Configure environment variables for each project
+        while IFS=: read -r project domain price_id; do
+          echo "Configuring environment variables for project: $project (domain: $domain)"
+          
+          if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
+            echo "Using price ID for $domain: $price_id"
+            # Create domain-prefixed environment variable name
+            ENV_VAR_NAME="STRIPE_PRICE_ID_$(echo "$domain" | tr '.-' '_' | tr '[:lower:]' '[:upper:]')"
+            echo "Setting environment variable: $ENV_VAR_NAME"
+            
+            # Set the environment variable at the project level
+            response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environment_variables" \
+              -H 'Content-Type: application/json' \
+              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+              -d "{\"name\": \"$ENV_VAR_NAME\", \"value\": \"$price_id\"}")
+            
+            # Check if the request was successful
+            if ! echo "$response" | jq -e '.success == true' > /dev/null; then
+              error_message=$(echo "$response" | jq -r '.errors[0].message')
+              if [[ "$error_message" == *"already exists"* ]]; then
+                echo "Environment variable $ENV_VAR_NAME already exists for project $project"
+              else
+                echo "::error::Failed to set environment variable $ENV_VAR_NAME for project $project"
+                echo "$error_message"
+                exit 1
+              fi
+            else
+              echo "Successfully set environment variable $ENV_VAR_NAME for project $project"
+            fi
+          else
+            echo "No price ID found for $domain, skipping environment variable configuration"
+          fi
+        done <<< "$PROJECT_DOMAIN_MAP"
