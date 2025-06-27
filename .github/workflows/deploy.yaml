@@ -98,7 +98,6 @@ jobs:
         uses: ./.github/actions/setup_stripe
         with:
           stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
-          domain: ${{ inputs.domain }}
           cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 

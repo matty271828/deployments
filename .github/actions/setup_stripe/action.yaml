@@ -5,9 +5,6 @@ inputs:
   stripe_secret_key:
     description: 'Stripe secret key'
     required: true
-  domain:
-    description: 'Domain for webhook endpoint'
-    required: true
   cloudflare_account_id:
     description: 'Cloudflare Account ID'
     required: true
@@ -27,6 +24,46 @@ runs:
       shell: bash
       run: 'npm install stripe'
 
+    - name: Get domains from R2
+      id: get-domains
+      shell: bash
+      run: |
+        echo "Retrieving domains from R2..."
+        
+        # Get domain mappings from R2
+        MAPPINGS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        echo "Raw response from R2:"
+        echo "$MAPPINGS_RESPONSE"
+        
+        # Check if we got a valid response
+        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          echo "::error::Failed to retrieve domain mappings from R2 - invalid JSON"
+          echo "$MAPPINGS_RESPONSE"
+          exit 1
+        fi
+        
+        # Check if response is an array (success case) or has errors
+        if echo "$MAPPINGS_RESPONSE" | jq -e 'type == "array"' > /dev/null; then
+          # Response is an array, which is what we expect
+          echo "✅ Successfully retrieved domain mappings from R2"
+        elif echo "$MAPPINGS_RESPONSE" | jq -e '.errors' > /dev/null; then
+          # Response has errors
+          echo "::error::Failed to get domain mappings"
+          echo "$MAPPINGS_RESPONSE" | jq -r '.errors[0].message'
+          exit 1
+        else
+          echo "::error::Unexpected response format from R2"
+          echo "$MAPPINGS_RESPONSE"
+          exit 1
+        fi
+        
+        # Store the domains as a single line JSON string
+        echo "domains=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
+        echo "Retrieved $(echo "$MAPPINGS_RESPONSE" | jq '. | length') domains from R2"
+
     - name: Setup Stripe Products
       shell: bash
       run: |
@@ -38,56 +75,99 @@ runs:
         
         async function setupProducts() {
           try {
-            console.log('🔧 Setting up Stripe products and prices...');
+            console.log('🔧 Setting up Stripe products and prices for all domains...');
             
-            // 1. Get or create shared product (one for all domains)
-            console.log('📦 Checking shared product...');
-            let products = await stripe.products.list({ limit: 100, active: true });
-            let product = products.data.find(p => p.name === 'Premium Plan');
+            // Get domains from the previous step
+            const domains = '${{ steps.get-domains.outputs.domains }}';
+            const domainList = JSON.parse(domains);
             
-            if (!product) {
-              product = await stripe.products.create({
-                name: 'Premium Plan',
-                description: 'Premium subscription with enhanced features',
-                active: true
+            console.log('📋 Processing', domainList.length, 'domains...');
+            
+            const results = [];
+            
+            // Process each domain
+            for (const domainObj of domainList) {
+              const domain = domainObj.domain;
+              console.log('\\n🌐 Processing domain:', domain);
+              
+              // 1. Get or create domain-specific product
+              const productName = \`Premium Plan - \${domain}\`;
+              console.log('📦 Checking domain-specific product:', productName);
+              let products = await stripe.products.list({ limit: 100, active: true });
+              let product = products.data.find(p => p.name === productName);
+              
+              // Generate a business name based on the domain
+              const businessName = domain.replace(/^www\./, '').split('.')[0];
+              const displayBusinessName = businessName.charAt(0).toUpperCase() + businessName.slice(1);
+              
+              if (!product) {
+                product = await stripe.products.create({
+                  name: productName,
+                  description: \`Premium subscription with enhanced features for \${domain}\`,
+                  active: true,
+                  metadata: {
+                    domain: domain,
+                    business_name: displayBusinessName,
+                    statement_descriptor: displayBusinessName
+                  }
+                });
+                console.log('✅ Created domain-specific product:', product.id, 'with business name:', displayBusinessName);
+              } else {
+                console.log('✅ Using existing domain-specific product:', product.id, 'with business name:', displayBusinessName);
+              }
+              
+              // 2. Get or create domain-specific price
+              console.log('💰 Checking domain-specific price...');
+              let prices = await stripe.prices.list({ 
+                product: product.id, 
+                active: true,
+                type: 'recurring'
               });
-              console.log('✅ Created shared product:', product.id);
-            } else {
-              console.log('✅ Using existing shared product:', product.id);
+              let price = prices.data.find(p => p.currency === 'gbp' && p.recurring?.interval === 'month');
+              
+              if (!price) {
+                price = await stripe.prices.create({
+                  product: product.id,
+                  unit_amount: 999, // £9.99 in pence
+                  currency: 'gbp',
+                  recurring: { interval: 'month' },
+                  active: true,
+                  metadata: {
+                    domain: domain,
+                    business_name: displayBusinessName
+                  },
+                  // Custom statement descriptor for customer-facing separation
+                  statement_descriptor: displayBusinessName.substring(0, 22) // Stripe limit is 22 characters
+                });
+                console.log('✅ Created domain-specific price:', price.id, 'with statement descriptor:', displayBusinessName);
+              } else {
+                console.log('✅ Using existing domain-specific price:', price.id, 'with statement descriptor:', displayBusinessName);
+              }
+              
+              // Store results for this domain
+              results.push({
+                domain: domain,
+                product_id: product.id,
+                price_id: price.id
+              });
+              
+              console.log('✅ Completed setup for', domain);
             }
             
-            // 2. Get or create shared price
-            console.log('💰 Checking shared price...');
-            let prices = await stripe.prices.list({ 
-              product: product.id, 
-              active: true,
-              type: 'recurring'
+            // 3. Output configuration summary
+            console.log('\\n📋 Stripe Configuration Summary:');
+            results.forEach(result => {
+              console.log(\`\${result.domain}: Product \${result.product_id}, Price \${result.price_id}\`);
             });
-            let price = prices.data.find(p => p.currency === 'gbp' && p.recurring?.interval === 'month');
             
-            if (!price) {
-              price = await stripe.prices.create({
-                product: product.id,
-                unit_amount: 999, // £9.99 in pence
-                currency: 'gbp',
-                recurring: { interval: 'month' },
-                active: true
-              });
-              console.log('✅ Created shared price:', price.id);
-            } else {
-              console.log('✅ Using existing shared price:', price.id);
+            // 4. Set outputs (using the first domain's price ID for backward compatibility)
+            if (results.length > 0) {
+              console.log('\\n::set-output name=product_id::' + results[0].product_id);
+              console.log('::set-output name=price_id::' + results[0].price_id);
+              console.log('::set-output name=all_results::' + JSON.stringify(results));
             }
             
-            // 3. Output configuration
-            console.log('\\n📋 Stripe Configuration:');
-            console.log('Product ID:', product.id);
-            console.log('Price ID:', price.id);
-            
-            // 4. Set outputs
-            console.log('\\n::set-output name=product_id::' + product.id);
-            console.log('::set-output name=price_id::' + price.id);
-            
-            console.log('\\n✅ Stripe products setup complete!');
+            console.log('\\n✅ Stripe products setup complete for all domains!');
             
           } catch (error) {
             console.error('❌ Stripe setup failed:', error.message);
