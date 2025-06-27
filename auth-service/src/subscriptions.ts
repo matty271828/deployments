@@ -111,10 +111,10 @@ export async function createCheckoutSession(
     // Get or create Stripe customer
     const customer = await getOrCreateStripeCustomer(db, prefix, userId, userEmail, stripe);
 
-    // Get price ID from environment or use the one from request
-    const priceId = request.planId || process.env.STRIPE_PRICE_ID;
+    // Get price ID from request (frontend should provide this)
+    const priceId = request.priceId;
     if (!priceId) {
-      throw new Error('No price ID available for checkout session');
+      throw new Error('Price ID is required for checkout session');
     }
 
     // Create checkout session

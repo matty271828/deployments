@@ -244,9 +244,10 @@ The platform uses a **shared Stripe account** for subscription management:
 
 Once you have your Stripe API key, the deployment will automatically:
 
-- ✅ Create the "Premium Plan" product (if it doesn't exist)
-- ✅ Create the monthly price (£9.99)
-- ✅ Set up all environment variables
+- ✅ Create domain-specific products and prices for each domain
+- ✅ Store price IDs in the domain mappings (R2)
+- ✅ Set domain-specific environment variables on Pages projects
+- ✅ Configure the auth service with Stripe integration
 
 ### Payment Endpoints
 
@@ -255,21 +256,35 @@ Each domain gets these endpoints:
 - `POST /auth/create-checkout-session` - Create Stripe Checkout session
 - `POST /auth/create-portal-session` - Create customer portal session
 
+### Frontend Integration
+
+Each frontend is responsible for providing its domain's price ID when creating checkout sessions. The price ID can be obtained from:
+
+1. **Environment Variable**: Each Pages project gets a domain-specific environment variable like `STRIPE_PRICE_ID_DOMAIN_NAME`
+2. **Domain Mappings**: Fetch from R2 storage (advanced use case)
+
 ### Usage Example
 
 ```javascript
+// Get price ID from environment variable
+const priceId = process.env.STRIPE_PRICE_ID_YOURDOMAIN_COM;
+
 // Create a checkout session
 const response = await fetch('/auth/create-checkout-session', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${sessionToken}` // Required
+  },
   body: JSON.stringify({
+    priceId: priceId, // Required - domain-specific price ID
     successUrl: 'https://yourdomain.com/success',
     cancelUrl: 'https://yourdomain.com/cancel'
   })
 });
 
-const { url } = await response.json();
-window.location.href = url; // Redirect to Stripe Checkout
+const { checkoutUrl } = await response.json();
+window.location.href = checkoutUrl; // Redirect to Stripe Checkout
 ```
 
 ### Benefits of Shared Account
@@ -278,6 +293,7 @@ window.location.href = url; // Redirect to Stripe Checkout
 - **Unified Billing**: All payments in one Stripe dashboard
 - **Cost Effective**: No need for multiple Stripe accounts
 - **Easy Scaling**: Add new domains without additional Stripe setup
+- **Domain-Specific Pricing**: Each domain can have its own product/price configuration
 
 ### Note on Subscription Status
 

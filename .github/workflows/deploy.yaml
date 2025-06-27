@@ -119,7 +119,6 @@ jobs:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
           stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
-          stripe_price_id: ${{ needs.setup-stripe.outputs.price_id }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'

@@ -1308,11 +1308,11 @@ const handlers = {
 
       // Parse request body
       const body = await request.json() as CreateCheckoutSessionRequest;
-      const { planId, successUrl, cancelUrl, csrfToken } = body;
+      const { priceId, successUrl, cancelUrl, csrfToken } = body;
 
-      // Validate required fields (planId is now optional)
-      if (!successUrl || !cancelUrl) {
-        return createErrorResponse('Success URL and cancel URL are required', 400, corsHeaders);
+      // Validate required fields
+      if (!priceId || !successUrl || !cancelUrl) {
+        return createErrorResponse('Price ID, success URL and cancel URL are required', 400, corsHeaders);
       }
 
       // CSRF token validation (if provided)
@@ -1341,7 +1341,7 @@ const handlers = {
         subdomain,
         userId,
         userEmail,
-        { planId, successUrl, cancelUrl },
+        { priceId, successUrl, cancelUrl },
         stripe,
         request.headers.get('host') || subdomain
       );
