@@ -738,6 +738,21 @@ Since support emails are forwarded to your Gmail inbox, you can configure Gmail 
 - Select `support@yourdomain.com` to send emails as the support address
 - Recipients will see the email as coming from your support address
 
+#### 5. Setting a Custom Display Name (Recommended)
+By default, Gmail may show your personal name alongside the support email address. To fix this:
+
+1. **Go to Gmail Settings** → **Accounts and Import**
+2. **Under "Send mail as"**, find your `support@yourdomain.com` entry
+3. **Click "edit info"** next to it
+4. **Change the name** to something professional like:
+   - "Your Domain Support"
+   - "Support Team"
+   - "Customer Support"
+   - Or leave it blank for just the email address
+5. **Save the changes**
+
+This will make your emails appear as "Your Domain Support <support@yourdomain.com>" instead of "Your Name <support@yourdomain.com>".
+
 ### Troubleshooting
 
 **If you can't find SMTP settings in Brevo:**
