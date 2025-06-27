@@ -23,8 +23,8 @@ inputs:
   stripe_secret_key:
     description: 'Stripe secret key for payment processing'
     required: true
-  stripe_webhook_secret:
-    description: 'Stripe webhook secret for webhook verification'
+  stripe_price_id:
+    description: 'Stripe price ID for subscription creation'
     required: true
     
 runs:
@@ -94,12 +94,12 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
 
-    # Set Stripe webhook secret as a Wrangler secret
-    - name: Set Stripe Webhook Secret
+    # Set Stripe price ID as a Wrangler secret
+    - name: Set Stripe Price ID
       working-directory: './auth-service'
       shell: bash
       run: |
-        echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+        echo "${{ inputs.stripe_price_id }}" | npx wrangler secret put STRIPE_PRICE_ID
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

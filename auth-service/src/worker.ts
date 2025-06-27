@@ -88,9 +88,6 @@ const ENDPOINTS = {
   },
   '/auth/create-portal-session': {
     POST: 'createPortalSession'
-  },
-  '/auth/webhook': {
-    POST: 'handleWebhook'
   }
 } as const;
 
@@ -1313,9 +1310,9 @@ const handlers = {
       const body = await request.json() as CreateCheckoutSessionRequest;
       const { planId, successUrl, cancelUrl, csrfToken } = body;
 
-      // Validate required fields
-      if (!planId || !successUrl || !cancelUrl) {
-        return createErrorResponse('Plan ID, success URL, and cancel URL are required', 400, corsHeaders);
+      // Validate required fields (planId is now optional)
+      if (!successUrl || !cancelUrl) {
+        return createErrorResponse('Success URL and cancel URL are required', 400, corsHeaders);
       }
 
       // CSRF token validation (if provided)
@@ -1434,83 +1431,6 @@ const handlers = {
         success: true,
         portalUrl: portalUrl
       }), {
-        status: 200,
-        headers: corsHeaders
-      });
-
-    } catch (error: any) {
-      return handleApiError(error, corsHeaders);
-    }
-  },
-
-  /**
-   * Handle Stripe webhook endpoint
-   */
-  async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
-    try {
-      // Ensure we have database access
-      if (!env?.AUTH_DB_BINDING) {
-        return createErrorResponse('Database not available', 500, corsHeaders);
-      }
-
-      // Check if Stripe is configured
-      if (!env?.STRIPE_SECRET_KEY || !env?.STRIPE_WEBHOOK_SECRET) {
-        return createErrorResponse('Stripe webhook handling not yet configured. Please set up STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET environment variables.', 503, corsHeaders);
-      }
-
-      // Get the raw body for webhook signature verification
-      const body = await request.text();
-      const signature = request.headers.get('stripe-signature');
-
-      if (!signature) {
-        return createErrorResponse('Missing Stripe signature', 400, corsHeaders);
-      }
-
-      // Initialize Stripe
-      const { default: Stripe } = await import('stripe');
-      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-        apiVersion: '2023-10-16',
-      });
-
-      let event;
-      try {
-        event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
-      } catch (err: any) {
-        console.error('Webhook signature verification failed:', err.message);
-        return createErrorResponse('Invalid webhook signature', 400, corsHeaders);
-      }
-
-      // Check if we've already processed this event
-      if (await isWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id)) {
-        return new Response(JSON.stringify({ received: true }), {
-          status: 200,
-          headers: corsHeaders
-        });
-      }
-
-      // Handle the event
-      switch (event.type) {
-        case 'customer.subscription.created':
-        case 'customer.subscription.updated':
-        case 'customer.subscription.deleted':
-          const subscription = event.data.object as any;
-          await updateSubscriptionFromWebhook(
-            env.AUTH_DB_BINDING,
-            subdomain,
-            subscription.id,
-            subscription.status,
-            subscription.items?.data[0]?.price?.id,
-            subscription.current_period_end
-          );
-          break;
-        default:
-          console.log(`Unhandled event type: ${event.type}`);
-      }
-
-      // Mark event as processed
-      await markWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id, event.type);
-
-      return new Response(JSON.stringify({ received: true }), {
         status: 200,
         headers: corsHeaders
       });

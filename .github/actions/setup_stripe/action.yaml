@@ -1,0 +1,99 @@
+name: 'Setup Stripe'
+description: 'Creates Stripe products and prices for payments'
+
+inputs:
+  stripe_secret_key:
+    description: 'Stripe secret key'
+    required: true
+  domain:
+    description: 'Domain for webhook endpoint'
+    required: true
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  cloudflare_api_token:
+    description: 'Cloudflare API token'
+    required: true
+    
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Stripe
+      shell: bash
+      run: 'npm install stripe'
+
+    - name: Setup Stripe Products
+      shell: bash
+      run: |
+        node -e "
+        const Stripe = require('stripe');
+        const stripe = new Stripe('${{ inputs.stripe_secret_key }}', {
+          apiVersion: '2023-10-16'
+        });
+        
+        async function setupProducts() {
+          try {
+            console.log('🔧 Setting up Stripe products and prices...');
+            
+            // 1. Get or create shared product (one for all domains)
+            console.log('📦 Checking shared product...');
+            let products = await stripe.products.list({ limit: 100, active: true });
+            let product = products.data.find(p => p.name === 'Premium Plan');
+            
+            if (!product) {
+              product = await stripe.products.create({
+                name: 'Premium Plan',
+                description: 'Premium subscription with enhanced features',
+                active: true
+              });
+              console.log('✅ Created shared product:', product.id);
+            } else {
+              console.log('✅ Using existing shared product:', product.id);
+            }
+            
+            // 2. Get or create shared price
+            console.log('💰 Checking shared price...');
+            let prices = await stripe.prices.list({ 
+              product: product.id, 
+              active: true,
+              type: 'recurring'
+            });
+            let price = prices.data.find(p => p.currency === 'gbp' && p.recurring?.interval === 'month');
+            
+            if (!price) {
+              price = await stripe.prices.create({
+                product: product.id,
+                unit_amount: 999, // £9.99 in pence
+                currency: 'gbp',
+                recurring: { interval: 'month' },
+                active: true
+              });
+              console.log('✅ Created shared price:', price.id);
+            } else {
+              console.log('✅ Using existing shared price:', price.id);
+            }
+            
+            // 3. Output configuration
+            console.log('\\n📋 Stripe Configuration:');
+            console.log('Product ID:', product.id);
+            console.log('Price ID:', price.id);
+            
+            // 4. Set outputs
+            console.log('\\n::set-output name=product_id::' + product.id);
+            console.log('::set-output name=price_id::' + price.id);
+            
+            console.log('\\n✅ Stripe products setup complete!');
+            
+          } catch (error) {
+            console.error('❌ Stripe setup failed:', error.message);
+            process.exit(1);
+          }
+        }
+        
+        setupProducts();
+        " 

@@ -5,9 +5,6 @@ inputs:
   stripe_secret_key:
     description: 'Stripe secret key to validate'
     required: true
-  stripe_webhook_secret:
-    description: 'Stripe webhook secret to validate'
-    required: true
     
 runs:
   using: 'composite'
@@ -27,7 +24,7 @@ runs:
         node -e "
         const Stripe = require('stripe');
         const stripe = new Stripe('${{ inputs.stripe_secret_key }}', {
-          apiVersion: '2025-05-28.basil'
+          apiVersion: '2023-10-16'
         });
         
         stripe.customers.list({ limit: 1 })
@@ -39,16 +36,4 @@ runs:
             console.error('❌ Stripe secret key validation failed:', error.message);
             process.exit(1);
           });
-        "
-
-    - name: Validate Stripe Webhook Secret Format
-      shell: bash
-      run: |
-        WEBHOOK_SECRET='${{ inputs.stripe_webhook_secret }}'
-        
-        if [[ ! "$WEBHOOK_SECRET" =~ ^whsec_[a-zA-Z0-9]{32,}$ ]]; then
-          echo "❌ Stripe webhook secret format is invalid. Expected format: whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-          exit 1
-        fi
-        
-        echo "✅ Stripe webhook secret format is valid" 
+        " 

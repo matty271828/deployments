@@ -1,4 +1,3 @@
-```
 ___ _______ _   _____   __  ______  ________   
 |  \|___|__]|   |  | \_/ |\/||___|\ | | [__ 
 |__/|___|   |___|__|  |  |  ||___| \| | ___] 
@@ -217,6 +216,72 @@ curl https://yourdomain.com/auth/health
 ```
 
 The auth service automatically routes requests to the correct project's database based on the domain.
+
+## 💳 Payment Integration (Stripe)
+
+The platform uses a **shared Stripe account** for subscription management:
+
+### How It Works
+
+- **One Stripe Account**: All domains share the same Stripe account and API keys
+- **Shared Products**: One "Premium Plan" product (£9.99/month) used by all domains
+- **Stripe Checkout**: Users are redirected to Stripe's hosted checkout page
+- **Customer Portal**: Users can manage subscriptions through Stripe's portal
+
+### Manual Setup Required
+
+1. **Create Stripe Account**:
+   - Go to [stripe.com](https://stripe.com) and create an account
+   - Complete account verification (business details, payment info)
+   - Switch to "Live" mode when ready
+
+2. **Get API Key**:
+   - Go to [Stripe Dashboard > API Keys](https://dashboard.stripe.com/apikeys)
+   - Copy your **Secret key** (starts with `sk_live_...`)
+   - Add it to GitHub repository secrets as `STRIPE_SECRET_KEY`
+
+### What Gets Automated
+
+Once you have your Stripe API key, the deployment will automatically:
+
+- ✅ Create the "Premium Plan" product (if it doesn't exist)
+- ✅ Create the monthly price (£9.99)
+- ✅ Set up all environment variables
+
+### Payment Endpoints
+
+Each domain gets these endpoints:
+
+- `POST /auth/create-checkout-session` - Create Stripe Checkout session
+- `POST /auth/create-portal-session` - Create customer portal session
+
+### Usage Example
+
+```javascript
+// Create a checkout session
+const response = await fetch('/auth/create-checkout-session', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    successUrl: 'https://yourdomain.com/success',
+    cancelUrl: 'https://yourdomain.com/cancel'
+  })
+});
+
+const { url } = await response.json();
+window.location.href = url; // Redirect to Stripe Checkout
+```
+
+### Benefits of Shared Account
+
+- **Simpler Management**: One set of API keys for all domains
+- **Unified Billing**: All payments in one Stripe dashboard
+- **Cost Effective**: No need for multiple Stripe accounts
+- **Easy Scaling**: Add new domains without additional Stripe setup
+
+### Note on Subscription Status
+
+Currently, subscription status updates require manual intervention or future webhook implementation. Users can manage their subscriptions through Stripe's customer portal.
 
 ## 🔐 Auth Components Library
 

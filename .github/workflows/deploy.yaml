@@ -30,7 +30,6 @@ jobs:
       GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
   manage-domains:
     name: 'Construct Domains List'
@@ -84,9 +83,28 @@ jobs:
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
           support_email: ${{ inputs.support_email }}
 
+  setup-stripe:
+    name: 'Setup Stripe Configuration'
+    needs: [run-terraform, manage-domains]
+    runs-on: ubuntu-latest
+    outputs:
+      price_id: ${{ steps.setup-stripe.outputs.price_id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Stripe Configuration
+        id: setup-stripe
+        uses: ./.github/actions/setup_stripe
+        with:
+          stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
+          domain: ${{ inputs.domain }}
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
   deploy-auth-service:
     name: 'Deploy Auth Service'
-    needs: [run-terraform]
+    needs: [run-terraform, setup-stripe]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -102,7 +120,7 @@ jobs:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
           stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
-          stripe_webhook_secret: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          stripe_price_id: ${{ needs.setup-stripe.outputs.price_id }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'

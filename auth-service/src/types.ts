@@ -187,7 +187,7 @@ export interface StripeCustomer {
  * Create checkout session request
  */
 export interface CreateCheckoutSessionRequest {
-  planId: string;
+  planId?: string; // Optional - will use environment variable if not provided
   successUrl: string;
   cancelUrl: string;
   csrfToken?: string;
