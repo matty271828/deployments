@@ -260,14 +260,14 @@ Each domain gets these endpoints:
 
 Each frontend is responsible for providing its domain's price ID when creating checkout sessions. The price ID can be obtained from:
 
-1. **Environment Variable**: Each Pages project gets a domain-specific environment variable like `STRIPE_PRICE_ID_DOMAIN_NAME`
+1. **Environment Variable**: Each Pages project gets a `STRIPE_PRICE_ID` environment variable
 2. **Domain Mappings**: Fetch from R2 storage (advanced use case)
 
 ### Usage Example
 
 ```javascript
 // Get price ID from environment variable
-const priceId = process.env.STRIPE_PRICE_ID_YOURDOMAIN_COM;
+const priceId = process.env.STRIPE_PRICE_ID;
 
 // Create a checkout session
 const response = await fetch('/auth/create-checkout-session', {
