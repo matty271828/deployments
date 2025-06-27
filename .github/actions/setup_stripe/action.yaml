@@ -140,13 +140,11 @@ runs:
                   metadata: {
                     domain: domain,
                     business_name: displayBusinessName
-                  },
-                  // Custom statement descriptor for customer-facing separation
-                  statement_descriptor: displayBusinessName.substring(0, 22) // Stripe limit is 22 characters
+                  }
                 });
-                console.log('✅ Created domain-specific price:', price.id, 'with statement descriptor:', displayBusinessName);
+                console.log('✅ Created domain-specific price:', price.id, 'with business name:', displayBusinessName);
               } else {
-                console.log('✅ Using existing domain-specific price:', price.id, 'with statement descriptor:', displayBusinessName);
+                console.log('✅ Using existing domain-specific price:', price.id, 'with business name:', displayBusinessName);
               }
               
               // Store results for this domain
