@@ -63,12 +63,17 @@ runs:
         # Store the domains as a single line JSON string
         echo "domains=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
         echo "Retrieved $(echo "$MAPPINGS_RESPONSE" | jq '. | length') domains from R2"
+        
+        # Also write to a temporary file for the Node.js script
+        echo "$MAPPINGS_RESPONSE" > /tmp/domains.json
+        echo "Wrote domains to /tmp/domains.json"
 
     - name: Setup Stripe Products
       shell: bash
       run: |
         node -e "
         const Stripe = require('stripe');
+        const fs = require('fs');
         const stripe = new Stripe('${{ inputs.stripe_secret_key }}', {
           apiVersion: '2023-10-16'
         });
@@ -77,9 +82,9 @@ runs:
           try {
             console.log('🔧 Setting up Stripe products and prices for all domains...');
             
-            // Get domains from the previous step
-            const domains = '${{ steps.get-domains.outputs.domains }}';
-            const domainList = JSON.parse(domains);
+            // Read domains from the temporary file
+            const domainsData = fs.readFileSync('/tmp/domains.json', 'utf8');
+            const domainList = JSON.parse(domainsData);
             
             console.log('📋 Processing', domainList.length, 'domains...');
             
