@@ -17,12 +17,14 @@
  * - GET /auth/debug - Debug database state and session creation
  * - POST /auth/email/send - Email sending
  * - POST /auth/webhook/brevo - Handle Brevo webhook events
+ * - POST /auth/password-reset - Request password reset
+ * - POST /auth/password-reset/confirm - Confirm password reset
  */
 
 import { D1Database } from '@cloudflare/workers-types';
-import { createUser, getUserByEmail, getUserById } from './users';
+import { createUser, getUserByEmail, getUserById, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed, updateUserPassword } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
-import { SignupRequest, LoginRequest, SessionValidationResult } from './types';
+import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
@@ -63,6 +65,12 @@ const ENDPOINTS = {
   },
   '/auth/email/send': {
     POST: 'sendEmail'
+  },
+  '/auth/password-reset': {
+    POST: 'requestPasswordReset'
+  },
+  '/auth/password-reset/confirm': {
+    POST: 'confirmPasswordReset'
   }
 } as const;
 
@@ -932,6 +940,184 @@ const handlers = {
       });
 
     } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Password reset request endpoint
+   */
+  async requestPasswordReset(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.login.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many password reset requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as PasswordResetRequest;
+      const { email, csrfToken } = body;
+
+      // Validate required fields
+      if (!email) {
+        return createErrorResponse('Email is required', 400, corsHeaders);
+      }
+
+      // Validate email type
+      if (typeof email !== 'string') {
+        return createErrorResponse('Email must be a string', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        try {
+          const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+          if (!isValidCSRF) {
+            return createErrorResponse('Invalid CSRF token - security validation failed', 403, corsHeaders);
+          }
+        } catch (csrfError: any) {
+          return createErrorResponse('CSRF token validation error', 403, corsHeaders);
+        }
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Create password reset token
+      const resetToken = await createPasswordResetToken(env.AUTH_DB_BINDING, subdomain, email);
+      
+      // Always return success to prevent email enumeration
+      // If user doesn't exist, we still return success but don't send email
+      if (!resetToken) {
+        console.log(`[PASSWORD RESET] Password reset requested for non-existent email: ${email}`);
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        }), {
+          status: 200,
+          headers: corsHeaders
+        });
+      }
+
+      // Get user details for email
+      const user = await getUserById(env.AUTH_DB_BINDING, subdomain, resetToken.userId);
+      if (!user) {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'If an account with that email exists, a password reset link has been sent.'
+        }), {
+          status: 200,
+          headers: corsHeaders
+        });
+      }
+
+      // Send password reset email
+      let emailSent = false;
+      let emailError = null;
+      try {
+        console.log(`[PASSWORD RESET] Sending password reset email to ${email}...`);
+        const emailService = createEmailService(env);
+        const fullDomain = new URL(request.url).hostname;
+        await emailService.sendPasswordReset(email, user.firstName, user.lastName, fullDomain, resetToken.token);
+        emailSent = true;
+        console.log(`[PASSWORD RESET] ✅ Password reset email sent successfully to ${email}`);
+      } catch (emailError: any) {
+        console.error(`[PASSWORD RESET] ❌ Failed to send password reset email to ${email}:`, emailError.message);
+        emailError = emailError.message;
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      console.error('[PASSWORD RESET] Error:', error);
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Password reset confirmation endpoint
+   */
+  async confirmPasswordReset(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.login.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many password reset attempts. Please try again later.', 429, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as PasswordResetConfirmRequest;
+      const { token, newPassword, csrfToken } = body;
+
+      // Validate required fields
+      if (!token || !newPassword) {
+        return createErrorResponse('Token and newPassword are required', 400, corsHeaders);
+      }
+
+      // Validate field types
+      if (typeof token !== 'string' || typeof newPassword !== 'string') {
+        return createErrorResponse('Token and newPassword must be strings', 400, corsHeaders);
+      }
+
+      // CSRF token validation (if provided)
+      if (csrfToken) {
+        try {
+          const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+          if (!isValidCSRF) {
+            return createErrorResponse('Invalid CSRF token - security validation failed', 403, corsHeaders);
+          }
+        } catch (csrfError: any) {
+          return createErrorResponse('CSRF token validation error', 403, corsHeaders);
+        }
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Validate reset token
+      const resetToken = await validatePasswordResetToken(env.AUTH_DB_BINDING, subdomain, token);
+      if (!resetToken) {
+        return createErrorResponse('Invalid or expired password reset token', 400, corsHeaders);
+      }
+
+      // Update user password
+      const updatedUser = await updateUserPassword(env.AUTH_DB_BINDING, subdomain, resetToken.userId, newPassword);
+
+      // Mark token as used
+      await markPasswordResetTokenAsUsed(env.AUTH_DB_BINDING, subdomain, token);
+
+      console.log(`[PASSWORD RESET] ✅ Password successfully reset for user ${updatedUser.id}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Password has been successfully reset. You can now log in with your new password.',
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          createdAt: updatedUser.createdAt
+        }
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      console.error('[PASSWORD RESET CONFIRM] Error:', error);
       return handleApiError(error, corsHeaders);
     }
   }

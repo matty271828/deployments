@@ -318,6 +318,142 @@ fetch('/auth/csrf-token')
 
 ---
 
+### 8. Password Reset Request
+
+**Endpoint:** `POST /auth/password-reset`
+
+**Description:** Request a password reset for an account. Sends a reset link via email.
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "csrfToken": "optional-csrf-token"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/password-reset \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "If an account with that email exists, a password reset link has been sent."
+}
+```
+
+**Security Notes:**
+- Always returns success to prevent email enumeration attacks
+- Reset tokens expire after 1 hour
+- Rate limited to prevent abuse
+- CSRF protection available for form submissions
+
+---
+
+### 9. Password Reset Confirmation
+
+**Endpoint:** `POST /auth/password-reset/confirm`
+
+**Description:** Complete password reset using a valid reset token
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "token": "reset-token-from-email",
+  "newPassword": "SecureNewPass123!",
+  "csrfToken": "optional-csrf-token"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "abc123def456",
+    "newPassword": "SecureNewPass123!"
+  }'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Password has been successfully reset. You can now log in with your new password.",
+  "user": {
+    "id": "tncy8nc46v8grqwfvmifteyt",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "createdAt": "2025-06-19T08:01:35.000Z"
+  }
+}
+```
+
+**Validation Rules:**
+- Token must be valid and not expired
+- Token can only be used once
+- New password must meet all password requirements
+- Account is automatically unlocked after successful reset
+
+---
+
+## Testing Password Reset
+
+### Complete Password Reset Flow
+
+```bash
+# 1. Request password reset
+curl -X POST https://leetrepeat.com/auth/password-reset \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# 2. Check email for reset link (token will be in URL)
+# Reset link format: https://yourdomain.com/reset-password?token=TOKEN_HERE
+
+# 3. Confirm password reset with new password
+curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "TOKEN_FROM_EMAIL",
+    "newPassword": "NewSecurePass123!"
+  }'
+
+# 4. Login with new password
+curl -X POST https://leetrepeat.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "NewSecurePass123!"
+  }'
+```
+
+### Password Reset Security Features
+
+- **Time-limited tokens**: Reset tokens expire after 1 hour
+- **Single-use tokens**: Each token can only be used once
+- **Rate limiting**: Prevents abuse of reset requests
+- **Email enumeration protection**: Always returns success response
+- **Account unlocking**: Automatically unlocks accounts after reset
+- **Failed attempt reset**: Clears failed login attempts after reset
+
+---
+
 ## Testing CSRF Protection
 
 ### Complete Test Sequence

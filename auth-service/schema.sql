@@ -26,6 +26,16 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_sessions (
     FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
 ) STRICT;
 
+-- Password reset tokens table - stores temporary reset tokens
+CREATE TABLE IF NOT EXISTS {PREFIX}_password_reset_tokens (
+    token TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    expires_at INTEGER NOT NULL, -- unix time (seconds)
+    used_at INTEGER, -- unix time (seconds) when token was used
+    FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE
+) STRICT;
+
 -- CSRF tokens table - stores one-time use CSRF tokens for form protection
 CREATE TABLE IF NOT EXISTS {PREFIX}_csrf_tokens (
     token TEXT NOT NULL PRIMARY KEY,
@@ -35,6 +45,8 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_csrf_tokens (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_users_email ON {PREFIX}_users(email);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_sessions_created_at ON {PREFIX}_sessions(created_at);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_user_id ON {PREFIX}_password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_expires_at ON {PREFIX}_password_reset_tokens(expires_at);
 
 -- Rate limiting table for token bucket implementation
 CREATE TABLE IF NOT EXISTS {PREFIX}_rate_limits (

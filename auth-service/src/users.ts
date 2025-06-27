@@ -1,4 +1,4 @@
-import { User, UserWithPassword } from './types';
+import { User, UserWithPassword, PasswordResetToken } from './types';
 import { generateSecureRandomString, hashPassword, verifyPassword } from './generator';
 
 /**
@@ -457,4 +457,178 @@ function getLockoutDuration(failedAttempts: number): number {
   if (failedAttempts <= 5) return 15 * 60;     // 15 minutes
   if (failedAttempts <= 7) return 60 * 60;     // 1 hour
   return 24 * 60 * 60;                         // 24 hours
+}
+
+/**
+ * Create a password reset token for a user
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param email - User's email address
+ * @returns Promise<PasswordResetToken | null> - Reset token if user exists, null otherwise
+ */
+export async function createPasswordResetToken(db: D1Database, domain: string, email: string): Promise<PasswordResetToken | null> {
+  // Find user by email
+  const user = await getUserByEmail(db, domain, email);
+  if (!user) {
+    return null;
+  }
+
+  // Generate secure token
+  const token = generateSecureRandomString();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour expiry
+
+  // Store token in database
+  await db.prepare(`
+    INSERT INTO ${domain}_password_reset_tokens (token, user_id, created_at, expires_at) 
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    token,
+    user.id,
+    Math.floor(now.getTime() / 1000),
+    Math.floor(expiresAt.getTime() / 1000)
+  ).run();
+
+  const resetToken: PasswordResetToken = {
+    token,
+    userId: user.id,
+    createdAt: now,
+    expiresAt,
+    usedAt: undefined
+  };
+
+  return resetToken;
+}
+
+/**
+ * Validate a password reset token
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param token - Reset token to validate
+ * @returns Promise<PasswordResetToken | null> - Valid token if found and not expired/used, null otherwise
+ */
+export async function validatePasswordResetToken(db: D1Database, domain: string, token: string): Promise<PasswordResetToken | null> {
+  const result = await db.prepare(`
+    SELECT token, user_id, created_at, expires_at, used_at
+    FROM ${domain}_password_reset_tokens 
+    WHERE token = ?
+  `).bind(token).first();
+
+  if (!result) {
+    return null;
+  }
+
+  const resetToken: PasswordResetToken = {
+    token: result.token as string,
+    userId: result.user_id as string,
+    createdAt: new Date((result.created_at as number) * 1000),
+    expiresAt: new Date((result.expires_at as number) * 1000),
+    usedAt: result.used_at ? new Date((result.used_at as number) * 1000) : undefined
+  };
+
+  // Check if token is expired
+  if (resetToken.expiresAt < new Date()) {
+    return null;
+  }
+
+  // Check if token has already been used
+  if (resetToken.usedAt) {
+    return null;
+  }
+
+  return resetToken;
+}
+
+/**
+ * Mark a password reset token as used
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param token - Reset token to mark as used
+ * @returns Promise<boolean> - True if token was marked as used, false if not found
+ */
+export async function markPasswordResetTokenAsUsed(db: D1Database, domain: string, token: string): Promise<boolean> {
+  const now = Math.floor(new Date().getTime() / 1000);
+  
+  await db.prepare(`
+    UPDATE ${domain}_password_reset_tokens 
+    SET used_at = ? 
+    WHERE token = ? AND used_at IS NULL
+  `).bind(now, token).run();
+
+  // Check if any rows were affected by querying the token again
+  const result = await db.prepare(`
+    SELECT used_at FROM ${domain}_password_reset_tokens WHERE token = ?
+  `).bind(token).first();
+  
+  return result ? result.used_at !== null : false;
+}
+
+/**
+ * Update user password
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @param userId - User ID
+ * @param newPassword - New password
+ * @returns Promise<User> - Updated user (without password)
+ */
+export async function updateUserPassword(db: D1Database, domain: string, userId: string, newPassword: string): Promise<User> {
+  // Validate password strength
+  if (!isValidPassword(newPassword)) {
+    throw new Error(getPasswordValidationError(newPassword));
+  }
+
+  // Generate new password hash and salt
+  const { hash: passwordHash, salt } = await hashPassword(newPassword);
+
+  // Update password in database
+  await db.prepare(`
+    UPDATE ${domain}_users 
+    SET password_hash = ?, password_salt = ? 
+    WHERE id = ?
+  `).bind(passwordHash, salt, userId).run();
+
+  // Reset failed login attempts and unlock account
+  await db.prepare(`
+    UPDATE ${domain}_users 
+    SET failed_login_attempts = 0, locked_until = NULL 
+    WHERE id = ?
+  `).bind(userId).run();
+
+  // Return updated user
+  const user = await getUserById(db, domain, userId);
+  if (!user) {
+    throw new Error('User not found after password update');
+  }
+
+  return user;
+}
+
+/**
+ * Clean up expired password reset tokens
+ * 
+ * @param db - D1Database instance
+ * @param domain - Domain prefix for table names
+ * @returns Promise<number> - Number of tokens cleaned up
+ */
+export async function cleanupExpiredPasswordResetTokens(db: D1Database, domain: string): Promise<number> {
+  const now = Math.floor(new Date().getTime() / 1000);
+  
+  // Get count before deletion
+  const countResult = await db.prepare(`
+    SELECT COUNT(*) as count FROM ${domain}_password_reset_tokens WHERE expires_at < ?
+  `).bind(now).first();
+  
+  const count = countResult ? (countResult.count as number) : 0;
+  
+  // Delete expired tokens
+  await db.prepare(`
+    DELETE FROM ${domain}_password_reset_tokens 
+    WHERE expires_at < ?
+  `).bind(now).run();
+
+  return count;
 } 

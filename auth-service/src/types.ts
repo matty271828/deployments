@@ -98,4 +98,32 @@ export interface LoginRequest {
  */
 export interface SessionRequest {
   token: string;
+}
+
+/**
+ * Password reset request
+ */
+export interface PasswordResetRequest {
+  email: string;
+  csrfToken?: string; // Optional CSRF token for form protection
+}
+
+/**
+ * Password reset confirmation request
+ */
+export interface PasswordResetConfirmRequest {
+  token: string;
+  newPassword: string;
+  csrfToken?: string; // Optional CSRF token for form protection
+}
+
+/**
+ * Password reset token interface
+ */
+export interface PasswordResetToken {
+  token: string;
+  userId: string;
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt?: Date;
 } 
