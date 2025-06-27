@@ -16,6 +16,9 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 🚫 **Rate Limiting**: Token bucket rate limiting to prevent brute force attacks
 - 🛡️ **CSRF Protection**: CSRF tokens for form-based authentication
 - 🔒 **Account Lockout**: Progressive account lockout after failed login attempts
+- 📧 **Email Verification**: Email verification system with secure tokens
+- 🔑 **Password Reset**: Secure password reset with time-limited tokens
+- 📨 **Email Service**: Integrated email sending via Brevo
 
 ## Architecture
 
@@ -23,13 +26,21 @@ The service uses a shared D1 database (`AUTH_DB`) with domain-prefixed tables fo
 
 ```
 AUTH_DB
-├── {domain}_users     # User accounts per domain
-└── {domain}_sessions  # Session data per domain
+├── {domain}_users                    # User accounts per domain
+├── {domain}_sessions                 # Session data per domain
+├── {domain}_password_reset_tokens    # Password reset tokens per domain
+├── {domain}_email_verification_tokens # Email verification tokens per domain
+├── {domain}_csrf_tokens              # CSRF tokens per domain
+└── {domain}_rate_limits              # Rate limiting data per domain
 ```
 
 For example, for the domain `leetrepeat.com`:
 - `leetrepeat_users` - User accounts
 - `leetrepeat_sessions` - Session data
+- `leetrepeat_password_reset_tokens` - Password reset tokens
+- `leetrepeat_email_verification_tokens` - Email verification tokens
+- `leetrepeat_csrf_tokens` - CSRF tokens
+- `leetrepeat_rate_limits` - Rate limiting data
 
 ## API Endpoints
 
@@ -318,7 +329,81 @@ fetch('/auth/csrf-token')
 
 ---
 
-### 8. Password Reset Request
+### 8. Debug Database
+
+**Endpoint:** `GET /auth/debug`
+
+**Description:** Debug endpoint to inspect database state and session creation (development only)
+
+**Headers:** None required
+
+**Example Request:**
+```bash
+curl -X GET https://leetrepeat.com/auth/debug
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Debug information",
+  "data": {
+    "tables": ["users", "sessions", "csrf_tokens"],
+    "userCount": 5,
+    "sessionCount": 3,
+    "timestamp": "2025-06-19T08:01:35.746Z"
+  }
+}
+```
+
+**Note:** This endpoint is intended for development and debugging purposes only.
+
+---
+
+### 9. Email Sending
+
+**Endpoint:** `POST /auth/email/send`
+
+**Description:** Send a notification email using Brevo (formerly Sendinblue)
+
+**Headers:**
+```
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "email": "recipient@example.com",
+  "subject": "Email Subject",
+  "message": "Email message content"
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/email/send \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "subject": "Welcome to our service!",
+    "message": "Thank you for signing up with our platform."
+  }'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Email sent successfully"
+}
+```
+
+**Rate Limiting:** 5 requests per minute per IP address
+
+---
+
+### 10. Password Reset Request
 
 **Endpoint:** `POST /auth/password-reset`
 
@@ -360,7 +445,7 @@ curl -X POST https://leetrepeat.com/auth/password-reset \
 
 ---
 
-### 9. Password Reset Confirmation
+### 11. Password Reset Confirmation
 
 **Endpoint:** `POST /auth/password-reset/confirm`
 
@@ -413,7 +498,7 @@ curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
 
 ---
 
-### 10. Email Verification
+### 12. Email Verification
 
 **Endpoint:** `POST /auth/verify-email`
 
@@ -461,7 +546,7 @@ curl -X POST https://leetrepeat.com/auth/verify-email \
 
 ---
 
-### 11. Resend Verification Email
+### 13. Resend Verification Email
 
 **Endpoint:** `POST /auth/resend-verification`
 
@@ -499,6 +584,42 @@ curl -X POST https://leetrepeat.com/auth/resend-verification \
 - Only works for unverified users
 - Creates a new verification token
 - Sends the same signup confirmation email with new verification link
+
+---
+
+### 14. GraphQL Proxy
+
+**Endpoint:** `POST /auth/graphql` and `GET /auth/graphql`
+
+**Description:** Proxy GraphQL requests to domain-specific workers
+
+**Headers:**
+```
+Content-Type: application/json
+Authorization: Bearer {session_token} (optional)
+```
+
+**Request Body:** GraphQL query/mutation
+
+**Example Request:**
+```bash
+curl -X POST https://leetrepeat.com/auth/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query": "query { users { id name } }"}'
+```
+
+**Example Response:**
+```json
+{
+  "data": {
+    "users": [
+      {"id": "1", "name": "John Doe"}
+    ]
+  }
+}
+```
+
+**Note:** This endpoint forwards GraphQL requests to domain-specific workers for processing.
 
 ---
 
