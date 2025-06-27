@@ -15,8 +15,6 @@
  * - GET /auth/csrf-token - CSRF token generation
  * - POST/GET /auth/graphql - GraphQL proxy to domain workers
  * - GET /auth/debug - Debug database state and session creation
- * - POST /auth/email/send - Email sending
- * - POST /auth/webhook/brevo - Handle Brevo webhook events
  * - POST /auth/password-reset - Request password reset
  * - POST /auth/password-reset/confirm - Confirm password reset
  * - POST /auth/verify-email - Verify user email
@@ -64,9 +62,6 @@ const ENDPOINTS = {
   },
   '/auth/debug': {
     GET: 'debugDatabase'
-  },
-  '/auth/email/send': {
-    POST: 'sendEmail'
   },
   '/auth/password-reset': {
     POST: 'requestPasswordReset'
@@ -897,61 +892,6 @@ const handlers = {
 
     } catch (error: any) {
       return createErrorResponse(`Debug error: ${error.message}`, 500, corsHeaders);
-    }
-  },
-
-  /**
-   * Email sending endpoint
-   */
-  async sendEmail(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
-    try {
-      // Rate limiting
-      const clientIP = getClientIP(request);
-      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP, 5); // Higher cost
-      if (!isAllowed) {
-        return createErrorResponse('Too many email sending requests. Please try again later.', 429, corsHeaders);
-      }
-
-      // Ensure we have database access
-      if (!env?.AUTH_DB_BINDING) {
-        return createErrorResponse('Database not available', 500, corsHeaders);
-      }
-
-      // Parse request body
-      const body = await request.json() as { email: string; subject: string; message: string };
-      const { email, subject, message } = body;
-
-      // Validate required fields
-      if (!email || !subject || !message) {
-        return createErrorResponse('Email, subject, and message are required', 400, corsHeaders);
-      }
-
-      // Validate email and message types
-      if (typeof email !== 'string' || typeof subject !== 'string' || typeof message !== 'string') {
-        return createErrorResponse('All fields must be strings', 400, corsHeaders);
-      }
-
-      // Create email service
-      const emailService = createEmailService(env);
-      const fullDomain = new URL(request.url).hostname;
-      console.log(`[EMAIL ENDPOINT] Using domain: ${fullDomain} for email`);
-
-      // Send email
-      console.log(`[EMAIL ENDPOINT] Sending email to ${email} with subject: ${subject}`);
-      await emailService.sendNotification(email, subject, message, fullDomain);
-      console.log(`[EMAIL ENDPOINT] ✅ Email sent successfully to ${email}`);
-
-      // Return success response
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Email sent successfully'
-      }), {
-        status: 200,
-        headers: corsHeaders
-      });
-
-    } catch (error: any) {
-      return handleApiError(error, corsHeaders);
     }
   },
 

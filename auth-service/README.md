@@ -360,50 +360,7 @@ curl -X GET https://leetrepeat.com/auth/debug
 
 ---
 
-### 9. Email Sending
-
-**Endpoint:** `POST /auth/email/send`
-
-**Description:** Send a notification email using Brevo (formerly Sendinblue)
-
-**Headers:**
-```
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "email": "recipient@example.com",
-  "subject": "Email Subject",
-  "message": "Email message content"
-}
-```
-
-**Example Request:**
-```bash
-curl -X POST https://leetrepeat.com/auth/email/send \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "subject": "Welcome to our service!",
-    "message": "Thank you for signing up with our platform."
-  }'
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Email sent successfully"
-}
-```
-
-**Rate Limiting:** 5 requests per minute per IP address
-
----
-
-### 10. Password Reset Request
+### 9. Password Reset Request
 
 **Endpoint:** `POST /auth/password-reset`
 
@@ -445,7 +402,7 @@ curl -X POST https://leetrepeat.com/auth/password-reset \
 
 ---
 
-### 11. Password Reset Confirmation
+### 10. Password Reset Confirmation
 
 **Endpoint:** `POST /auth/password-reset/confirm`
 
@@ -498,7 +455,7 @@ curl -X POST https://leetrepeat.com/auth/password-reset/confirm \
 
 ---
 
-### 12. Email Verification
+### 11. Email Verification
 
 **Endpoint:** `POST /auth/verify-email`
 
@@ -546,7 +503,7 @@ curl -X POST https://leetrepeat.com/auth/verify-email \
 
 ---
 
-### 13. Resend Verification Email
+### 12. Resend Verification Email
 
 **Endpoint:** `POST /auth/resend-verification`
 
@@ -587,7 +544,7 @@ curl -X POST https://leetrepeat.com/auth/resend-verification \
 
 ---
 
-### 14. GraphQL Proxy
+### 13. GraphQL Proxy
 
 **Endpoint:** `POST /auth/graphql` and `GET /auth/graphql`
 
@@ -943,77 +900,34 @@ Where `{PREFIX}` is replaced with the domain name (e.g., `leetrepeat`).
 
 ---
 
-### 8. Email Sending
-
-**Endpoint:** `POST /auth/email/send`
-
-**Description:** Send a notification email using Brevo (formerly Sendinblue)
-
-**Headers:**
-```
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "email": "recipient@example.com",
-  "subject": "Email Subject",
-  "message": "Email message content"
-}
-```
-
-**Example Request:**
-```bash
-curl -X POST https://leetrepeat.com/auth/email/send \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "subject": "Welcome to our service!",
-    "message": "Thank you for signing up with our platform."
-  }'
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Email sent successfully"
-}
-```
-
-**Rate Limiting:** 5 requests per minute per IP address
-
----
-
 ## Email Service
 
 The authentication service includes email functionality powered by **Brevo** (formerly Sendinblue):
 
 ### Features
-- 📧 **Transactional Emails**: Signup confirmations, password resets, notifications
+- 📧 **Transactional Emails**: Signup confirmations, password resets, email verification
 - 🎨 **Professional Templates**: HTML and text versions with domain branding
-- 🔧 **Easy Integration**: Simple API for sending custom emails
+- 🔧 **Secure Integration**: Email sending only through internal service calls
 
 ### Email Types
 
 #### 1. Signup Confirmation
 Automatically sent when a user registers:
 - Welcome message with domain branding
-- Account details confirmation
+- Email verification link with token
 - Professional HTML and text versions
 
 #### 2. Password Reset
 Sent when password reset is requested:
 - Secure reset link with token
-- 1-hour expiration
+- 15-minute expiration for security
 - Clear instructions and security warnings
 
-#### 3. Generic Notifications
-Custom emails for any purpose:
-- Flexible subject and message content
-- HTML formatting support
-- Domain-specific branding
+#### 3. Email Verification
+Sent when email verification is requested:
+- Verification link with token
+- Professional branding and instructions
+- Secure token-based verification
 
 ### Configuration
 
@@ -1032,6 +946,8 @@ To get your Brevo API key:
 6. Select 'Full Access' or 'Restricted Access' with these permissions:
    - Transactional emails: Read & Write
 7. Copy the generated API key
+
+**Security Note:** Email functionality is only available internally through the authentication service. There are no public email endpoints to prevent abuse and spam.
 
 ---
 

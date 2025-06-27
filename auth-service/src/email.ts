@@ -280,65 +280,6 @@ This email was sent to ${toEmail} from ${domain}. Please do not reply to this em
       throw error;
     }
   }
-
-  /**
-   * Send a generic notification email
-   */
-  async sendNotification(
-    toEmail: string,
-    subject: string,
-    message: string,
-    domain: string
-  ): Promise<boolean> {
-    console.log(`[EMAIL] Starting notification | To: ${toEmail} | Domain: ${domain} | Subject: ${subject}`);
-    
-    try {
-      const htmlBody = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${subject}</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #2c3e50; text-align: center;">${subject}</h1>
-            
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
-              ${message.replace(/\n/g, '<br>')}
-            </div>
-            
-            <p>Best regards,<br>The ${domain} team</p>
-            
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p style="font-size: 12px; color: #666; text-align: center;">
-              This email was sent from ${domain}. Please do not reply to this email.
-            </p>
-          </div>
-        </body>
-        </html>
-      `;
-
-      const emailData = {
-        to: [{ email: toEmail }],
-        sender: { email: `noreply@${domain}`, name: domain },
-        subject: subject,
-        htmlContent: htmlBody,
-        textContent: message,
-      };
-
-      console.log(`[EMAIL] Sending notification | From: noreply@${domain} | To: ${toEmail} | Subject: ${subject}`);
-
-      const result = await this.sendEmail(emailData);
-      
-      console.log(`[EMAIL] Notification sent successfully | To: ${toEmail} | Domain: ${domain} | MessageId: ${result.messageId}`);
-      return true;
-    } catch (error: any) {
-      console.error(`[EMAIL] Failed to send notification | To: ${toEmail} | Domain: ${domain} | Error: ${error.message} | Type: ${error.name || 'Unknown'}`);
-      throw error;
-    }
-  }
 }
 
 /**
