@@ -74,8 +74,8 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
 
-    # Set Brevo API key as a Wrangler secret (after worker exists)
-    - name: Set Brevo API Key Secret
+    # Set secrets (after worker exists)
+    - name: Set Secrets
       working-directory: './auth-service'
       shell: bash
       run: |
@@ -83,16 +83,6 @@ runs:
           echo "❌ Error: brevo_api_key is empty"
           exit 1
         fi
-        echo "${{ inputs.brevo_api_key }}" | npx wrangler secret put BREVO_API_KEY
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-
-    # Set Stripe secrets as Wrangler secrets
-    - name: Set Stripe Secrets
-      working-directory: './auth-service'
-      shell: bash
-      run: |
         if [ -z "${{ inputs.stripe_secret_key }}" ]; then
           echo "❌ Error: stripe_secret_key is empty"
           exit 1
@@ -101,5 +91,10 @@ runs:
           echo "❌ Error: stripe_webhook_secret is empty"
           exit 1
         fi
+        echo "${{ inputs.brevo_api_key }}" | npx wrangler secret put BREVO_API_KEY
         echo "${{ inputs.stripe_secret_key }}" | npx wrangler secret put STRIPE_SECRET_KEY
         echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+    
