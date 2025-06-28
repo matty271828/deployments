@@ -1494,7 +1494,7 @@ const handlers = {
 
       let event;
       try {
-        event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+        event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
       } catch (err: any) {
         console.error('[WEBHOOK] Signature verification failed:', err.message);
         return createErrorResponse('Invalid Stripe signature', 400, corsHeaders);
