@@ -90,6 +90,13 @@ runs:
       shell: bash
       run: |
         echo "${{ inputs.stripe_secret_key }}" | npx wrangler secret put STRIPE_SECRET_KEY
+        
+        # Check if webhook secret is provided and not empty
+        if [ -z "${{ inputs.stripe_webhook_secret }}" ]; then
+          echo "❌ Error: STRIPE_WEBHOOK_SECRET is empty or not provided"
+          exit 1
+        fi
+        
         echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}

@@ -219,9 +219,14 @@ runs:
               console.log('product_id=' + results[0].product_id + ' >> $GITHUB_OUTPUT');
               console.log('price_id=' + results[0].price_id + ' >> $GITHUB_OUTPUT');
               console.log('all_results=' + JSON.stringify(results) + ' >> $GITHUB_OUTPUT');
-              console.log('webhook_id=' + webhook.id + ' >> $GITHUB_OUTPUT');
-              console.log('webhook_secret=' + webhook.secret + ' >> $GITHUB_OUTPUT');
             }
+            
+            // Always output webhook info regardless of results
+            console.log('webhook_id=' + webhook.id + ' >> $GITHUB_OUTPUT');
+            console.log('webhook_secret=' + webhook.secret + ' >> $GITHUB_OUTPUT');
+            
+            // Log webhook info without exposing the secret
+            console.log('✅ Webhook configured: ' + webhook.id + ' (Secret: [REDACTED])');
             
             // 6. Update domain mappings with price IDs and webhook info
             console.log('\\n📝 Updating domain mappings with price IDs and webhook info...');
@@ -237,8 +242,7 @@ runs:
                   ...domainObj,
                   stripe_price_id: result.price_id,
                   stripe_product_id: result.product_id,
-                  stripe_webhook_id: webhook.id,
-                  stripe_webhook_secret: webhook.secret
+                  stripe_webhook_id: webhook.id
                 };
               }
               return domainObj;
