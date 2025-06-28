@@ -161,7 +161,9 @@ export async function createPortalSession(
     `).bind(userId).first() as any;
 
     if (!customer) {
-      throw new Error('No Stripe customer found for user');
+      console.error(`[PORTAL] No Stripe customer found for user ${userId}`);
+      console.error(`[PORTAL] This usually means the webhook failed to create the customer record during checkout`);
+      throw new Error('No Stripe customer found for user. Please contact support if you believe this is an error.');
     }
 
     // Create portal session
