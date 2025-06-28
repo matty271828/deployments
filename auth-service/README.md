@@ -1032,4 +1032,112 @@ This will make your emails appear as "Your Domain Support <support@yourdomain.co
 
 ---
 
-## Error Responses
+## Stripe Integration
+
+The auth-service includes comprehensive Stripe integration for subscription management.
+
+### Environment Variables
+
+Add these to your `wrangler.toml`:
+
+```toml
+[vars]
+STRIPE_SECRET_KEY = "sk_test_..." # Your Stripe secret key
+STRIPE_WEBHOOK_SECRET = "whsec_..." # Your webhook endpoint secret
+```
+
+### Webhook Setup
+
+**✅ Automated Setup:** Webhooks are automatically configured during deployment via GitHub Actions.
+
+The deployment process will:
+1. Create a webhook endpoint for your auth service
+2. Configure all required events automatically
+3. Set the webhook secret as an environment variable
+4. Test the webhook configuration
+
+**Required Events (automatically configured):**
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+
+**Manual Setup (if needed):**
+If you need to set up webhooks manually:
+
+1. **Create Webhook Endpoint in Stripe Dashboard:**
+   - Go to Stripe Dashboard → Developers → Webhooks
+   - Click "Add endpoint"
+   - Endpoint URL: `https://your-auth-service.your-domain.com/auth/webhook`
+   - Select the events listed above
+
+2. **Get Webhook Secret:**
+   - After creating the webhook, click on it to view details
+   - Click "Reveal" next to "Signing secret"
+   - Copy the `whsec_...` value
+   - Add it to your `wrangler.toml` as `STRIPE_WEBHOOK_SECRET`
+
+3. **Test Webhook:**
+   - In the webhook details, click "Send test webhook"
+   - Select `checkout.session.completed` event
+   - Verify it returns a 200 status
+
+### Subscription Flow
+
+1. **User initiates checkout:**
+   ```javascript
+   POST /auth/create-checkout-session
+   {
+     "priceId": "price_...",
+     "successUrl": "https://your-domain.com/success",
+     "cancelUrl": "https://your-domain.com/cancel"
+   }
+   ```
+
+2. **User completes payment on Stripe Checkout**
+
+3. **Webhook processes the completion:**
+   - `checkout.session.completed` creates/updates subscription
+   - `invoice.payment_succeeded` confirms premium status
+   - `invoice.payment_failed` marks as past_due
+
+4. **User can manage subscription:**
+   ```javascript
+   POST /auth/create-portal-session
+   {
+     "returnUrl": "https://your-domain.com/account"
+   }
+   ```
+
+### Subscription Statuses
+
+- `free` - No active subscription
+- `premium` - Active paid subscription
+- `canceled` - Subscription cancelled
+- `past_due` - Payment failed, retrying
+
+### Security Features
+
+- **Webhook signature verification** prevents spoofing
+- **Idempotency** prevents duplicate processing
+- **Rate limiting** on webhook endpoint
+- **CSRF protection** on checkout/portal creation
+
+### Troubleshooting
+
+**Webhook not receiving events:**
+- Verify endpoint URL is correct
+- Check webhook secret matches environment variable
+- Ensure endpoint is publicly accessible
+
+**Subscription status not updating:**
+- Check webhook logs in Stripe Dashboard
+- Verify webhook events are being sent
+- Check auth-service logs for processing errors
+
+**Payment succeeds but user still shows as free:**
+- Verify webhook endpoint is configured
+- Check webhook secret is correct
+- Look for webhook processing errors in logs

@@ -1,5 +1,5 @@
 name: 'Setup Stripe'
-description: 'Creates Stripe products and prices for payments'
+description: 'Creates Stripe products, prices, and webhooks for payments'
 
 inputs:
   stripe_secret_key:
@@ -68,7 +68,7 @@ runs:
         echo "$MAPPINGS_RESPONSE" > /tmp/domains.json
         echo "Wrote domains to /tmp/domains.json"
 
-    - name: Setup Stripe Products
+    - name: Setup Stripe Products and Webhooks
       shell: bash
       run: |
         node -e "
@@ -78,9 +78,9 @@ runs:
           apiVersion: '2023-10-16'
         });
         
-        async function setupProducts() {
+        async function setupStripe() {
           try {
-            console.log('🔧 Setting up Stripe products and prices for all domains...');
+            console.log('🔧 Setting up Stripe products, prices, and webhooks for all domains...');
             
             // Read domains from the temporary file
             const domainsData = fs.readFileSync('/tmp/domains.json', 'utf8');
@@ -157,34 +157,88 @@ runs:
               console.log('✅ Completed setup for', domain);
             }
             
-            // 3. Output configuration summary
+            // 3. Setup webhook for auth service
+            console.log('\\n🔗 Setting up Stripe webhook for auth service...');
+            
+            // Get auth service domain from the first domain (assuming auth service is on the same infrastructure)
+            const authServiceDomain = domainList[0]?.domain || 'auth.example.com';
+            const webhookUrl = \`https://\${authServiceDomain}/auth/webhook\`;
+            
+            console.log('📡 Webhook URL:', webhookUrl);
+            
+            // Check if webhook already exists
+            const existingWebhooks = await stripe.webhookEndpoints.list({ limit: 100 });
+            let webhook = existingWebhooks.data.find(w => w.url === webhookUrl);
+            
+            const requiredEvents = [
+              'checkout.session.completed',
+              'customer.subscription.created',
+              'customer.subscription.updated',
+              'customer.subscription.deleted',
+              'invoice.payment_succeeded',
+              'invoice.payment_failed'
+            ];
+            
+            if (webhook) {
+              console.log('✅ Using existing webhook:', webhook.id);
+              
+              // Check if webhook has all required events
+              const currentEvents = webhook.enabled_events;
+              const missingEvents = requiredEvents.filter(event => !currentEvents.includes(event));
+              
+              if (missingEvents.length > 0) {
+                console.log('⚠️ Webhook missing events:', missingEvents);
+                console.log('📝 Updating webhook with missing events...');
+                
+                webhook = await stripe.webhookEndpoints.update(webhook.id, {
+                  enabled_events: requiredEvents
+                });
+                console.log('✅ Updated webhook with all required events');
+              } else {
+                console.log('✅ Webhook already has all required events');
+              }
+            } else {
+              console.log('📝 Creating new webhook...');
+              webhook = await stripe.webhookEndpoints.create({
+                url: webhookUrl,
+                enabled_events: requiredEvents,
+                description: 'Auth Service Webhook'
+              });
+              console.log('✅ Created new webhook:', webhook.id);
+            }
+            
+            // 4. Output configuration summary
             console.log('\\n📋 Stripe Configuration Summary:');
             results.forEach(result => {
               console.log(\`\${result.domain}: Product \${result.product_id}, Price \${result.price_id}\`);
             });
+            console.log(\`Webhook: \${webhook.id} (Secret: \${webhook.secret})\`);
             
-            // 4. Set outputs (using the first domain's price ID for backward compatibility)
+            // 5. Set outputs
             if (results.length > 0) {
               console.log('\\n::set-output name=product_id::' + results[0].product_id);
               console.log('::set-output name=price_id::' + results[0].price_id);
               console.log('::set-output name=all_results::' + JSON.stringify(results));
+              console.log('::set-output name=webhook_id::' + webhook.id);
+              console.log('::set-output name=webhook_secret::' + webhook.secret);
             }
             
-            // 5. Update domain mappings with price IDs
-            console.log('\\n📝 Updating domain mappings with price IDs...');
-            const { execSync } = require('child_process');
+            // 6. Update domain mappings with price IDs and webhook info
+            console.log('\\n📝 Updating domain mappings with price IDs and webhook info...');
             
             // Read current domain mappings
             const currentMappings = JSON.parse(fs.readFileSync('/tmp/domains.json', 'utf8'));
             
-            // Update mappings with price IDs
+            // Update mappings with price IDs and webhook info
             const updatedMappings = currentMappings.map(domainObj => {
               const result = results.find(r => r.domain === domainObj.domain);
               if (result) {
                 return {
                   ...domainObj,
                   stripe_price_id: result.price_id,
-                  stripe_product_id: result.product_id
+                  stripe_product_id: result.product_id,
+                  stripe_webhook_id: webhook.id,
+                  stripe_webhook_secret: webhook.secret
                 };
               }
               return domainObj;
@@ -201,19 +255,24 @@ runs:
             });
             
             if (!uploadResponse.ok) {
-              console.error('❌ Failed to update domain mappings with price IDs');
+              console.error('❌ Failed to update domain mappings');
               const errorText = await uploadResponse.text();
               console.error('Upload error:', errorText);
               process.exit(1);
             }
             
-            console.log('✅ Successfully updated domain mappings with price IDs');
+            console.log('✅ Successfully updated domain mappings with Stripe configuration');
             console.log('Updated mappings:');
             updatedMappings.forEach(mapping => {
-              console.log(\`  \${mapping.domain}: Price ID \${mapping.stripe_price_id}\`);
+              console.log(\`  \${mapping.domain}: Price ID \${mapping.stripe_price_id}, Webhook \${mapping.stripe_webhook_id}\`);
             });
             
-            console.log('\\n✅ Stripe products setup complete for all domains!');
+            console.log('\\n✅ Stripe setup complete for all domains!');
+            console.log('\\n📋 Next steps:');
+            console.log('1. Add STRIPE_WEBHOOK_SECRET to your wrangler.toml:');
+            console.log(\`   STRIPE_WEBHOOK_SECRET = \"\${webhook.secret}\"`);
+            console.log('2. Deploy your auth service with the webhook secret');
+            console.log('3. Test webhook by creating a test checkout session');
             
           } catch (error) {
             console.error('❌ Stripe setup failed:', error.message);
@@ -221,5 +280,5 @@ runs:
           }
         }
         
-        setupProducts();
+        setupStripe();
         " 

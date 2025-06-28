@@ -33,7 +33,7 @@ import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
 import { createEmailService } from './email';
-import { getSubscription, createCheckoutSession, createPortalSession, updateSubscriptionFromWebhook, createInitialSubscription, isWebhookProcessed, markWebhookProcessed, getUserEmail } from './subscriptions';
+import { getSubscription, createCheckoutSession, createPortalSession, updateSubscriptionFromWebhook, createInitialSubscription, isWebhookProcessed, markWebhookProcessed, getUserEmail, handleCheckoutSessionCompleted, handleSubscriptionEvent, handleInvoicePaymentSucceeded, handleInvoicePaymentFailed } from './subscriptions';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -88,6 +88,9 @@ const ENDPOINTS = {
   },
   '/auth/create-portal-session': {
     POST: 'createPortalSession'
+  },
+  '/auth/webhook': {
+    POST: 'handleWebhook'
   }
 } as const;
 
@@ -1436,6 +1439,112 @@ const handlers = {
       });
 
     } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Handle Stripe webhook endpoint
+   */
+  async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many webhook requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Check if Stripe is configured
+      if (!env?.STRIPE_SECRET_KEY) {
+        return createErrorResponse('Stripe integration not configured', 503, corsHeaders);
+      }
+
+      // Get webhook secret from environment variable
+      const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        return createErrorResponse('Stripe webhook secret not configured', 500, corsHeaders);
+      }
+
+      // Get the raw body for signature verification
+      const rawBody = await request.text();
+      
+      // Verify webhook signature
+      const signature = request.headers.get('Stripe-Signature');
+      if (!signature) {
+        return createErrorResponse('Stripe signature missing', 400, corsHeaders);
+      }
+
+      // Initialize Stripe for signature verification
+      const { default: Stripe } = await import('stripe');
+      const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+        apiVersion: '2023-10-16',
+      });
+
+      let event;
+      try {
+        event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+      } catch (err: any) {
+        console.error('[WEBHOOK] Signature verification failed:', err.message);
+        return createErrorResponse('Invalid Stripe signature', 400, corsHeaders);
+      }
+
+      // Check if webhook has already been processed (idempotency)
+      if (await isWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id)) {
+        console.log(`[WEBHOOK] Event ${event.id} already processed, skipping`);
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Webhook already processed'
+        }), {
+          status: 200,
+          headers: corsHeaders
+        });
+      }
+
+      console.log(`[WEBHOOK] Processing event ${event.id} of type ${event.type}`);
+
+      // Handle different event types
+      switch (event.type) {
+        case 'checkout.session.completed':
+          await handleCheckoutSessionCompleted(env.AUTH_DB_BINDING, subdomain, event.data.object, stripe);
+          break;
+          
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          await handleSubscriptionEvent(env.AUTH_DB_BINDING, subdomain, event.data.object);
+          break;
+          
+        case 'invoice.payment_succeeded':
+          await handleInvoicePaymentSucceeded(env.AUTH_DB_BINDING, subdomain, event.data.object);
+          break;
+          
+        case 'invoice.payment_failed':
+          await handleInvoicePaymentFailed(env.AUTH_DB_BINDING, subdomain, event.data.object);
+          break;
+          
+        default:
+          console.log(`[WEBHOOK] Unhandled event type: ${event.type}`);
+      }
+
+      // Mark webhook as processed
+      await markWebhookProcessed(env.AUTH_DB_BINDING, subdomain, event.id, event.type);
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Webhook processed successfully'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      console.error('[WEBHOOK] Error:', error);
       return handleApiError(error, corsHeaders);
     }
   }

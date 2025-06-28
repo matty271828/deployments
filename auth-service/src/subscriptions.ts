@@ -284,4 +284,175 @@ export async function getUserEmail(db: D1Database, prefix: string, userId: strin
     console.error('Error getting user email:', error);
     return null;
   }
+}
+
+/**
+ * Handle checkout.session.completed webhook event
+ */
+export async function handleCheckoutSessionCompleted(
+  db: D1Database,
+  prefix: string,
+  session: any,
+  stripe: any
+): Promise<void> {
+  try {
+    console.log(`[WEBHOOK] Processing checkout session completed for session ${session.id}`);
+    
+    const userId = session.metadata?.user_id;
+    if (!userId) {
+      console.error('[WEBHOOK] No user_id in session metadata');
+      return;
+    }
+
+    // Get the subscription from the session
+    if (session.subscription) {
+      const subscription = await stripe.subscriptions.retrieve(session.subscription);
+      
+      // Update or create subscription record
+      const now = Math.floor(Date.now() / 1000);
+      const subscriptionId = generateSecureRandomString();
+      
+      // Check if subscription already exists
+      const existing = await db.prepare(`
+        SELECT id FROM ${prefix}_subscriptions 
+        WHERE stripe_subscription_id = ?
+      `).bind(session.subscription).first() as any;
+
+      if (existing) {
+        // Update existing subscription
+        await db.prepare(`
+          UPDATE ${prefix}_subscriptions 
+          SET status = ?, plan_id = ?, current_period_end = ?, updated_at = ?
+          WHERE stripe_subscription_id = ?
+        `).bind(
+          subscription.status,
+          subscription.items.data[0]?.price.id,
+          subscription.current_period_end,
+          now,
+          session.subscription
+        ).run();
+      } else {
+        // Create new subscription
+        await db.prepare(`
+          INSERT INTO ${prefix}_subscriptions (id, user_id, stripe_subscription_id, status, plan_id, current_period_end, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          subscriptionId,
+          userId,
+          session.subscription,
+          subscription.status,
+          subscription.items.data[0]?.price.id,
+          subscription.current_period_end,
+          now,
+          now
+        ).run();
+      }
+
+      console.log(`[WEBHOOK] ✅ Updated subscription for user ${userId} to status ${subscription.status}`);
+    }
+  } catch (error) {
+    console.error('[WEBHOOK] Error handling checkout session completed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle subscription events (created, updated, deleted)
+ */
+export async function handleSubscriptionEvent(
+  db: D1Database,
+  prefix: string,
+  subscription: any
+): Promise<void> {
+  try {
+    console.log(`[WEBHOOK] Processing subscription event for subscription ${subscription.id}`);
+    
+    const now = Math.floor(Date.now() / 1000);
+    
+    // Check if subscription exists in our database
+    const existing = await db.prepare(`
+      SELECT id FROM ${prefix}_subscriptions 
+      WHERE stripe_subscription_id = ?
+    `).bind(subscription.id).first() as any;
+
+    if (existing) {
+      // Update existing subscription
+      await db.prepare(`
+        UPDATE ${prefix}_subscriptions 
+        SET status = ?, plan_id = ?, current_period_end = ?, updated_at = ?
+        WHERE stripe_subscription_id = ?
+      `).bind(
+        subscription.status,
+        subscription.items.data[0]?.price.id,
+        subscription.current_period_end,
+        now,
+        subscription.id
+      ).run();
+      
+      console.log(`[WEBHOOK] ✅ Updated subscription ${subscription.id} to status ${subscription.status}`);
+    } else {
+      console.log(`[WEBHOOK] ⚠️ Subscription ${subscription.id} not found in database, skipping update`);
+    }
+  } catch (error) {
+    console.error('[WEBHOOK] Error handling subscription event:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle invoice.payment_succeeded event
+ */
+export async function handleInvoicePaymentSucceeded(
+  db: D1Database,
+  prefix: string,
+  invoice: any
+): Promise<void> {
+  try {
+    console.log(`[WEBHOOK] Processing invoice payment succeeded for invoice ${invoice.id}`);
+    
+    if (invoice.subscription) {
+      // Update subscription status to active
+      const now = Math.floor(Date.now() / 1000);
+      
+      await db.prepare(`
+        UPDATE ${prefix}_subscriptions 
+        SET status = 'premium', updated_at = ?
+        WHERE stripe_subscription_id = ?
+      `).bind(now, invoice.subscription).run();
+      
+      console.log(`[WEBHOOK] ✅ Updated subscription ${invoice.subscription} to premium status`);
+    }
+  } catch (error) {
+    console.error('[WEBHOOK] Error handling invoice payment succeeded:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle invoice.payment_failed event
+ */
+export async function handleInvoicePaymentFailed(
+  db: D1Database,
+  prefix: string,
+  invoice: any
+): Promise<void> {
+  try {
+    console.log(`[WEBHOOK] Processing invoice payment failed for invoice ${invoice.id}`);
+    
+    if (invoice.subscription) {
+      // Update subscription status to past_due
+      const now = Math.floor(Date.now() / 1000);
+      
+      await db.prepare(`
+        UPDATE ${prefix}_subscriptions 
+        SET status = 'past_due', updated_at = ?
+        WHERE stripe_subscription_id = ?
+      `).bind(now, invoice.subscription).run();
+      
+      console.log(`[WEBHOOK] ✅ Updated subscription ${invoice.subscription} to past_due status`);
+    }
+  } catch (error) {
+    console.error('[WEBHOOK] Error handling invoice payment failed:', error);
+    throw error;
+  }
 } 
