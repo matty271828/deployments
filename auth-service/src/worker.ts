@@ -1477,14 +1477,20 @@ const handlers = {
         return createErrorResponse('Stripe webhook secret not configured', 500, corsHeaders);
       }
 
-      // Get the raw body for signature verification
+      // Get the raw body for signature verification - CRITICAL: Must be done before any other processing
       const rawBody = await request.text();
+      console.log('[WEBHOOK] Raw body length:', rawBody.length);
+      console.log('[WEBHOOK] Raw body preview:', rawBody.substring(0, 200) + '...');
       
       // Verify webhook signature
       const signature = request.headers.get('Stripe-Signature');
       if (!signature) {
+        console.error('[WEBHOOK] Stripe signature header missing');
         return createErrorResponse('Stripe signature missing', 400, corsHeaders);
       }
+      
+      console.log('[WEBHOOK] Stripe signature header found:', signature.substring(0, 50) + '...');
+      console.log('[WEBHOOK] Webhook secret length:', webhookSecret.length);
 
       // Initialize Stripe for signature verification
       const { default: Stripe } = await import('stripe');
@@ -1494,9 +1500,12 @@ const handlers = {
 
       let event;
       try {
+        console.log('[WEBHOOK] Attempting signature verification...');
         event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+        console.log('[WEBHOOK] ✅ Signature verification successful');
       } catch (err: any) {
-        console.error('[WEBHOOK] Signature verification failed:', err.message);
+        console.error('[WEBHOOK] ❌ Signature verification failed:', err.message);
+        console.error('[WEBHOOK] Error details:', err);
         return createErrorResponse('Invalid Stripe signature', 400, corsHeaders);
       }
 
