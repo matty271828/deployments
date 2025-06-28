@@ -1448,6 +1448,11 @@ const handlers = {
    */
   async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
+      console.log('[WEBHOOK] Webhook endpoint called');
+      console.log('[WEBHOOK] Environment variables available:', Object.keys(env || {}));
+      console.log('[WEBHOOK] STRIPE_SECRET_KEY exists:', !!env?.STRIPE_SECRET_KEY);
+      console.log('[WEBHOOK] STRIPE_WEBHOOK_SECRET exists:', !!env?.STRIPE_WEBHOOK_SECRET);
+      
       // Rate limiting
       const clientIP = getClientIP(request);
       const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
@@ -1468,6 +1473,8 @@ const handlers = {
       // Get webhook secret from environment variable
       const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
       if (!webhookSecret) {
+        console.error('[WEBHOOK] STRIPE_WEBHOOK_SECRET is not available in environment');
+        console.error('[WEBHOOK] Available env vars:', Object.keys(env || {}));
         return createErrorResponse('Stripe webhook secret not configured', 500, corsHeaders);
       }
 
