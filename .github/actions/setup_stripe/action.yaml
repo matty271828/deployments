@@ -133,7 +133,7 @@ runs:
               if (!price) {
                 price = await stripe.prices.create({
                   product: product.id,
-                  unit_amount: 999, // £9.99 in pence
+                  unit_amount: 1299, // £12.99 in pence
                   currency: 'gbp',
                   recurring: { interval: 'month' },
                   active: true,
