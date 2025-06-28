@@ -84,21 +84,12 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
 
-    # Set Stripe secret key as a Wrangler secret
-    - name: Set Stripe Secret Key
+    # Set Stripe secrets as Wrangler secrets
+    - name: Set Stripe Secrets
       working-directory: './auth-service'
       shell: bash
       run: |
         echo "${{ inputs.stripe_secret_key }}" | npx wrangler secret put STRIPE_SECRET_KEY
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
-
-    # Set Stripe webhook secret as a Wrangler secret
-    - name: Set Stripe Webhook Secret
-      working-directory: './auth-service'
-      shell: bash
-      run: |
         echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
