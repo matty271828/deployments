@@ -60,7 +60,7 @@ Step 3: Test Your Setup
 
 1. Run a deployment with your Stripe secret key
 2. The system will automatically:
-   - Create a "Premium" product (£12.99/month)
+   - Create a "Standard Membership" product (£9.99/month)
    - Create a price for the product
    - Set up webhook endpoints
    - Configure all environment variables
@@ -75,7 +75,7 @@ console.log(`
 🎉 You're all set!
 
 The deployment platform will handle everything else automatically.
-Your users will be able to subscribe to the Premium Plan for £12.99/month.
+Your users will be able to subscribe to the Standard Membership for £9.99/month.
 
 Need help? Check the README.md for more details.
 `);

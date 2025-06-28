@@ -1100,7 +1100,7 @@ If you need to set up webhooks manually:
 
 3. **Webhook processes the completion:**
    - `checkout.session.completed` creates/updates subscription
-   - `invoice.payment_succeeded` confirms premium status
+   - `invoice.payment_succeeded` confirms payment status
    - `invoice.payment_failed` marks as past_due
 
 4. **User can manage subscription:**
@@ -1114,7 +1114,7 @@ If you need to set up webhooks manually:
 ### Subscription Statuses
 
 - `free` - No active subscription
-- `premium` - Active paid subscription
+- `standard member` - Active paid subscription
 - `canceled` - Subscription cancelled
 - `past_due` - Payment failed, retrying
 

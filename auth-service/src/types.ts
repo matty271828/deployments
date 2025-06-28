@@ -165,7 +165,7 @@ export interface Subscription {
   id: string;
   userId: string;
   stripeSubscriptionId?: string;
-  status: 'free' | 'premium' | 'canceled' | 'past_due';
+  status: 'free' | 'standard' | 'canceled' | 'past_due';
   planId?: string;
   currentPeriodEnd?: Date;
   createdAt: Date;

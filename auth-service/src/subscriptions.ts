@@ -26,7 +26,7 @@ export async function getSubscription(db: D1Database, prefix: string, userId: st
       id: result.id as string,
       userId: result.user_id as string,
       stripeSubscriptionId: result.stripe_subscription_id as string | undefined,
-      status: result.status as 'free' | 'premium' | 'canceled' | 'past_due',
+      status: result.status as 'free' | 'standard' | 'canceled' | 'past_due',
       planId: result.plan_id as string | undefined,
       currentPeriodEnd: result.current_period_end ? new Date((result.current_period_end as number) * 1000) : undefined,
       createdAt: new Date((result.created_at as number) * 1000),
@@ -416,11 +416,11 @@ export async function handleInvoicePaymentSucceeded(
       
       await db.prepare(`
         UPDATE ${prefix}_subscriptions 
-        SET status = 'premium', updated_at = ?
+        SET status = 'standard', updated_at = ?
         WHERE stripe_subscription_id = ?
       `).bind(now, invoice.subscription).run();
       
-      console.log(`[WEBHOOK] ✅ Updated subscription ${invoice.subscription} to premium status`);
+      console.log(`[WEBHOOK] ✅ Updated subscription ${invoice.subscription} to standard status`);
     }
   } catch (error) {
     console.error('[WEBHOOK] Error handling invoice payment succeeded:', error);

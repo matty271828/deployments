@@ -125,7 +125,7 @@ runs:
               console.log('Processing domain:', domain);
               
               // 1. Get or create domain-specific product
-              const productName = 'Premium Plan - ' + domain;
+              const productName = 'Standard Membership - ' + domain;
               let products = await stripe.products.list({ limit: 100, active: true });
               let product = products.data.find(p => p.name === productName);
               
@@ -136,7 +136,7 @@ runs:
               if (!product) {
                 product = await stripe.products.create({
                   name: productName,
-                  description: 'Premium subscription with enhanced features for ' + domain,
+                  description: 'Standard membership for ' + domain,
                   active: true,
                   metadata: {
                     domain: domain,

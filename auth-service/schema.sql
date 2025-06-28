@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_subscriptions (
     id TEXT NOT NULL PRIMARY KEY,
     user_id TEXT NOT NULL UNIQUE,
     stripe_subscription_id TEXT,
-    status TEXT NOT NULL DEFAULT 'free', -- 'free', 'premium', 'canceled', 'past_due'
+    status TEXT NOT NULL DEFAULT 'free', -- 'free', 'standard', 'canceled', 'past_due'
     plan_id TEXT,
     current_period_end INTEGER, -- unix time (seconds)
     created_at INTEGER NOT NULL, -- unix time (seconds)

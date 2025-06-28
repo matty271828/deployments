@@ -224,7 +224,7 @@ The platform uses a **shared Stripe account** for subscription management:
 ### How It Works
 
 - **One Stripe Account**: All domains share the same Stripe account and API keys
-- **Shared Products**: One "Premium" product (£12.99/month) used by all domains
+- **Shared Products**: One "Standard" product (£9.99/month) used by all domains
 - **Stripe Checkout**: Users are redirected to Stripe's hosted checkout page
 - **Customer Portal**: Users can manage subscriptions through Stripe's portal
 
