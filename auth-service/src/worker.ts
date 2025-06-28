@@ -1448,7 +1448,7 @@ const handlers = {
    */
   async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
-      console.log('[WEBHOOK] Stripe webhook endpoint called');
+      console.log(`[WEBHOOK] Stripe webhook received for ${subdomain} - ${request.method} ${request.url}`);
       
       // Rate limiting
       const clientIP = getClientIP(request);
