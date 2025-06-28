@@ -37,9 +37,9 @@ runs:
           # File doesn't exist, start with empty array
           echo "No existing mappings file found, starting fresh"
           MAPPINGS='[]'
-        elif echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
-          # File exists and is valid JSON
-          MAPPINGS="$MAPPINGS_RESPONSE"
+        elif echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
+          # File exists and is valid JSON, extract the result
+          MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -c '.result')
         else
           echo "::error::Invalid response from R2"
           echo "$MAPPINGS_RESPONSE"
@@ -47,7 +47,7 @@ runs:
         fi
         
         # Store the mappings as a single line JSON string
-        echo "mappings=$(echo "$MAPPINGS" | jq -c '.')" >> $GITHUB_OUTPUT
+        echo "mappings=$MAPPINGS" >> $GITHUB_OUTPUT
 
     - name: Create Deployments
       shell: bash
@@ -173,10 +173,10 @@ runs:
             echo "Setting environment variable: $ENV_VAR_NAME"
             
             # Set the environment variable at the project level for production environment
-            response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environments/production/variables" \
+            response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environments/production/variables/$ENV_VAR_NAME" \
               -H 'Content-Type: application/json' \
               -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -d "{\"name\": \"$ENV_VAR_NAME\", \"value\": \"$price_id\"}")
+              -d "{\"value\": \"$price_id\"}")
             
             echo "API Response: $response"
             
