@@ -1448,10 +1448,7 @@ const handlers = {
    */
   async handleWebhook(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
     try {
-      console.log('[WEBHOOK] Webhook endpoint called');
-      console.log('[WEBHOOK] Environment variables available:', Object.keys(env || {}));
-      console.log('[WEBHOOK] STRIPE_SECRET_KEY exists:', !!env?.STRIPE_SECRET_KEY);
-      console.log('[WEBHOOK] STRIPE_WEBHOOK_SECRET exists:', !!env?.STRIPE_WEBHOOK_SECRET);
+      console.log('[WEBHOOK] Stripe webhook endpoint called');
       
       // Rate limiting
       const clientIP = getClientIP(request);
@@ -1472,8 +1469,6 @@ const handlers = {
 
       // Get the raw body and parse as JSON
       const rawBody = await request.text();
-      console.log('[WEBHOOK] Raw body length:', rawBody.length);
-      console.log('[WEBHOOK] Raw body preview:', rawBody.substring(0, 200) + '...');
       
       // TODO: Enable webhook signature verification for enhanced security
       // 
