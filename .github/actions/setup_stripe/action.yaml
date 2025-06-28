@@ -306,47 +306,47 @@ runs:
         
         echo "✅ Got GitHub public key (ID: $KEY_ID)"
         
-        # Try Node.js encryption first (more reliable)
-        echo "🔧 Attempting Node.js encryption..."
+        # Install libsodium-wrappers for proper GitHub secret encryption
+        echo "📦 Installing libsodium-wrappers..."
+        npm install libsodium-wrappers
+        
+        # Encrypt the webhook secret using libsodium (GitHub's required method)
+        echo "🔧 Encrypting webhook secret with libsodium..."
         ENCRYPTED_SECRET=$(node -e "
-        const crypto = require('crypto');
+        const sodium = require('libsodium-wrappers');
         
-        const publicKey = \`$PUBLIC_KEY\`;
         const secret = '$WEBHOOK_SECRET';
+        const key = '$PUBLIC_KEY';
         
-        try {
-          const encrypted = crypto.publicEncrypt(
-            {
-              key: publicKey,
-              padding: crypto.constants.RSA_PKCS1_PADDING
-            },
-            Buffer.from(secret, 'utf8')
-          );
-          
-          console.log(encrypted.toString('base64'));
-        } catch (error) {
-          console.error('Node.js encryption failed:', error.message);
+        sodium.ready.then(() => {
+          try {
+            // Convert the secret and key to Uint8Array
+            let binkey = sodium.from_base64(key, sodium.base64_variants.ORIGINAL);
+            let binsec = sodium.from_string(secret);
+            
+            // Encrypt the secret using libsodium crypto_box_seal
+            let encBytes = sodium.crypto_box_seal(binsec, binkey);
+            
+            // Convert the encrypted Uint8Array to Base64
+            let output = sodium.to_base64(encBytes, sodium.base64_variants.ORIGINAL);
+            
+            console.log(output);
+          } catch (error) {
+            console.error('Libsodium encryption failed:', error.message);
+            process.exit(1);
+          }
+        }).catch(error => {
+          console.error('Libsodium initialization failed:', error.message);
           process.exit(1);
-        }
+        });
         ")
         
         if [ -z "$ENCRYPTED_SECRET" ]; then
-          echo "❌ Node.js encryption failed, trying OpenSSL fallback..."
-          
-          # Fallback to OpenSSL
-          echo "$PUBLIC_KEY" > /tmp/github_public_key.pem
-          ENCRYPTED_SECRET=$(echo -n "$WEBHOOK_SECRET" | openssl pkeyutl -encrypt \
-            -pubin -inkey /tmp/github_public_key.pem \
-            -pkcs | base64 -w 0)
-          rm -f /tmp/github_public_key.pem
-        fi
-        
-        if [ -z "$ENCRYPTED_SECRET" ]; then
-          echo "❌ Failed to encrypt webhook secret with both methods"
+          echo "❌ Failed to encrypt webhook secret with libsodium"
           exit 1
         fi
         
-        echo "✅ Successfully encrypted webhook secret"
+        echo "✅ Successfully encrypted webhook secret with libsodium"
         
         # Store the encrypted secret
         SECRET_PAYLOAD="{\"encrypted_value\":\"$ENCRYPTED_SECRET\",\"key_id\":\"$KEY_ID\"}"
