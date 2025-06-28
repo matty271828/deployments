@@ -1473,8 +1473,7 @@ const handlers = {
       // Get webhook secret from environment variable
       const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
       if (!webhookSecret) {
-        console.error('[WEBHOOK] STRIPE_WEBHOOK_SECRET is not available in environment');
-        console.error('[WEBHOOK] Available env vars:', Object.keys(env || {}));
+        console.error('[WEBHOOK] STRIPE_WEBHOOK_SECRET is not available in environment. Available env vars:', Object.keys(env || {}), 'webhookSecret type:', typeof webhookSecret, 'length:', webhookSecret?.length || 0, 'is falsy:', !webhookSecret);
         return createErrorResponse('Stripe webhook secret not configured', 500, corsHeaders);
       }
 
