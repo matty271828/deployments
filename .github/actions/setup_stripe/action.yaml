@@ -24,6 +24,30 @@ runs:
       shell: bash
       run: 'npm install stripe'
 
+    - name: Setup GitHub Secret
+      shell: bash
+      run: |
+        # Get GitHub's public key for encrypting secrets
+        echo "🔑 Getting GitHub public key..."
+        PUBLIC_KEY_RESPONSE=$(curl -s \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key")
+        
+        PUBLIC_KEY=$(echo "$PUBLIC_KEY_RESPONSE" | jq -r '.key')
+        KEY_ID=$(echo "$PUBLIC_KEY_RESPONSE" | jq -r '.key_id')
+        
+        if [ "$PUBLIC_KEY" = "null" ] || [ -z "$PUBLIC_KEY" ]; then
+          echo "❌ Failed to get GitHub public key"
+          echo "$PUBLIC_KEY_RESPONSE"
+          exit 1
+        fi
+        
+        echo "✅ Got GitHub public key (ID: $KEY_ID)"
+        
+        # The webhook secret will be set by the Node.js script
+        # We'll encrypt it there and store it as a GitHub secret
+
     - name: Get domains from R2
       id: get-domains
       shell: bash
@@ -227,6 +251,38 @@ runs:
             
             // Log webhook info without exposing the secret
             console.log('✅ Webhook configured: ' + webhook.id + ' (Secret: [REDACTED])');
+            
+            // Store webhook secret as GitHub repository secret
+            console.log('🔐 Storing webhook secret as GitHub repository secret...');
+            
+            // Get GitHub public key (already retrieved in previous step)
+            const { execSync } = require('child_process');
+            const publicKeyResponse = execSync('curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key"', { encoding: 'utf8' });
+            const publicKeyData = JSON.parse(publicKeyResponse);
+            
+            if (!publicKeyData.key) {
+              console.error('❌ Failed to get GitHub public key');
+              process.exit(1);
+            }
+            
+            // Encrypt the webhook secret
+            const crypto = require('crypto');
+            const encryptedSecret = crypto.publicEncrypt(
+              {
+                key: publicKeyData.key,
+                padding: crypto.constants.RSA_PKCS1_PADDING
+              },
+              Buffer.from(webhook.secret)
+            ).toString('base64');
+            
+            // Store the encrypted secret
+            const secretResponse = execSync(`curl -X PUT \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/secrets/STRIPE_WEBHOOK_SECRET" \
+              -d '{"encrypted_value":"${encryptedSecret}","key_id":"${publicKeyData.key_id}"}'`, { encoding: 'utf8' });
+            
+            console.log('✅ Webhook secret stored as GitHub repository secret');
             
             // 6. Update domain mappings with price IDs and webhook info
             console.log('\\n📝 Updating domain mappings with price IDs and webhook info...');

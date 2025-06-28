@@ -91,13 +91,26 @@ runs:
       run: |
         echo "${{ inputs.stripe_secret_key }}" | npx wrangler secret put STRIPE_SECRET_KEY
         
-        # Check if webhook secret is provided and not empty
-        if [ -z "${{ inputs.stripe_webhook_secret }}" ]; then
-          echo "❌ Error: STRIPE_WEBHOOK_SECRET is empty or not provided"
+        # Check if GitHub repository secret exists and is not empty
+        if [ -z "${{ secrets.STRIPE_WEBHOOK_SECRET }}" ]; then
+          echo "❌ Error: STRIPE_WEBHOOK_SECRET repository secret is empty or not set"
+          echo "💡 Make sure the setup_stripe action has run and created the repository secret"
           exit 1
         fi
         
-        echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+        # Check if the secret has the expected format (should start with 'whsec_' and be at least 50 chars)
+        WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}"
+        if [[ ! "$WEBHOOK_SECRET" =~ ^whsec_[a-zA-Z0-9]{40,}$ ]]; then
+          echo "❌ Error: STRIPE_WEBHOOK_SECRET has invalid format"
+          echo "Expected format: whsec_ followed by at least 40 alphanumeric characters"
+          echo "Actual length: ${#WEBHOOK_SECRET}"
+          echo "First 10 chars: ${WEBHOOK_SECRET:0:10}"
+          exit 1
+        fi
+        
+        echo "✅ Webhook secret validation passed (length: ${#WEBHOOK_SECRET})"
+        echo "$WEBHOOK_SECRET" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+        echo "✅ STRIPE_WEBHOOK_SECRET set successfully"
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}

@@ -89,7 +89,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       price_id: ${{ steps.setup-stripe.outputs.price_id }}
-      webhook_secret: ${{ steps.setup-stripe.outputs.webhook_secret }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -120,7 +119,6 @@ jobs:
           GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
           brevo_api_key: ${{ secrets.BREVO_API_KEY }}
           stripe_secret_key: ${{ secrets.STRIPE_SECRET_KEY }}
-          stripe_webhook_secret: ${{ needs.setup-stripe.outputs.webhook_secret }}
 
   deploy-domain-workers:
     name: 'Deploy Domain Workers'
