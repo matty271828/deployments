@@ -11,6 +11,9 @@ inputs:
   cloudflare_api_token:
     description: 'Cloudflare API token'
     required: true
+  GH_PERSONAL_ACCESS_TOKEN:
+    description: 'GitHub Personal Access Token'
+    required: true
     
 runs:
   using: 'composite'
@@ -30,7 +33,7 @@ runs:
         # Get GitHub's public key for encrypting secrets
         echo "🔑 Getting GitHub public key..."
         PUBLIC_KEY_RESPONSE=$(curl -s \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
           "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key")
         
@@ -257,7 +260,7 @@ runs:
             
             // Get GitHub public key (already retrieved in previous step)
             const { execSync } = require('child_process');
-            const publicKeyResponse = execSync('curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key"', { encoding: 'utf8' });
+            const publicKeyResponse = execSync('curl -s -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/${{ github.repository }}/actions/secrets/public-key"', { encoding: 'utf8' });
             const publicKeyData = JSON.parse(publicKeyResponse);
             
             if (!publicKeyData.key) {
@@ -277,7 +280,7 @@ runs:
             
             // Store the encrypted secret
             const secretResponse = execSync(`curl -X PUT \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: token ${{ inputs.GH_PERSONAL_ACCESS_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${{ github.repository }}/actions/secrets/STRIPE_WEBHOOK_SECRET" \
               -d '{"encrypted_value":"${encryptedSecret}","key_id":"${publicKeyData.key_id}"}'`, { encoding: 'utf8' });
