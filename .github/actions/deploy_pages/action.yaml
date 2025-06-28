@@ -172,11 +172,22 @@ runs:
             ENV_VAR_NAME="STRIPE_PRICE_ID"
             echo "Setting environment variable: $ENV_VAR_NAME"
             
-            # Set the environment variable at the project level for production environment
-            response=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environments/production/variables/$ENV_VAR_NAME" \
+            # Set the environment variable using the Update Project endpoint
+            response=$(curl -s -X PATCH "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project" \
               -H 'Content-Type: application/json' \
               -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -d "{\"value\": \"$price_id\"}")
+              -d "{
+                \"deployment_configs\": {
+                  \"production\": {
+                    \"env_vars\": {
+                      \"$ENV_VAR_NAME\": {
+                        \"type\": \"plain_text\",
+                        \"value\": \"$price_id\"
+                      }
+                    }
+                  }
+                }
+              }")
             
             echo "API Response: $response"
             
