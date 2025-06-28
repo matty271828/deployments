@@ -96,7 +96,7 @@ runs:
               console.log('\\n🌐 Processing domain:', domain);
               
               // 1. Get or create domain-specific product
-              const productName = \`Premium Plan - \${domain}\`;
+              const productName = 'Premium Plan - ' + domain;
               console.log('📦 Checking domain-specific product:', productName);
               let products = await stripe.products.list({ limit: 100, active: true });
               let product = products.data.find(p => p.name === productName);
@@ -108,7 +108,7 @@ runs:
               if (!product) {
                 product = await stripe.products.create({
                   name: productName,
-                  description: \`Premium subscription with enhanced features for \${domain}\`,
+                  description: 'Premium subscription with enhanced features for ' + domain,
                   active: true,
                   metadata: {
                     domain: domain,
@@ -162,7 +162,7 @@ runs:
             
             // Get auth service domain from the first domain (assuming auth service is on the same infrastructure)
             const authServiceDomain = domainList[0]?.domain || 'auth.example.com';
-            const webhookUrl = \`https://\${authServiceDomain}/auth/webhook\`;
+            const webhookUrl = 'https://' + authServiceDomain + '/auth/webhook';
             
             console.log('📡 Webhook URL:', webhookUrl);
             
@@ -210,9 +210,9 @@ runs:
             // 4. Output configuration summary
             console.log('\\n📋 Stripe Configuration Summary:');
             results.forEach(result => {
-              console.log(\`\${result.domain}: Product \${result.product_id}, Price \${result.price_id}\`);
+              console.log(result.domain + ': Product ' + result.product_id + ', Price ' + result.price_id);
             });
-            console.log(\`Webhook: \${webhook.id} (Secret: \${webhook.secret})\`);
+            console.log('Webhook: ' + webhook.id + ' (Secret: ' + webhook.secret + ')');
             
             // 5. Set outputs
             if (results.length > 0) {
@@ -245,10 +245,10 @@ runs:
             });
             
             // Upload updated mappings to R2
-            const uploadResponse = await fetch(\`https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json\`, {
+            const uploadResponse = await fetch('https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json', {
               method: 'PUT',
               headers: {
-                'Authorization': \`Bearer ${{ inputs.cloudflare_api_token }}\`,
+                'Authorization': 'Bearer ${{ inputs.cloudflare_api_token }}',
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify(updatedMappings)
@@ -264,13 +264,13 @@ runs:
             console.log('✅ Successfully updated domain mappings with Stripe configuration');
             console.log('Updated mappings:');
             updatedMappings.forEach(mapping => {
-              console.log(\`  \${mapping.domain}: Price ID \${mapping.stripe_price_id}, Webhook \${mapping.stripe_webhook_id}\`);
+              console.log('  ' + mapping.domain + ': Price ID ' + mapping.stripe_price_id + ', Webhook ' + mapping.stripe_webhook_id);
             });
             
             console.log('\\n✅ Stripe setup complete for all domains!');
             console.log('\\n📋 Next steps:');
             console.log('1. Add STRIPE_WEBHOOK_SECRET to your wrangler.toml:');
-            console.log(\`   STRIPE_WEBHOOK_SECRET = \"\${webhook.secret}\"`);
+            console.log('   STRIPE_WEBHOOK_SECRET = \"' + webhook.secret + '\"');
             console.log('2. Deploy your auth service with the webhook secret');
             console.log('3. Test webhook by creating a test checkout session');
             
