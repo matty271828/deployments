@@ -307,7 +307,7 @@ runs:
         echo "✅ Got GitHub public key (ID: $KEY_ID)"
         
         # Encrypt the webhook secret using openssl
-        ENCRYPTED_SECRET=$(echo -n "$WEBHOOK_SECRET" | openssl pkeyutl -encrypt -pubin -inkey <(echo "$PUBLIC_KEY") -rawin | base64 -w 0)
+        ENCRYPTED_SECRET=$(echo -n "$WEBHOOK_SECRET" | openssl pkeyutl -encrypt -pubin -inkey <(echo "$PUBLIC_KEY") | base64 -w 0)
         
         # Store the encrypted secret
         SECRET_PAYLOAD="{\"encrypted_value\":\"$ENCRYPTED_SECRET\",\"key_id\":\"$KEY_ID\"}"
