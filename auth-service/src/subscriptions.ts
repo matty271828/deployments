@@ -310,16 +310,15 @@ export async function handleCheckoutSessionCompleted(
       
       // Update or create subscription record
       const now = Math.floor(Date.now() / 1000);
-      const subscriptionId = generateSecureRandomString();
       
-      // Check if subscription already exists
-      const existing = await db.prepare(`
+      // Check if subscription already exists by stripe_subscription_id
+      const existingByStripeId = await db.prepare(`
         SELECT id FROM ${prefix}_subscriptions 
         WHERE stripe_subscription_id = ?
       `).bind(session.subscription).first() as any;
 
-      if (existing) {
-        // Update existing subscription
+      if (existingByStripeId) {
+        // Update existing subscription by stripe_subscription_id
         await db.prepare(`
           UPDATE ${prefix}_subscriptions 
           SET status = ?, plan_id = ?, current_period_end = ?, updated_at = ?
@@ -332,20 +331,43 @@ export async function handleCheckoutSessionCompleted(
           session.subscription
         ).run();
       } else {
-        // Create new subscription
-        await db.prepare(`
-          INSERT INTO ${prefix}_subscriptions (id, user_id, stripe_subscription_id, status, plan_id, current_period_end, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          subscriptionId,
-          userId,
-          session.subscription,
-          subscription.status,
-          subscription.items.data[0]?.price.id,
-          subscription.current_period_end,
-          now,
-          now
-        ).run();
+        // Check if user already has a subscription record (free subscription)
+        const existingByUserId = await db.prepare(`
+          SELECT id FROM ${prefix}_subscriptions 
+          WHERE user_id = ?
+        `).bind(userId).first() as any;
+
+        if (existingByUserId) {
+          // Update existing free subscription to paid
+          await db.prepare(`
+            UPDATE ${prefix}_subscriptions 
+            SET stripe_subscription_id = ?, status = ?, plan_id = ?, current_period_end = ?, updated_at = ?
+            WHERE user_id = ?
+          `).bind(
+            session.subscription,
+            subscription.status,
+            subscription.items.data[0]?.price.id,
+            subscription.current_period_end,
+            now,
+            userId
+          ).run();
+        } else {
+          // Create new subscription record
+          const subscriptionId = generateSecureRandomString();
+          await db.prepare(`
+            INSERT INTO ${prefix}_subscriptions (id, user_id, stripe_subscription_id, status, plan_id, current_period_end, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            subscriptionId,
+            userId,
+            session.subscription,
+            subscription.status,
+            subscription.items.data[0]?.price.id,
+            subscription.current_period_end,
+            now,
+            now
+          ).run();
+        }
       }
 
       console.log(`[WEBHOOK] ✅ Updated subscription for user ${userId} to status ${subscription.status}`);
