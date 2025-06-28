@@ -32,13 +32,15 @@ runs:
           -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
           -H "Content-Type: application/json")
         
-        # Check if we got a valid response and if the file exists
-        if echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
-          # File doesn't exist, start with empty array
+        # If the response is an array, use it directly
+        if echo "$MAPPINGS_RESPONSE" | jq -e 'type == "array"' > /dev/null; then
+          MAPPINGS="$MAPPINGS_RESPONSE"
+        # If the response is an object with .success == false and .errors[0].code == 10007, treat as not found
+        elif echo "$MAPPINGS_RESPONSE" | jq -e '.success == false and .errors[0].code == 10007' > /dev/null; then
           echo "No existing mappings file found, starting fresh"
           MAPPINGS='[]'
+        # If the response is an object with .success == true, extract .result
         elif echo "$MAPPINGS_RESPONSE" | jq -e '.success == true' > /dev/null; then
-          # File exists and is valid JSON, extract the result
           MAPPINGS=$(echo "$MAPPINGS_RESPONSE" | jq -c '.result')
         else
           echo "::error::Invalid response from R2"
