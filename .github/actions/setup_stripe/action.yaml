@@ -269,8 +269,8 @@ runs:
             
             console.log('\\n✅ Stripe setup complete for all domains!');
             console.log('\\n📋 Next steps:');
-            console.log('1. Add STRIPE_WEBHOOK_SECRET to your wrangler.toml:');
-            console.log('   STRIPE_WEBHOOK_SECRET = \"' + webhook.secret + '\"');
+            console.log('1. Add `STRIPE_WEBHOOK_SECRET` to your wrangler.toml:');
+            console.log('   `STRIPE_WEBHOOK_SECRET`= \"' + webhook.secret + '\"');
             console.log('2. Deploy your auth service with the webhook secret');
             console.log('3. Test webhook by creating a test checkout session');
             
