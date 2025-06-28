@@ -79,6 +79,10 @@ runs:
       working-directory: './auth-service'
       shell: bash
       run: |
+        if [ -z "${{ inputs.brevo_api_key }}" ]; then
+          echo "❌ Error: brevo_api_key is empty"
+          exit 1
+        fi
         echo "${{ inputs.brevo_api_key }}" | npx wrangler secret put BREVO_API_KEY
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
@@ -89,5 +93,13 @@ runs:
       working-directory: './auth-service'
       shell: bash
       run: |
+        if [ -z "${{ inputs.stripe_secret_key }}" ]; then
+          echo "❌ Error: stripe_secret_key is empty"
+          exit 1
+        fi
+        if [ -z "${{ inputs.stripe_webhook_secret }}" ]; then
+          echo "❌ Error: stripe_webhook_secret is empty"
+          exit 1
+        fi
         echo "${{ inputs.stripe_secret_key }}" | npx wrangler secret put STRIPE_SECRET_KEY
         echo "${{ inputs.stripe_webhook_secret }}" | npx wrangler secret put STRIPE_WEBHOOK_SECRET
