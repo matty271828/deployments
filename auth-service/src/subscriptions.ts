@@ -166,11 +166,21 @@ export async function createPortalSession(
       throw new Error('No Stripe customer found for user. Please contact support if you believe this is an error.');
     }
 
+    console.log(`[PORTAL] Creating portal session for customer: ${customer.stripe_customer_id}`);
+    console.log(`[PORTAL] Return URL: ${request.returnUrl}`);
+
     // Create portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.stripe_customer_id as string,
       return_url: request.returnUrl,
     });
+
+    console.log(`[PORTAL] Stripe response:`, JSON.stringify(session, null, 2));
+    console.log(`[PORTAL] Session URL: ${session.url}`);
+
+    if (!session.url) {
+      throw new Error('Stripe did not return a portal URL');
+    }
 
     return session.url;
   } catch (error) {
