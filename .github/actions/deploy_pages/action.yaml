@@ -170,8 +170,8 @@ runs:
           
           if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
             echo "Using price ID for $domain: $price_id"
-            # Use simple environment variable name since it's project-specific
-            ENV_VAR_NAME="STRIPE_PRICE_ID"
+            # Use VITE_ prefix so Vite exposes it to the frontend
+            ENV_VAR_NAME="VITE_STRIPE_PRICE_ID"
             echo "Setting environment variable: $ENV_VAR_NAME"
             
             # Set the environment variable using the Update Project endpoint
