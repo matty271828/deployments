@@ -23,6 +23,15 @@ runs:
           sudo apt-get install -y jq
         fi
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Wrangler
+      shell: bash
+      run: npm install -g wrangler
+
     - name: Get Domain Mappings from R2
       id: get-mappings
       shell: bash
@@ -49,7 +58,7 @@ runs:
         # Store the mappings as a single line JSON string
         echo "mappings=$(echo "$MAPPINGS" | jq -c '.')" >> $GITHUB_OUTPUT
 
-    - name: Create Deployments
+    - name: Deploy Projects with Environment Variables
       shell: bash
       run: |
         # Extract project names and domains from mappings
@@ -91,22 +100,43 @@ runs:
           fi
           
           echo "New commits detected for project $project, triggering deployment"
-          echo "Contacting ... https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments"
           
-          # Trigger deployment
-          response=$(curl -s https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/deployments \
-            -H 'Content-Type: application/json' \
-            -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-            -d '{"branch": "main"}')
+          # Clone the project repository
+          TEMP_DIR=$(mktemp -d)
+          cd "$TEMP_DIR"
           
-          # Check if the request was successful
-          if ! echo "$response" | jq -e '.success == true' > /dev/null; then
-            echo "::error::Failed to deploy project $project"
-            echo "$response" | jq -r '.errors[0].message'
-            exit 1
+          echo "Cloning $project repository..."
+          git clone "https://x-access-token:${{ github.token }}@github.com/${{ github.repository_owner }}/$project.git" .
+          
+          # Install dependencies and build the project
+          echo "Installing dependencies and building $project..."
+          npm install
+          npm run build
+          
+          # Set up environment variables for deployment
+          if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
+            echo "Using price ID for $domain: $price_id"
+            echo "Setting environment variable: STRIPE_PRICE_ID"
+            
+            # Deploy with environment variable using wrangler
+            wrangler pages deploy dist --project-name="$project" \
+              --env STRIPE_PRICE_ID="$price_id" \
+              --account-id="${{ inputs.cloudflare_account_id }}" \
+              --api-token="${{ inputs.cloudflare_api_token }}"
+          else
+            echo "No price ID found for $domain, deploying without Stripe configuration"
+            
+            # Deploy without environment variable
+            wrangler pages deploy dist --project-name="$project" \
+              --account-id="${{ inputs.cloudflare_account_id }}" \
+              --api-token="${{ inputs.cloudflare_api_token }}"
           fi
           
-          echo "Successfully triggered deployment for project $project"
+          echo "Successfully deployed project $project"
+          
+          # Clean up
+          cd /
+          rm -rf "$TEMP_DIR"
         done <<< "$PROJECT_DOMAIN_MAP"
 
     - name: Configure Custom Domains
@@ -148,53 +178,3 @@ runs:
             fi
           fi
         done
-
-    - name: Configure Environment Variables
-      shell: bash
-      run: |
-        # Extract project names and domains from mappings
-        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
-        if [ "$MAPPINGS" = "[]" ]; then
-          echo "No domain mappings found, skipping environment variable configuration"
-          exit 0
-        fi
-        
-        # Create a map of project names to their domains and price IDs
-        PROJECT_DOMAIN_MAP=$(echo "$MAPPINGS" | jq -r '.[] | "\(.frontend_repo | split("/") | last):\(.domain):\(.stripe_price_id // "")"')
-        
-        # Configure environment variables for each project
-        while IFS=: read -r project domain price_id; do
-          echo "Configuring environment variables for project: $project (domain: $domain)"
-          
-          if [ -n "$price_id" ] && [ "$price_id" != "null" ]; then
-            echo "Using price ID for $domain: $price_id"
-            # Use simple environment variable name since it's project-specific
-            ENV_VAR_NAME="STRIPE_PRICE_ID"
-            echo "Setting environment variable: $ENV_VAR_NAME"
-            
-            # Set the environment variable at the project level for production environment
-            response=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/pages/projects/$project/environments/production/variables" \
-              -H 'Content-Type: application/json' \
-              -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
-              -d "{\"name\": \"$ENV_VAR_NAME\", \"value\": \"$price_id\"}")
-            
-            echo "API Response: $response"
-            
-            # Check if the request was successful
-            if ! echo "$response" | jq -e '.success == true' > /dev/null; then
-              error_message=$(echo "$response" | jq -r '.errors[0].message // "Unknown error"')
-              if [[ "$error_message" == *"already exists"* ]]; then
-                echo "Environment variable $ENV_VAR_NAME already exists for project $project"
-              else
-                echo "::error::Failed to set environment variable $ENV_VAR_NAME for project $project"
-                echo "Error message: $error_message"
-                echo "Full response: $response"
-                exit 1
-              fi
-            else
-              echo "Successfully set environment variable $ENV_VAR_NAME for project $project"
-            fi
-          else
-            echo "No price ID found for $domain, skipping environment variable configuration"
-          fi
-        done <<< "$PROJECT_DOMAIN_MAP"
