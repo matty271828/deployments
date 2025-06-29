@@ -4,7 +4,7 @@
  * OAuth Provider Configuration Script for GitHub Actions
  * 
  * This script configures OAuth providers for auth-service domains during deployment.
- * It checks for repository secrets with the naming convention:
+ * It checks for OAuth credentials as environment variables with the naming convention:
  * {PROJECT}_{PROVIDER}_OAUTH_CLIENT_ID and {PROJECT}_{PROVIDER}_OAUTH_CLIENT_SECRET
  * 
  * Example: LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID, LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET
@@ -173,7 +173,7 @@ async function configureOAuthProviders() {
     
     if (!credentials.exists) {
       console.log(`⚠️  Skipping ${provider} - credentials not found`);
-      console.log(`   Expected secrets: ${credentials.clientIdKey}, ${credentials.clientSecretKey}`);
+      console.log(`   Expected environment variables: ${credentials.clientIdKey}, ${credentials.clientSecretKey}`);
       continue;
     }
     

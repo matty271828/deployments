@@ -34,9 +34,6 @@ runs:
 
     - name: Configure OAuth Providers
       shell: bash
-      env:
-        # Pass all repository secrets to the script
-        ${{ toJSON(secrets) }}
       run: |
         cd auth-service
         node scripts/configure-oauth-providers.js \

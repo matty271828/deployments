@@ -70,10 +70,12 @@ Examples:
 
 When you run the deployment workflow:
 
-1. The workflow automatically checks for OAuth credentials
+1. The workflow automatically checks for OAuth credentials as environment variables
 2. Providers with missing credentials are skipped with a log message
 3. Configured providers are set up in the database
 4. OAuth endpoints become available immediately after deployment
+
+**Note:** Repository secrets are automatically available as environment variables during deployment, so no additional configuration is needed.
 
 ### 4. Test OAuth Integration
 

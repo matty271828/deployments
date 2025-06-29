@@ -178,13 +178,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup OAuth Providers
-        uses: ./.github/actions/setup_oauth_providers
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
-          domain: ${{ inputs.domain }}
+          node-version: '18'
+
+      - name: Configure OAuth Providers
+        shell: bash
+        run: |
+          cd auth-service
+          chmod +x scripts/setup-oauth-wrapper.sh
+          ./scripts/setup-oauth-wrapper.sh \
+            "${{ inputs.domain }}" \
+            "${{ needs.run-terraform.outputs.auth_db_id }}" \
+            "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
+            "${{ secrets.CLOUDFLARE_API_TOKEN }}"
 
   generate-api-docs:
     name: 'Generate API Docs'
