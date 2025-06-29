@@ -53,6 +53,44 @@ CREATE TABLE IF NOT EXISTS {PREFIX}_csrf_tokens (
     created_at INTEGER NOT NULL -- unix time (seconds)
 ) STRICT;
 
+-- OAuth providers configuration table - stores OAuth provider settings per domain
+CREATE TABLE IF NOT EXISTS {PREFIX}_oauth_providers (
+    id TEXT NOT NULL PRIMARY KEY,
+    provider TEXT NOT NULL UNIQUE, -- 'google', 'github', 'microsoft', etc.
+    client_id TEXT NOT NULL,
+    client_secret TEXT NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    scopes TEXT NOT NULL, -- space-separated list of scopes
+    enabled INTEGER NOT NULL DEFAULT 1, -- 0 = disabled, 1 = enabled
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    updated_at INTEGER NOT NULL -- unix time (seconds)
+) STRICT;
+
+-- OAuth accounts table - links OAuth provider accounts to users
+CREATE TABLE IF NOT EXISTS {PREFIX}_oauth_accounts (
+    id TEXT NOT NULL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    provider TEXT NOT NULL, -- 'google', 'github', 'microsoft', etc.
+    provider_user_id TEXT NOT NULL, -- unique ID from the OAuth provider
+    provider_user_email TEXT, -- email from OAuth provider (may be different from user email)
+    access_token TEXT, -- encrypted access token
+    refresh_token TEXT, -- encrypted refresh token
+    token_expires_at INTEGER, -- unix time (seconds) when token expires
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    updated_at INTEGER NOT NULL, -- unix time (seconds)
+    FOREIGN KEY (user_id) REFERENCES {PREFIX}_users(id) ON DELETE CASCADE,
+    UNIQUE(provider, provider_user_id)
+) STRICT;
+
+-- OAuth state tokens table - stores temporary state tokens for OAuth flow security
+CREATE TABLE IF NOT EXISTS {PREFIX}_oauth_state_tokens (
+    token TEXT NOT NULL PRIMARY KEY,
+    provider TEXT NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    created_at INTEGER NOT NULL, -- unix time (seconds)
+    expires_at INTEGER NOT NULL -- unix time (seconds)
+) STRICT;
+
 -- Subscription tables for Stripe Checkout integration
 
 -- Stripe customers table - links users to Stripe customer accounts
@@ -92,6 +130,12 @@ CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_user_id ON {PREFIX
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_password_reset_tokens_expires_at ON {PREFIX}_password_reset_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_email_verification_tokens_user_id ON {PREFIX}_email_verification_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_email_verification_tokens_expires_at ON {PREFIX}_email_verification_tokens(expires_at);
+
+-- OAuth-related indexes
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_oauth_providers_provider ON {PREFIX}_oauth_providers(provider);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_oauth_accounts_user_id ON {PREFIX}_oauth_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_oauth_accounts_provider_user_id ON {PREFIX}_oauth_accounts(provider, provider_user_id);
+CREATE INDEX IF NOT EXISTS idx_{PREFIX}_oauth_state_tokens_expires_at ON {PREFIX}_oauth_state_tokens(expires_at);
 
 -- Subscription-related indexes
 CREATE INDEX IF NOT EXISTS idx_{PREFIX}_stripe_customers_user_id ON {PREFIX}_stripe_customers(user_id);

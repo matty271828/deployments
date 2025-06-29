@@ -1,0 +1,46 @@
+name: 'Setup OAuth Providers'
+description: 'Configures OAuth providers for auth-service domains using repository secrets'
+
+inputs:
+  cloudflare_account_id:
+    description: 'Cloudflare Account ID'
+    required: true
+  cloudflare_api_token:
+    description: 'Cloudflare API Token'
+    required: true
+  auth_db_id:
+    description: 'Auth Database ID'
+    required: true
+  domain:
+    description: 'Domain to configure OAuth providers for'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd auth-service
+        npm ci
+
+    - name: Configure OAuth Providers
+      shell: bash
+      env:
+        # Pass all repository secrets to the script
+        ${{ toJSON(secrets) }}
+      run: |
+        cd auth-service
+        node scripts/configure-oauth-providers.js \
+          --domain "${{ inputs.domain }}" \
+          --auth-db-id "${{ inputs.auth_db_id }}" \
+          --cloudflare-account-id "${{ inputs.cloudflare_account_id }}" \
+          --cloudflare-api-token "${{ inputs.cloudflare_api_token }}" 

@@ -23,17 +23,23 @@
  * - POST /auth/create-checkout-session - Create Stripe Checkout session
  * - POST /auth/create-portal-session - Create customer portal session
  * - POST /auth/webhook - Handle Stripe webhooks
+ * - GET /auth/oauth/authorize - OAuth authorization endpoint
+ * - GET /auth/oauth/callback - OAuth callback endpoint
+ * - POST /auth/oauth/link - Link OAuth account
+ * - POST /auth/oauth/unlink - Unlink OAuth account
+ * - GET /auth/oauth/accounts - Get linked OAuth accounts
  */
 
 import { D1Database } from '@cloudflare/workers-types';
 import { createUser, getUserByEmail, getUserById, createPasswordResetToken, validatePasswordResetToken, markPasswordResetTokenAsUsed, updateUserPassword, createEmailVerificationToken, verifyUserEmail } from './users';
 import { createSession, deleteSession, validateSessionToken, generateCSRFToken, validateCSRFToken } from './sessions';
-import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest, EmailVerificationRequest, ResendVerificationRequest, CreateCheckoutSessionRequest, CreatePortalSessionRequest } from './types';
+import { SignupRequest, LoginRequest, SessionValidationResult, PasswordResetRequest, PasswordResetConfirmRequest, EmailVerificationRequest, ResendVerificationRequest, CreateCheckoutSessionRequest, CreatePortalSessionRequest, OAuthLinkRequest, OAuthUnlinkRequest } from './types';
 import { rateLimiters, getClientIP } from './rate-limiter';
 import { getSecureCorsHeaders, handlePreflight } from './cors';
 import { generateSecureRandomString } from './generator';
 import { createEmailService } from './email';
 import { getSubscription, createCheckoutSession, createPortalSession, updateSubscriptionFromWebhook, createInitialSubscription, isWebhookProcessed, markWebhookProcessed, getUserEmail, handleCheckoutSessionCompleted, handleSubscriptionEvent, handleInvoicePaymentSucceeded, handleInvoicePaymentFailed } from './subscriptions';
+import { getOAuthProvider, createOAuthStateToken, handleOAuthCallback, generateOAuthUrl, getOAuthAccountsForUser, deleteOAuthAccount } from './oauth';
 
 // Type for handler methods
 type HandlerMethod = (request: Request, subdomain: string, corsHeaders: any, env?: any) => Promise<Response>;
@@ -91,6 +97,22 @@ const ENDPOINTS = {
   },
   '/auth/webhook': {
     POST: 'handleWebhook'
+  },
+  // OAuth SSO endpoints
+  '/auth/oauth/authorize': {
+    GET: 'oauthAuthorize'
+  },
+  '/auth/oauth/callback': {
+    GET: 'oauthCallback'
+  },
+  '/auth/oauth/link': {
+    POST: 'oauthLink'
+  },
+  '/auth/oauth/unlink': {
+    POST: 'oauthUnlink'
+  },
+  '/auth/oauth/accounts': {
+    GET: 'getOAuthAccounts'
   }
 } as const;
 
@@ -1558,6 +1580,314 @@ const handlers = {
       console.error('[WEBHOOK] Error:', error);
       return handleApiError(error, corsHeaders);
     }
+  },
+
+  /**
+   * OAuth authorization endpoint - redirects to OAuth provider
+   */
+  async oauthAuthorize(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many OAuth requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      const url = new URL(request.url);
+      const provider = url.searchParams.get('provider');
+      const redirectUri = url.searchParams.get('redirect_uri');
+
+      if (!provider) {
+        return createErrorResponse('Provider parameter is required', 400, corsHeaders);
+      }
+
+      // Get OAuth provider configuration
+      const providerConfig = await getOAuthProvider(env.AUTH_DB_BINDING, subdomain, provider);
+      if (!providerConfig) {
+        return createErrorResponse('OAuth provider not configured', 400, corsHeaders);
+      }
+
+      // Create state token for security
+      const state = await createOAuthStateToken(
+        env.AUTH_DB_BINDING,
+        subdomain,
+        provider,
+        redirectUri || providerConfig.redirectUri
+      );
+
+      // Generate OAuth URL
+      const oauthUrl = generateOAuthUrl(
+        provider as any,
+        providerConfig.clientId,
+        redirectUri || providerConfig.redirectUri,
+        state,
+        providerConfig.scopes
+      );
+
+      // Redirect to OAuth provider
+      return new Response(null, {
+        status: 302,
+        headers: {
+          ...corsHeaders,
+          'Location': oauthUrl
+        }
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * OAuth callback endpoint - handles OAuth provider response
+   */
+  async oauthCallback(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many OAuth requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      const url = new URL(request.url);
+      const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
+      const error = url.searchParams.get('error');
+
+      if (error) {
+        return createErrorResponse(`OAuth error: ${error}`, 400, corsHeaders);
+      }
+
+      if (!code || !state) {
+        return createErrorResponse('Missing required OAuth parameters', 400, corsHeaders);
+      }
+
+      // Extract provider from URL path (e.g., /auth/oauth/google/callback -> google)
+      const pathParts = url.pathname.split('/');
+      const provider = pathParts[3]; // /auth/oauth/{provider}/callback
+
+      if (!provider) {
+        return createErrorResponse('Invalid OAuth callback URL', 400, corsHeaders);
+      }
+
+      // Handle OAuth callback
+      const result = await handleOAuthCallback(env.AUTH_DB_BINDING, subdomain, provider as any, code, state);
+
+      if (!result.success) {
+        return createErrorResponse(result.error || 'OAuth authentication failed', 400, corsHeaders);
+      }
+
+      // Return success response with user and session data
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'OAuth authentication successful',
+        user: result.user,
+        session: result.session
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Link OAuth account to existing user
+   */
+  async oauthLink(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many OAuth requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as OAuthLinkRequest;
+      const { provider, code, state, csrfToken } = body;
+
+      // Validate required fields
+      if (!provider || !code || !state) {
+        return createErrorResponse('Provider, code, and state are required', 400, corsHeaders);
+      }
+
+      // CSRF token validation
+      if (csrfToken) {
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
+      }
+
+      // Get session from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7);
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Invalid session', 401, corsHeaders);
+      }
+
+      // Handle OAuth callback for linking
+      const result = await handleOAuthCallback(env.AUTH_DB_BINDING, subdomain, provider as any, code, state);
+
+      if (!result.success) {
+        return createErrorResponse(result.error || 'OAuth linking failed', 400, corsHeaders);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'OAuth account linked successfully'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Unlink OAuth account from user
+   */
+  async oauthUnlink(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many OAuth requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Parse request body
+      const body = await request.json() as OAuthUnlinkRequest;
+      const { provider, csrfToken } = body;
+
+      // Validate required fields
+      if (!provider) {
+        return createErrorResponse('Provider is required', 400, corsHeaders);
+      }
+
+      // CSRF token validation
+      if (csrfToken) {
+        const isValidCSRF = await validateCSRFToken(env.AUTH_DB_BINDING, subdomain, csrfToken);
+        if (!isValidCSRF) {
+          return createErrorResponse('Invalid CSRF token', 403, corsHeaders);
+        }
+      }
+
+      // Get session from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7);
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Invalid session', 401, corsHeaders);
+      }
+
+      // Delete OAuth account
+      const deleted = await deleteOAuthAccount(env.AUTH_DB_BINDING, subdomain, sessionValidation.session.userId, provider);
+
+      if (!deleted) {
+        return createErrorResponse('OAuth account not found or already unlinked', 404, corsHeaders);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'OAuth account unlinked successfully'
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
+  },
+
+  /**
+   * Get OAuth accounts for current user
+   */
+  async getOAuthAccounts(request: Request, subdomain: string, corsHeaders: any, env?: any): Promise<Response> {
+    try {
+      // Rate limiting
+      const clientIP = getClientIP(request);
+      const isAllowed = await rateLimiters.api.consume(env.AUTH_DB_BINDING, subdomain, clientIP);
+      if (!isAllowed) {
+        return createErrorResponse('Too many OAuth requests. Please try again later.', 429, corsHeaders);
+      }
+
+      // Ensure we have database access
+      if (!env?.AUTH_DB_BINDING) {
+        return createErrorResponse('Database not available', 500, corsHeaders);
+      }
+
+      // Get session from Authorization header
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return createErrorResponse('Authorization header required', 401, corsHeaders);
+      }
+
+      const token = authHeader.substring(7);
+      const sessionValidation = await validateSessionToken(env.AUTH_DB_BINDING, subdomain, token);
+      
+      if (!sessionValidation.success || !sessionValidation.session) {
+        return createErrorResponse('Invalid session', 401, corsHeaders);
+      }
+
+      // Get OAuth accounts for user
+      const accounts = await getOAuthAccountsForUser(env.AUTH_DB_BINDING, subdomain, sessionValidation.session.userId);
+
+      return new Response(JSON.stringify({
+        success: true,
+        accounts: accounts.map(account => ({
+          provider: account.provider,
+          providerUserId: account.providerUserId,
+          providerUserEmail: account.providerUserEmail,
+          createdAt: account.createdAt
+        }))
+      }), {
+        status: 200,
+        headers: corsHeaders
+      });
+
+    } catch (error: any) {
+      return handleApiError(error, corsHeaders);
+    }
   }
 };
 
@@ -1588,6 +1918,19 @@ export default {
     }
 
     try {
+      // Handle dynamic OAuth callback routes (e.g., /auth/oauth/google/callback)
+      if (path.startsWith('/auth/oauth/') && path.endsWith('/callback')) {
+        const pathParts = path.split('/');
+        if (pathParts.length === 5) { // /auth/oauth/{provider}/callback
+          const provider = pathParts[3];
+          // Route to the generic oauthCallback handler
+          const handler = handlers.oauthCallback as HandlerMethod;
+          if (typeof handler === 'function') {
+            return await handler(request, subdomain, corsHeaders, env);
+          }
+        }
+      }
+
       // Check if endpoint exists and method is allowed
       const endpoint = ENDPOINTS[path as keyof typeof ENDPOINTS];
       if (!endpoint) {

@@ -156,6 +156,102 @@ export interface ResendVerificationRequest {
   csrfToken?: string; // Optional CSRF token for form protection
 }
 
+// OAuth-related interfaces
+
+/**
+ * OAuth provider configuration
+ */
+export interface OAuthProvider {
+  id: string;
+  provider: string; // 'google', 'github'
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  scopes: string; // space-separated list of scopes
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * OAuth account linking
+ */
+export interface OAuthAccount {
+  id: string;
+  userId: string;
+  provider: string;
+  providerUserId: string;
+  providerUserEmail?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * OAuth state token for flow security
+ */
+export interface OAuthStateToken {
+  token: string;
+  provider: string;
+  redirectUri: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+/**
+ * OAuth authorization request
+ */
+export interface OAuthAuthorizeRequest {
+  provider: string;
+  redirectUri?: string;
+  state?: string;
+}
+
+/**
+ * OAuth callback request
+ */
+export interface OAuthCallbackRequest {
+  code: string;
+  state: string;
+  provider: string;
+}
+
+/**
+ * OAuth link account request
+ */
+export interface OAuthLinkRequest {
+  provider: string;
+  code: string;
+  state: string;
+  csrfToken?: string;
+}
+
+/**
+ * OAuth unlink account request
+ */
+export interface OAuthUnlinkRequest {
+  provider: string;
+  csrfToken?: string;
+}
+
+/**
+ * OAuth response
+ */
+export interface OAuthResponse {
+  success: boolean;
+  message?: string;
+  user?: User;
+  session?: {
+    id: string;
+    token: string;
+    expiresAt: Date;
+  };
+  redirectUrl?: string;
+  error?: string;
+}
+
 // Subscription-related interfaces
 
 /**

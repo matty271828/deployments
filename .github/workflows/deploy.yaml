@@ -170,6 +170,22 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
 
+  setup-oauth-providers:
+    name: 'Setup OAuth Providers'
+    needs: [run-terraform, apply-auth-schema]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup OAuth Providers
+        uses: ./.github/actions/setup_oauth_providers
+        with:
+          cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          auth_db_id: ${{ needs.run-terraform.outputs.auth_db_id }}
+          domain: ${{ inputs.domain }}
+
   generate-api-docs:
     name: 'Generate API Docs'
     needs: [run-terraform, deploy-domain-workers]

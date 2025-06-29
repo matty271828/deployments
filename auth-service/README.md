@@ -19,6 +19,7 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 📧 **Email Verification**: Email verification system with secure tokens
 - 🔑 **Password Reset**: Secure password reset with time-limited tokens
 - 📨 **Email Service**: Integrated email sending via Brevo
+- 🔗 **OAuth SSO**: Single Sign-On support for Google and GitHub
 
 ## Architecture
 
@@ -961,74 +962,12 @@ Since support emails are forwarded to your Gmail inbox, you can configure Gmail 
 
 ### Setup Instructions
 
-#### 1. Get Brevo SMTP Credentials
-1. Log into your Brevo account at https://app.brevo.com/
-2. Navigate to **Settings → SMTP & API** (or look for SMTP settings)
-3. **Important:** Check the **"Master Password"** box to enable SMTP access
-4. Generate an SMTP password for your `support@yourdomain.com` sender
-5. Note down the SMTP settings:
-   - **SMTP Server:** `smtp-relay.brevo.com`
-   - **Port:** `587` (or `465` for SSL)
-   - **Username:** `support@yourdomain.com`
-   - **Password:** Your Brevo SMTP password
+1. **Create OAuth Applications** with Google and/or GitHub
+2. **Add Repository Secrets** using the naming convention above
+3. **Deploy** - OAuth providers are automatically configured
+4. **Test** OAuth flows using the provided endpoints
 
-#### 2. Configure Gmail
-1. In Gmail, go to **Settings → Accounts and Import**
-2. Under "Send mail as", click **"Add another email address"**
-3. Enter the following details:
-   - **Name:** Your Domain Support (or preferred name)
-   - **Email address:** `support@yourdomain.com`
-4. **Uncheck** "Treat as an alias"
-5. Click **"Next Step"**
-6. Configure SMTP settings:
-   - **SMTP Server:** `smtp-relay.brevo.com`
-   - **Port:** `587`
-   - **Username:** `support@yourdomain.com`
-   - **Password:** Your Brevo SMTP password
-   - **Security:** TLS (recommended)
-7. Click **"Add Account"**
-
-#### 3. Verify the Setup
-1. Gmail will send a verification email to `support@yourdomain.com`
-2. Since you have forwarding configured, this email will arrive in your Gmail inbox
-3. Click the verification link in the email to complete the setup
-
-#### 4. Using the Feature
-- When composing emails in Gmail, you'll see a "From" dropdown
-- Select `support@yourdomain.com` to send emails as the support address
-- Recipients will see the email as coming from your support address
-
-#### 5. Setting a Custom Display Name (Recommended)
-By default, Gmail may show your personal name alongside the support email address. To fix this:
-
-1. **Go to Gmail Settings** → **Accounts and Import**
-2. **Under "Send mail as"**, find your `support@yourdomain.com` entry
-3. **Click "edit info"** next to it
-4. **Change the name** to something professional like:
-   - "Your Domain Support"
-   - "Support Team"
-   - "Customer Support"
-   - Or leave it blank for just the email address
-5. **Save the changes**
-
-This will make your emails appear as "Your Domain Support <support@yourdomain.com>" instead of "Your Name <support@yourdomain.com>".
-
-### Troubleshooting
-
-**If you can't find SMTP settings in Brevo:**
-- Some Brevo accounts may use API keys for SMTP authentication
-- Try using your Brevo API key as the SMTP password
-- Contact Brevo support if you need specific SMTP credentials
-
-**If verification email doesn't arrive:**
-- Check that email forwarding is working correctly
-- Verify that `support@yourdomain.com` is configured as a sender in Brevo
-- Check your spam folder
-
-**If SMTP authentication fails:**
-- Double-check the SMTP server and port settings
-- Ensure your Brevo account has SMTP access enabled
-- Verify the username and password are correct
+See `OAUTH_SETUP.md` for detailed setup instructions.
 
 ---
 
@@ -1141,3 +1080,116 @@ If you need to set up webhooks manually:
 - Verify webhook endpoint is configured
 - Check webhook secret is correct
 - Look for webhook processing errors in logs
+
+---
+
+## OAuth SSO Integration
+
+The auth-service includes comprehensive OAuth 2.0/OpenID Connect support for Single Sign-On (SSO) with Google and GitHub.
+
+### Supported Providers
+
+- **Google OAuth 2.0** - Most common for consumer applications
+- **GitHub OAuth** - Popular for developer tools and open source projects
+
+### Configuration
+
+OAuth providers are automatically configured during deployment using GitHub repository secrets with the naming convention:
+
+```
+{PROJECT}_{PROVIDER}_OAUTH_CLIENT_ID
+{PROJECT}_{PROVIDER}_OAUTH_CLIENT_SECRET
+```
+
+Example for domain `leetrepeat.com`:
+- `LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID`
+- `LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET`
+- `LEETREPEAT_GITHUB_OAUTH_CLIENT_ID`
+- `LEETREPEAT_GITHUB_OAUTH_CLIENT_SECRET`
+
+Providers with missing credentials are gracefully skipped during deployment.
+
+### Database Schema
+
+The OAuth system uses these domain-specific tables:
+
+```sql
+-- OAuth provider configurations
+CREATE TABLE {domain}_oauth_providers (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    client_secret TEXT NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    scopes TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- OAuth account linking
+CREATE TABLE {domain}_oauth_accounts (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_user_id TEXT NOT NULL,
+    provider_user_email TEXT,
+    access_token TEXT,
+    refresh_token TEXT,
+    token_expires_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES {domain}_users(id) ON DELETE CASCADE,
+    UNIQUE(provider, provider_user_id)
+);
+
+-- OAuth state tokens for flow security
+CREATE TABLE {domain}_oauth_state_tokens (
+    token TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+);
+```
+
+### API Endpoints
+
+Once configured, OAuth providers are available via these endpoints:
+
+- `GET /auth/oauth/authorize?provider={provider}` - Start OAuth flow
+- `GET /auth/oauth/{provider}/callback` - Handle OAuth callback  
+- `POST /auth/oauth/link` - Link OAuth account to existing user
+- `POST /auth/oauth/unlink` - Unlink OAuth account
+- `GET /auth/oauth/accounts` - Get user's linked OAuth accounts
+
+### Example Usage
+
+```bash
+# Start Google OAuth flow
+curl "https://yourdomain.com/auth/oauth/authorize?provider=google"
+
+# Start GitHub OAuth flow
+curl "https://yourdomain.com/auth/oauth/authorize?provider=github"
+```
+
+### Error Handling
+
+**Common OAuth Errors:**
+- `OAuth provider not configured` - Provider not set up for this domain
+- `Invalid or expired OAuth state token` - Security validation failed
+- `OAuth authentication failed` - Provider returned an error
+- `User already exists` - Email already registered with different method
+
+**Rate Limiting:**
+- OAuth endpoints are rate limited to prevent abuse
+- Too many requests return 429 status
+
+### Security Features
+
+- **State Token Validation** - Prevents CSRF attacks on OAuth flows
+- **One-time Use State Tokens** - State tokens are deleted after use
+- **Rate Limiting** - All OAuth endpoints are rate limited
+- **CSRF Protection** - Optional CSRF tokens for linking/unlinking
+- **Secure Token Storage** - OAuth tokens are stored securely
+- **Domain Isolation** - Each domain has separate OAuth configurations
