@@ -1,274 +1,273 @@
-# OAuth SSO Setup Guide
+# OAuth Single Sign-On Setup Guide
 
-This guide explains how to configure OAuth Single Sign-On (SSO) for your auth-service deployment using repository secrets.
+This guide explains how to configure OAuth Single Sign-On (SSO) for your auth-service deployment. The system supports dynamic discovery of any OAuth provider and automatically configures them for all domains without requiring code changes.
 
 ## Overview
 
-The auth-service includes comprehensive OAuth 2.0/OpenID Connect support that is automatically configured during deployment. OAuth providers are configured using GitHub repository secrets with a specific naming convention.
+The auth-service supports OAuth 2.0/OpenID Connect for Single Sign-On authentication. The system dynamically discovers and configures OAuth providers based on environment variables, making it easy to add new providers without code changes.
 
-## Supported Providers
+### Multi-Domain Support
 
-- **Google OAuth 2.0** - Most common for consumer applications
-- **GitHub OAuth** - Popular for developer tools and open source projects
+The system automatically discovers **all domains** from your R2 storage and configures OAuth providers for each domain. This means:
 
-## Setup Process
+- **No manual domain configuration** - domains are automatically discovered
+- **Consistent OAuth setup** - all domains get the same OAuth providers
+- **Scalable** - adding new domains automatically includes OAuth support
+- **Centralized management** - OAuth configuration is managed once for all domains
+
+### Supported Providers
+
+The system can work with **any OAuth provider** that follows OAuth 2.0 standards. Common providers include:
+
+- **Google** - Google OAuth 2.0
+- **GitHub** - GitHub OAuth App
+- **Microsoft** - Microsoft Identity Platform
+- **Facebook** - Facebook Login
+- **LinkedIn** - LinkedIn OAuth 2.0
+- **Twitter/X** - Twitter OAuth 2.0
+- **Discord** - Discord OAuth 2.0
+- **Slack** - Slack OAuth
+- **GitLab** - GitLab OAuth
+- **Bitbucket** - Bitbucket OAuth
+- **Custom** - Any OAuth 2.0 compliant provider
+
+## Dynamic Provider Discovery
+
+The system automatically discovers OAuth providers by scanning environment variables with a specific naming convention:
+
+### Environment Variable Naming Convention
+
+```
+{PROJECT}_{PROVIDER}_OAUTH_CLIENT_ID
+{PROJECT}_{PROVIDER}_OAUTH_CLIENT_SECRET
+```
+
+**Examples:**
+- `LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID` (for domain `leetrepeat.com`)
+- `LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET` (for domain `leetrepeat.com`)
+- `MYAPP_GITHUB_OAUTH_CLIENT_ID` (for domain `myapp.com`)
+- `MYAPP_GITHUB_OAUTH_CLIENT_SECRET` (for domain `myapp.com`)
+
+**Note:** The system automatically extracts the project name from the domain (e.g., `leetrepeat` from `leetrepeat.com`) to find the corresponding OAuth secrets.
+
+### Optional Configuration
+
+You can also set optional environment variables for each provider:
+
+```
+{PROJECT}_{PROVIDER}_OAUTH_SCOPES     # Custom scopes (optional)
+{PROJECT}_{PROVIDER}_OAUTH_ENABLED    # Set to "false" to disable (optional)
+```
+
+**Examples:**
+- `LEETREPEAT_GOOGLE_OAUTH_SCOPES=openid email profile https://www.googleapis.com/auth/calendar`
+- `LEETREPEAT_GITHUB_OAUTH_ENABLED=false`
+
+## Setup Instructions
 
 ### 1. Create OAuth Applications
 
-First, create OAuth applications with your chosen providers:
+For each provider you want to support, create an OAuth application in their developer console:
 
-#### Google OAuth 2.0 Setup
-
-**Important:** Google OAuth setup requires careful attention to IAM permissions and support email configuration. Follow these steps precisely.
-
-##### Step 1: Create or Access Google Cloud Project
+#### Google OAuth 2.0
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Note your Project ID (you'll need this for IAM setup)
+2. Create a new project or select existing one
+3. Enable the Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
+5. Set application type to "Web application"
+6. Add authorized redirect URI: `https://yourdomain.com/auth/oauth/google/callback`
+7. Copy the Client ID and Client Secret
 
-##### Step 2: Set Up Support Email (Critical Step)
-Google requires a support email for the OAuth consent screen. This email must be associated with an active Google account or Google Workspace account.
-
-**Option A: Create a New Google Account for Support Email**
-1. Go to [accounts.google.com](https://accounts.google.com) and create a new account
-2. Use your desired support email (e.g., `support@yourdomain.com`)
-3. Complete the account verification process
-4. **Important:** This account must be active and accessible
-
-**Option B: Use Existing Google Workspace Account**
-If you have Google Workspace, use an admin email from your workspace.
-
-##### Step 3: Add Support Email to IAM (Required)
-1. In Google Cloud Console, go to "IAM & Admin" → "IAM"
-2. Click "Add" → "Add another principal"
-3. Enter your support email address
-4. Assign the **"Owner"** role (or at minimum "Editor" role)
-5. Click "Save"
-6. **Wait 5-10 minutes** for IAM changes to propagate
-
-**Why Owner Role?** Google requires the support email to have sufficient permissions to manage the OAuth consent screen. The Owner role ensures full access.
-
-##### Step 4: Log In with Support Email
-1. Sign out of Google Cloud Console
-2. Sign in using your support email account
-3. Verify you can access the project and see it in the project selector
-
-##### Step 5: Configure OAuth Consent Screen
-1. In Google Cloud Console, go to "APIs & Services" → "OAuth consent screen"
-2. Choose "External" user type (unless you have Google Workspace)
-3. Fill in the required information:
-   - **App name**: Your application name
-   - **User support email**: Select your support email from the dropdown
-   - **Developer contact information**: Your support email
-4. Add scopes (typically `email` and `profile`)
-5. Add test users if needed
-6. Click "Save and Continue" through all sections
-
-**Troubleshooting Support Email Dropdown:**
-- If your support email doesn't appear in the dropdown, wait 10-15 minutes for IAM propagation
-- Ensure you're logged in with the correct account
-- Verify the email has Owner/Editor role in IAM
-- Try refreshing the page
-
-##### Step 6: Enable Required APIs
-1. Go to "APIs & Services" → "Library"
-2. Search for and enable these APIs:
-   - Google+ API (or Google Identity API)
-   - Google OAuth2 API
-
-##### Step 7: Create OAuth 2.0 Client
-1. Go to "APIs & Services" → "Credentials"
-2. Click "Create Credentials" → "OAuth 2.0 Client IDs"
-3. Application type: "Web application"
-4. Name: Your application name
-5. **Authorized redirect URIs**: `https://yourdomain.com/auth/oauth/google/callback`
-6. **Authorized JavaScript origins**: Can be left empty for server-side OAuth
-7. Click "Create"
-8. Note down the Client ID and Client Secret
-
-**Important Notes:**
-- Only the redirect URI is required for server-side OAuth flows
-- JavaScript origins are only needed for client-side OAuth
-- Keep your Client Secret secure - it will only be shown once
-
-#### GitHub OAuth Setup
-
-1. Go to GitHub Settings → Developer settings → OAuth Apps
+#### GitHub OAuth App
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click "New OAuth App"
-3. Application name: Your app name
-4. Homepage URL: `https://yourdomain.com`
-5. Authorization callback URL: `https://yourdomain.com/auth/oauth/github/callback`
-6. Note down the Client ID and Client Secret
+3. Set Application name and Homepage URL
+4. Set Authorization callback URL: `https://yourdomain.com/auth/oauth/github/callback`
+5. Copy the Client ID and Client Secret
 
-### 2. Configure Repository Secrets
+#### Other Providers
+Follow similar steps for other providers, ensuring the redirect URI follows the pattern:
+`https://yourdomain.com/auth/oauth/{provider}/callback`
 
-Add your OAuth credentials as GitHub repository secrets:
+**Note:** If you have multiple domains, you'll need to add the redirect URI for each domain to your OAuth app configuration. For example:
+- `https://leetrepeat.com/auth/oauth/google/callback`
+- `https://myapp.com/auth/oauth/google/callback`
+- `https://anotherdomain.com/auth/oauth/google/callback`
 
-1. Go to your GitHub repository
-2. Navigate to Settings → Secrets and variables → Actions
-3. Click on the "Secrets" tab
-4. Add secrets using the naming convention: `{PROJECT}_{PROVIDER}_OAUTH_CLIENT_ID` and `{PROJECT}_{PROVIDER}_OAUTH_CLIENT_SECRET`
+### 2. Add Repository Secrets
 
-#### Example Configuration
+Add the OAuth credentials as GitHub repository secrets:
 
-For a project with domain `leetrepeat.com`, add these secrets:
+1. Go to your repository → Settings → Secrets and variables → Actions
+2. Add the following secrets (replace `YOURPROJECT` with your project name):
 
+**Required secrets:**
 ```
-LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
-LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-your-secret-here
-LEETREPEAT_GITHUB_OAUTH_CLIENT_ID=1234567890abcdef1234
-LEETREPEAT_GITHUB_OAUTH_CLIENT_SECRET=abcdef1234567890your-secret-here
-```
-
-#### Naming Convention
-
-- **Project Name**: Extracted from your domain (e.g., "leetrepeat" from "leetrepeat.com")
-- **Provider**: "GOOGLE" or "GITHUB" (uppercase)
-- **Suffix**: "_OAUTH_CLIENT_ID" or "_OAUTH_CLIENT_SECRET"
-
-Examples:
-- `MYAPP_GOOGLE_OAUTH_CLIENT_ID`
-- `MYAPP_GOOGLE_OAUTH_CLIENT_SECRET`
-- `MYAPP_GITHUB_OAUTH_CLIENT_ID`
-- `MYAPP_GITHUB_OAUTH_CLIENT_SECRET`
-
-### 3. Deploy with OAuth Configuration
-
-When you run the deployment workflow:
-
-1. The workflow automatically checks for OAuth credentials as environment variables
-2. Providers with missing credentials are skipped with a log message
-3. Configured providers are set up in the database
-4. OAuth endpoints become available immediately after deployment
-
-**Note:** Repository secrets are automatically available as environment variables during deployment, so no additional configuration is needed.
-
-### 4. Test OAuth Integration
-
-After deployment, test your OAuth flows:
-
-```bash
-# Test Google OAuth (if configured)
-curl "https://yourdomain.com/auth/oauth/authorize?provider=google"
-
-# Test GitHub OAuth (if configured)
-curl "https://yourdomain.com/auth/oauth/authorize?provider=github"
+YOURPROJECT_GOOGLE_OAUTH_CLIENT_ID
+YOURPROJECT_GOOGLE_OAUTH_CLIENT_SECRET
+YOURPROJECT_GITHUB_OAUTH_CLIENT_ID
+YOURPROJECT_GITHUB_OAUTH_CLIENT_SECRET
 ```
 
-## Common Challenges and Solutions
+**Optional secrets:**
+```
+YOURPROJECT_GOOGLE_OAUTH_SCOPES
+YOURPROJECT_GITHUB_OAUTH_SCOPES
+YOURPROJECT_GOOGLE_OAUTH_ENABLED
+YOURPROJECT_GITHUB_OAUTH_ENABLED
+```
 
-### Google OAuth Consent Screen Issues
+**Example:** For domain `leetrepeat.com`, use `LEETREPEAT_` as the prefix:
+```
+LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID
+LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET
+LEETREPEAT_GITHUB_OAUTH_CLIENT_ID
+LEETREPEAT_GITHUB_OAUTH_CLIENT_SECRET
+```
 
-**Problem:** Support email not appearing in dropdown
-- **Solution:** Ensure the email has Owner/Editor role in IAM and wait 10-15 minutes for propagation
-- **Alternative:** Use a Gmail address temporarily, then change it later
+### 3. Deploy
 
-**Problem:** "Email not associated with active account" error
-- **Solution:** Create a Google account for your support email and verify it's active
-- **Alternative:** Use an existing Google Workspace admin email
+The OAuth providers will be automatically configured during deployment. The system will:
 
-**Problem:** Cannot access OAuth consent screen
-- **Solution:** Log in with the support email account that has IAM permissions
+1. **Discover all domains** from your R2 storage
+2. **Scan all environment variables** for OAuth-related secrets
+3. **Discover available providers** based on the naming convention
+4. **Configure each domain** with the discovered OAuth providers
+5. **Validate the configuration** for each provider and domain
+6. **Enable the OAuth endpoints** for all domains
 
-### IAM Permission Issues
+### 4. Verify Configuration
 
-**Problem:** Support email cannot be added to IAM
-- **Solution:** Ensure you're using the project owner account to add IAM members
+After deployment, you can verify the OAuth configuration by:
 
-**Problem:** IAM changes not taking effect
-- **Solution:** Wait 5-10 minutes for propagation, then refresh the page
+1. Checking the deployment logs for OAuth configuration messages
+2. Testing the OAuth authorization URL for each domain: `https://yourdomain.com/auth/oauth/authorize?provider=google`
+3. Using the API to list configured providers: `GET /auth/oauth/providers`
 
-### OAuth Client Creation Issues
+## API Endpoints
 
-**Problem:** Redirect URI validation errors
-- **Solution:** Ensure the URI exactly matches your domain and callback path
+Once configured, the following OAuth endpoints become available for **all domains**:
 
-**Problem:** Client Secret not shown after creation
-- **Solution:** You'll need to regenerate the client secret - this is normal Google security
+### OAuth Authorization
+```
+GET /auth/oauth/authorize?provider={provider}&redirect_uri={redirect_uri}
+```
+Initiates OAuth flow for the specified provider.
+
+### OAuth Callback
+```
+GET /auth/oauth/{provider}/callback?code={code}&state={state}
+```
+Handles OAuth callback from the provider.
+
+### List OAuth Providers
+```
+GET /auth/oauth/providers
+```
+Returns list of configured OAuth providers.
+
+### Link OAuth Account
+```
+POST /auth/oauth/link
+{
+  "provider": "google",
+  "access_token": "token_from_provider"
+}
+```
+Links an OAuth account to an existing user account.
+
+### Unlink OAuth Account
+```
+DELETE /auth/oauth/unlink
+{
+  "provider": "google"
+}
+```
+Unlinks an OAuth account from a user account.
 
 ## Security Considerations
 
-- **Repository Secrets**: OAuth credentials are stored securely as GitHub secrets
-- **Automatic Configuration**: No manual database setup required
-- **Graceful Degradation**: Missing credentials don't break deployment
-- **HTTPS Only**: All redirect URIs use HTTPS
-- **State Tokens**: All OAuth flows use state tokens to prevent CSRF attacks
+### 1. State Parameter
+The system automatically generates and validates state parameters to prevent CSRF attacks.
 
-## Deployment Logs
+### 2. PKCE Support
+For public clients, the system supports PKCE (Proof Key for Code Exchange) for enhanced security.
 
-During deployment, you'll see logs like:
+### 3. Token Validation
+All OAuth tokens are validated against the provider before being accepted.
 
-```
-🔗 Configuring OAuth providers for domain: leetrepeat.com (project: leetrepeat)
+### 4. Scope Validation
+The system validates requested scopes against allowed scopes for each provider.
 
-🔍 Checking google OAuth credentials...
-✅ Found google OAuth credentials
-🔧 Configuring google...
-✅ google configured successfully
+### 5. Rate Limiting
+OAuth endpoints are subject to the same rate limiting as other authentication endpoints.
 
-🔍 Checking github OAuth credentials...
-⚠️  Skipping github - credentials not found
-   Expected secrets: LEETREPEAT_GITHUB_OAUTH_CLIENT_ID, LEETREPEAT_GITHUB_OAUTH_CLIENT_SECRET
-
-🎉 OAuth provider configuration complete!
-Configured providers: google
-```
+### 6. Domain Isolation
+Each domain has its own OAuth configuration and user accounts, ensuring complete isolation.
 
 ## Troubleshooting
 
-### Missing Credentials
-If a provider is skipped, check that you've added the correct repository secrets:
-- Verify the project name matches your domain
+### Provider Not Discovered
+- Check that the environment variable names follow the exact convention
 - Ensure both CLIENT_ID and CLIENT_SECRET are set
-- Check that the secret names are in uppercase
+- Verify the project name in the variable name matches the domain prefix (e.g., `leetrepeat` for `leetrepeat.com`)
+- The system extracts the project name from the domain automatically (e.g., `leetrepeat.com` → `LEETREPEAT_` prefix)
+
+### OAuth Flow Fails
+- Verify the redirect URI in your OAuth app matches exactly
+- Check that the provider is enabled in the database
+- Review the deployment logs for configuration errors
+- Ensure the redirect URI is added for all your domains
 
 ### Invalid Credentials
-If OAuth authentication fails:
-- Verify your OAuth app configuration
-- Check that redirect URIs match exactly
-- Ensure the OAuth app is properly configured with the provider
+- Ensure the client ID and secret are correct
+- Check that the OAuth app is properly configured
+- Verify the app is approved and active
 
-### Provider-Specific Issues
-- **Google:** Ensure Google+ API is enabled and support email is properly configured
-- **GitHub:** Check OAuth app permissions
+### Custom Scopes Not Working
+- Ensure the scopes are valid for the provider
+- Check that your OAuth app has permission for the requested scopes
+- Verify the scopes are properly formatted
 
-## API Reference
+### Multi-Domain Issues
+- Ensure all domains are properly registered in R2
+- Check that OAuth apps have redirect URIs for all domains
+- Verify that the same OAuth credentials work across all domains
 
-Once configured, OAuth providers are available via these endpoints:
+## Advanced Configuration
 
-- `GET /auth/oauth/authorize?provider={provider}` - Start OAuth flow
-- `GET /auth/oauth/{provider}/callback` - Handle OAuth callback
-- `POST /auth/oauth/link` - Link OAuth account to existing user
-- `POST /auth/oauth/unlink` - Unlink OAuth account
-- `GET /auth/oauth/accounts` - Get user's linked OAuth accounts
+### Custom Provider Configuration
+For providers not in the default list, you can specify custom scopes:
 
-See the main README.md for detailed API documentation. 
+```
+YOURPROJECT_CUSTOM_OAUTH_SCOPES=openid email profile custom_scope
+```
 
-## Provider Setup
+### Disabling Providers
+To disable a provider without removing the secrets:
 
-### Google OAuth Setup
+```
+YOURPROJECT_GOOGLE_OAUTH_ENABLED=false
+```
 
-1. **Create Google OAuth 2.0 Client:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-   - Enable the Google+ API
-   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
-   - Application type: "Web application"
-   - Authorized redirect URIs: `https://yourdomain.com/auth/oauth/google/callback`
+### Multiple Redirect URIs
+The system automatically generates redirect URIs based on your domains. If you need multiple domains, you'll need to configure them in your OAuth app settings.
 
-2. **Get Credentials:**
-   - Client ID: `123456789-abcdef.apps.googleusercontent.com`
-   - Client Secret: `GOCSPX-your-secret-here`
+## Monitoring and Logs
 
-### GitHub OAuth Setup
+OAuth-related activities are logged and can be monitored through:
 
-1. **Create GitHub OAuth App:**
-   - Go to GitHub Settings → Developer settings → OAuth Apps
-   - Click "New OAuth App"
-   - Application name: Your app name
-   - Homepage URL: `https://yourdomain.com`
-   - Authorization callback URL: `https://yourdomain.com/auth/oauth/github/callback`
+1. **Deployment logs** - OAuth configuration status for all domains
+2. **Application logs** - OAuth flow events and errors
+3. **Database queries** - OAuth provider and account data per domain
 
-2. **Get Credentials:**
-   - Client ID: `1234567890abcdef1234`
-   - Client Secret: `abcdef1234567890...` 
+## Support
+
+For issues with OAuth configuration:
+
+1. Check the deployment logs for error messages
+2. Verify your OAuth app configuration
+3. Test the OAuth flow manually for each domain
+4. Review the security considerations above
+
+The system is designed to be self-healing and will automatically retry failed configurations on subsequent deployments. 

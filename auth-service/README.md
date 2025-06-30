@@ -19,7 +19,7 @@ A centralized authentication microservice built with Cloudflare Workers and D1 d
 - 📧 **Email Verification**: Email verification system with secure tokens
 - 🔑 **Password Reset**: Secure password reset with time-limited tokens
 - 📨 **Email Service**: Integrated email sending via Brevo
-- 🔗 **OAuth SSO**: Single Sign-On support for Google and GitHub
+- 🔗 **OAuth SSO**: Dynamic Single Sign-On support for any OAuth 2.0 provider
 
 ## Architecture
 
@@ -1085,27 +1085,61 @@ If you need to set up webhooks manually:
 
 ## OAuth SSO Integration
 
-The auth-service includes comprehensive OAuth 2.0/OpenID Connect support for Single Sign-On (SSO) with Google and GitHub.
+The auth-service includes comprehensive OAuth 2.0/OpenID Connect support for Single Sign-On (SSO) with **dynamic provider discovery**. The system can work with any OAuth provider without requiring code changes.
 
-### Supported Providers
+### Dynamic Provider Discovery
 
-- **Google OAuth 2.0** - Most common for consumer applications
-- **GitHub OAuth** - Popular for developer tools and open source projects
-
-### Configuration
-
-OAuth providers are automatically configured during deployment using GitHub repository secrets with the naming convention:
+The system automatically discovers and configures OAuth providers by scanning environment variables with a specific naming convention:
 
 ```
 {PROJECT}_{PROVIDER}_OAUTH_CLIENT_ID
 {PROJECT}_{PROVIDER}_OAUTH_CLIENT_SECRET
 ```
 
-Example for domain `leetrepeat.com`:
+**Examples:**
 - `LEETREPEAT_GOOGLE_OAUTH_CLIENT_ID`
-- `LEETREPEAT_GOOGLE_OAUTH_CLIENT_SECRET`
-- `LEETREPEAT_GITHUB_OAUTH_CLIENT_ID`
 - `LEETREPEAT_GITHUB_OAUTH_CLIENT_SECRET`
+- `MYAPP_DISCORD_OAUTH_CLIENT_ID`
+- `MYAPP_SLACK_OAUTH_CLIENT_SECRET`
+
+### Supported Providers
+
+The system can work with **any OAuth provider** that follows OAuth 2.0 standards. Common providers include:
+
+- **Google** - Google OAuth 2.0
+- **GitHub** - GitHub OAuth App
+- **Microsoft** - Microsoft Identity Platform
+- **Facebook** - Facebook Login
+- **LinkedIn** - LinkedIn OAuth 2.0
+- **Twitter/X** - Twitter OAuth 2.0
+- **Discord** - Discord OAuth 2.0
+- **Slack** - Slack OAuth
+- **GitLab** - GitLab OAuth
+- **Bitbucket** - Bitbucket OAuth
+- **Custom** - Any OAuth 2.0 compliant provider
+
+### Optional Configuration
+
+You can also set optional environment variables for each provider:
+
+```
+{PROJECT}_{PROVIDER}_OAUTH_SCOPES     # Custom scopes (optional)
+{PROJECT}_{PROVIDER}_OAUTH_ENABLED    # Set to "false" to disable (optional)
+```
+
+**Examples:**
+- `LEETREPEAT_GOOGLE_OAUTH_SCOPES=openid email profile https://www.googleapis.com/auth/calendar`
+- `LEETREPEAT_GITHUB_OAUTH_ENABLED=false`
+
+### Configuration
+
+OAuth providers are automatically configured during deployment. The system will:
+
+1. **Scan all environment variables** for OAuth-related secrets
+2. **Discover available providers** based on the naming convention
+3. **Validate the configuration** for each provider
+4. **Configure the database** with the OAuth provider settings
+5. **Enable the OAuth endpoints** for discovered providers
 
 Providers with missing credentials are gracefully skipped during deployment.
 
@@ -1162,6 +1196,7 @@ Once configured, OAuth providers are available via these endpoints:
 - `POST /auth/oauth/link` - Link OAuth account to existing user
 - `POST /auth/oauth/unlink` - Unlink OAuth account
 - `GET /auth/oauth/accounts` - Get user's linked OAuth accounts
+- `GET /auth/oauth/providers` - List configured OAuth providers
 
 ### Example Usage
 
@@ -1171,6 +1206,9 @@ curl "https://yourdomain.com/auth/oauth/authorize?provider=google"
 
 # Start GitHub OAuth flow
 curl "https://yourdomain.com/auth/oauth/authorize?provider=github"
+
+# List configured providers
+curl "https://yourdomain.com/auth/oauth/providers"
 ```
 
 ### Error Handling
@@ -1193,3 +1231,4 @@ curl "https://yourdomain.com/auth/oauth/authorize?provider=github"
 - **CSRF Protection** - Optional CSRF tokens for linking/unlinking
 - **Secure Token Storage** - OAuth tokens are stored securely
 - **Domain Isolation** - Each domain has separate OAuth configurations
+- **Dynamic Discovery** - Only providers with valid credentials are enabled

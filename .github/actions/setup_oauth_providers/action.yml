@@ -11,9 +11,6 @@ inputs:
   auth_db_id:
     description: 'Auth Database ID'
     required: true
-  domain:
-    description: 'Domain to configure OAuth providers for'
-    required: true
 
 runs:
   using: 'composite'
@@ -32,12 +29,56 @@ runs:
         cd auth-service
         npm ci
 
-    - name: Configure OAuth Providers
+    - name: Install jq
+      shell: bash
+      run: |
+        if ! command -v jq &> /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y jq
+        fi
+
+    - name: Get domain mappings from R2
+      id: get-mappings
+      shell: bash
+      run: |
+        # Get current mappings from R2
+        MAPPINGS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${{ inputs.cloudflare_account_id }}/r2/buckets/domain-mappings/objects/mappings.json" \
+          -H "Authorization: Bearer ${{ inputs.cloudflare_api_token }}" \
+          -H "Content-Type: application/json")
+        
+        # Check if we got a valid response
+        if ! echo "$MAPPINGS_RESPONSE" | jq empty 2>/dev/null; then
+          echo "::error::Failed to retrieve domain mappings from R2"
+          echo "$MAPPINGS_RESPONSE"
+          exit 1
+        fi
+        
+        # Store the mappings
+        echo "mappings=$(echo "$MAPPINGS_RESPONSE" | jq -c '.')" >> $GITHUB_OUTPUT
+
+    - name: Configure OAuth Providers for All Domains
       shell: bash
       run: |
         cd auth-service
-        node scripts/configure-oauth-providers.js \
-          --domain "${{ inputs.domain }}" \
-          --auth-db-id "${{ inputs.auth_db_id }}" \
-          --cloudflare-account-id "${{ inputs.cloudflare_account_id }}" \
-          --cloudflare-api-token "${{ inputs.cloudflare_api_token }}" 
+        
+        # Parse the mappings from R2
+        MAPPINGS='${{ steps.get-mappings.outputs.mappings }}'
+        
+        echo "🔗 Configuring OAuth providers for domains:"
+        echo "$MAPPINGS" | jq -r '.[].domain' | while read -r domain; do
+          echo "  - $domain"
+        done
+        
+        # Configure OAuth for each domain
+        echo "$MAPPINGS" | jq -c '.[]' | while read -r mapping; do
+          DOMAIN=$(echo "$mapping" | jq -r '.domain')
+          
+          echo ""
+          echo "🔧 Configuring OAuth for domain: $DOMAIN"
+          
+          node scripts/configure-oauth-providers.js \
+            --domain "$DOMAIN" \
+            --auth-db-id "${{ inputs.auth_db_id }}" \
+            --cloudflare-account-id "${{ inputs.cloudflare_account_id }}" \
+            --cloudflare-api-token "${{ inputs.cloudflare_api_token }}"
+        done 
