@@ -17,16 +17,82 @@ The auth-service includes comprehensive OAuth 2.0/OpenID Connect support that is
 
 First, create OAuth applications with your chosen providers:
 
-#### Google OAuth 2.0
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable Google+ API
-4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
-5. Application type: "Web application"
-6. Authorized redirect URIs: `https://yourdomain.com/auth/oauth/google/callback`
-7. Note down the Client ID and Client Secret
+#### Google OAuth 2.0 Setup
 
-#### GitHub OAuth
+**Important:** Google OAuth setup requires careful attention to IAM permissions and support email configuration. Follow these steps precisely.
+
+##### Step 1: Create or Access Google Cloud Project
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Note your Project ID (you'll need this for IAM setup)
+
+##### Step 2: Set Up Support Email (Critical Step)
+Google requires a support email for the OAuth consent screen. This email must be associated with an active Google account or Google Workspace account.
+
+**Option A: Create a New Google Account for Support Email**
+1. Go to [accounts.google.com](https://accounts.google.com) and create a new account
+2. Use your desired support email (e.g., `support@yourdomain.com`)
+3. Complete the account verification process
+4. **Important:** This account must be active and accessible
+
+**Option B: Use Existing Google Workspace Account**
+If you have Google Workspace, use an admin email from your workspace.
+
+##### Step 3: Add Support Email to IAM (Required)
+1. In Google Cloud Console, go to "IAM & Admin" → "IAM"
+2. Click "Add" → "Add another principal"
+3. Enter your support email address
+4. Assign the **"Owner"** role (or at minimum "Editor" role)
+5. Click "Save"
+6. **Wait 5-10 minutes** for IAM changes to propagate
+
+**Why Owner Role?** Google requires the support email to have sufficient permissions to manage the OAuth consent screen. The Owner role ensures full access.
+
+##### Step 4: Log In with Support Email
+1. Sign out of Google Cloud Console
+2. Sign in using your support email account
+3. Verify you can access the project and see it in the project selector
+
+##### Step 5: Configure OAuth Consent Screen
+1. In Google Cloud Console, go to "APIs & Services" → "OAuth consent screen"
+2. Choose "External" user type (unless you have Google Workspace)
+3. Fill in the required information:
+   - **App name**: Your application name
+   - **User support email**: Select your support email from the dropdown
+   - **Developer contact information**: Your support email
+4. Add scopes (typically `email` and `profile`)
+5. Add test users if needed
+6. Click "Save and Continue" through all sections
+
+**Troubleshooting Support Email Dropdown:**
+- If your support email doesn't appear in the dropdown, wait 10-15 minutes for IAM propagation
+- Ensure you're logged in with the correct account
+- Verify the email has Owner/Editor role in IAM
+- Try refreshing the page
+
+##### Step 6: Enable Required APIs
+1. Go to "APIs & Services" → "Library"
+2. Search for and enable these APIs:
+   - Google+ API (or Google Identity API)
+   - Google OAuth2 API
+
+##### Step 7: Create OAuth 2.0 Client
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth 2.0 Client IDs"
+3. Application type: "Web application"
+4. Name: Your application name
+5. **Authorized redirect URIs**: `https://yourdomain.com/auth/oauth/google/callback`
+6. **Authorized JavaScript origins**: Can be left empty for server-side OAuth
+7. Click "Create"
+8. Note down the Client ID and Client Secret
+
+**Important Notes:**
+- Only the redirect URI is required for server-side OAuth flows
+- JavaScript origins are only needed for client-side OAuth
+- Keep your Client Secret secure - it will only be shown once
+
+#### GitHub OAuth Setup
+
 1. Go to GitHub Settings → Developer settings → OAuth Apps
 2. Click "New OAuth App"
 3. Application name: Your app name
@@ -89,6 +155,37 @@ curl "https://yourdomain.com/auth/oauth/authorize?provider=google"
 curl "https://yourdomain.com/auth/oauth/authorize?provider=github"
 ```
 
+## Common Challenges and Solutions
+
+### Google OAuth Consent Screen Issues
+
+**Problem:** Support email not appearing in dropdown
+- **Solution:** Ensure the email has Owner/Editor role in IAM and wait 10-15 minutes for propagation
+- **Alternative:** Use a Gmail address temporarily, then change it later
+
+**Problem:** "Email not associated with active account" error
+- **Solution:** Create a Google account for your support email and verify it's active
+- **Alternative:** Use an existing Google Workspace admin email
+
+**Problem:** Cannot access OAuth consent screen
+- **Solution:** Log in with the support email account that has IAM permissions
+
+### IAM Permission Issues
+
+**Problem:** Support email cannot be added to IAM
+- **Solution:** Ensure you're using the project owner account to add IAM members
+
+**Problem:** IAM changes not taking effect
+- **Solution:** Wait 5-10 minutes for propagation, then refresh the page
+
+### OAuth Client Creation Issues
+
+**Problem:** Redirect URI validation errors
+- **Solution:** Ensure the URI exactly matches your domain and callback path
+
+**Problem:** Client Secret not shown after creation
+- **Solution:** You'll need to regenerate the client secret - this is normal Google security
+
 ## Security Considerations
 
 - **Repository Secrets**: OAuth credentials are stored securely as GitHub secrets
@@ -132,7 +229,7 @@ If OAuth authentication fails:
 - Ensure the OAuth app is properly configured with the provider
 
 ### Provider-Specific Issues
-- **Google:** Ensure Google+ API is enabled
+- **Google:** Ensure Google+ API is enabled and support email is properly configured
 - **GitHub:** Check OAuth app permissions
 
 ## API Reference
